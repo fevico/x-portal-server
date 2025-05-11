@@ -9,140 +9,79 @@ datasource db {
 }
 
 model User {
-  id                BigInt      @id @default(autoincrement())
-  firstname         String
-  lastname          String
-  othername         String?
-  email             String      @unique
-  phone             String?     @unique
-  gender            Gender?
-  isActive          Boolean     @default(true)
-  emailVerifiedAt   DateTime?   @map("email_verified_at")
-  password          String
-  role              Role        @default(admin)
-  rememberToken     String?
-  createdAt         DateTime    @default(now()) @map("created_at")
-  updatedAt         DateTime    @updatedAt @map("updated_at")
-  permissionLinks   UserPermission[] // Explicit many-to-many with Permission
-  subRoleLinks      SubRoleUser[]    // Explicit many-to-many with SubRole
-  staffs            Staff[]          // One-to-many with Staff
-  students          Student[]        // One-to-many with Student
+  id              String    @id @default(uuid())
+  firstname       String
+  lastname        String
+  othername       String?
+  email           String    @unique
+  phone           String?   @unique
+  gender          Gender?
+  isActive        Boolean   @default(true)
+  emailVerifiedAt DateTime? @map("email_verified_at")
+  password        String
+  role            Role      @default(admin)
+  rememberToken   String?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  schoolId        String?   @map("school_id")
+  school          School?   @relation(fields: [schoolId], references: [id])
+  subRoleId       String?   @map("sub_role_id")
+  subRole         SubRole?  @relation(fields: [subRoleId], references: [id])
 
   @@map("users")
 }
 
-model Permission {
-  id              BigInt            @id @default(autoincrement())
-  name            String            @unique
-  userLinks       UserPermission[]  // Explicit many-to-many with User
-  subRoleLinks    PermissionSubRole[] // Explicit many-to-many with SubRole
-  createdAt       DateTime          @default(now()) @map("created_at")
-  updatedAt       DateTime          @updatedAt @map("updated_at")
-
-  @@map("permissions")
-}
-
-model UserPermission {
-  id           BigInt      @id @default(autoincrement())
-  userId       BigInt      @map("user_id")
-  permissionId BigInt      @map("permission_id")
-  user         User        @relation(fields: [userId], references: [id])
-  permission   Permission  @relation(fields: [permissionId], references: [id])
-  createdAt    DateTime    @default(now()) @map("created_at")
-
-  @@unique([userId, permissionId])
-  @@map("_PermissionToUser")
-}
-
-model PermissionSubRole {
-  id           BigInt      @id @default(autoincrement())
-  permissionId BigInt      @map("permission_id")
-  subRoleId    BigInt      @map("sub_role_id")
-  permission   Permission  @relation(fields: [permissionId], references: [id])
-  subRole      SubRole     @relation(fields: [subRoleId], references: [id])
-  createdAt    DateTime    @default(now()) @map("created_at")
-
-  @@unique([permissionId, subRoleId])
-  @@map("_PermissionToSubRole")
-}
-
-model SubRoleUser {
-  id           BigInt      @id @default(autoincrement())
-  subRoleId    BigInt      @map("sub_role_id")
-  userId       BigInt      @map("user_id")
-  subRole      SubRole     @relation(fields: [subRoleId], references: [id])
-  user         User        @relation(fields: [userId], references: [id])
-  createdAt    DateTime    @default(now()) @map("created_at")
-
-  @@unique([subRoleId, userId])
-  @@map("_SubRoleToUser")
-}
-
-model SubRole {
-  id              BigInt            @id @default(autoincrement())
-  name            String
-  schoolId        BigInt            @map("school_id")
-  school          School            @relation(fields: [schoolId], references: [id])
-  userLinks       SubRoleUser[]     // Explicit many-to-many with User
-  permissions     PermissionSubRole[] // Explicit many-to-many with Permission
-  createdAt       DateTime          @default(now()) @map("created_at")
-  updatedAt       DateTime          @updatedAt @map("updated_at")
-
-  @@map("sub_roles")
-}
-
 model School {
-  id                 BigInt      @id @default(autoincrement())
-  name               String
-  email              String      @unique
-  phoneNumber        String?     @map("phone_number")
-  subscriptionStatus SubscriptionStatus @default(inactive) @map("subscription_status")
-  createdAt          DateTime    @default(now()) @map("created_at")
-  updatedAt          DateTime    @updatedAt @map("updated_at")
-  staffs             Staff[]
-  students           Student[]
-  classes            Class[]
-  subRoles           SubRole[]
+  id        String    @id @default(uuid())
+  name      String    @unique
+  email     String    @unique
+  contact   String    @unique
+  isActive        Boolean   @default(true)
+  address   String?
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  users     User[]
+  subRoles  SubRole[]
 
   @@map("schools")
 }
 
-model Staff {
-  id        BigInt      @id @default(autoincrement())
-  userId    BigInt      @map("user_id")
-  schoolId  BigInt      @map("school_id")
-  school    School      @relation(fields: [schoolId], references: [id])
-  user      User        @relation(fields: [userId], references: [id])
-  createdAt DateTime    @default(now()) @map("created_at")
-  updatedAt DateTime    @updatedAt @map("updated_at")
+model Permission {
+  id          String              @id @default(uuid())
+  name        String              @unique
+  description String
+  subRoles    SubRolePermission[]
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
 
-  @@map("staffs")
+  @@map("permissions")
 }
 
-model Student {
-  id        BigInt      @id @default(autoincrement())
-  userId    BigInt      @map("user_id")
-  schoolId  BigInt      @map("school_id")
-  classId   BigInt?     @map("class_id")
-  school    School      @relation(fields: [schoolId], references: [id])
-  user      User        @relation(fields: [userId], references: [id])
-  class     Class?      @relation(fields: [classId], references: [id])
-  createdAt DateTime    @default(now()) @map("created_at")
-  updatedAt DateTime    @updatedAt @map("updated_at")
+model SubRole {
+  id          String              @id @default(uuid())
+  name        String
+  schoolId    String              @map("school_id")
+  school      School              @relation(fields: [schoolId], references: [id])
+  description String?
+  permissions SubRolePermission[]
+  users       User[]
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
 
-  @@map("students")
+  @@unique([name, schoolId]) // Ensure unique sub-role names per school @@map("sub_roles") 
 }
 
-model Class {
-  id        BigInt      @id @default(autoincrement())
-  name      String
-  schoolId  BigInt      @map("school_id")
-  school    School      @relation(fields: [schoolId], references: [id])
-  students  Student[]
-  createdAt DateTime    @default(now()) @map("created_at")
-  updatedAt DateTime    @updatedAt @map("updated_at")
+model SubRolePermission {
+  id           String     @id @default(uuid())
+  subRoleId    String     @map("sub_role_id")
+  permissionId String     @map("permission_id")
+  subRole      SubRole    @relation(fields: [subRoleId], references: [id])
+  permission   Permission @relation(fields: [permissionId], references: [id])
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
 
-  @@map("classes")
+  @@unique([subRoleId, permissionId])
+  @@map("sub_role_permissions")
 }
 
 enum Gender {
@@ -153,9 +92,4 @@ enum Gender {
 enum Role {
   admin
   superAdmin
-}
-
-enum SubscriptionStatus {
-  active
-  inactive
 }

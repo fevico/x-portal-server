@@ -1,89 +1,57 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { CreateAuthDto } from './dto/create-auth.dto';
-import { UpdateAuthDto } from './dto/update-auth.dto';
-import { PrismaService } from 'src/prisma/prisma.service';
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { UsersService } from '../users/users.service';
 import * as bcrypt from 'bcrypt';
-
+import { RegisterDto } from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
+import { User } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private prisma: PrismaService,
+    private usersService: UsersService,
     private jwtService: JwtService,
   ) {}
-  create(createAuthDto: CreateAuthDto) {
-    return 'This action adds a new auth';
-  }
 
-  async register(dto: RegisterDto) {
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
-    const user = await this.prisma.user.create({
-      data: {
-        firstname: dto.firstname,
-        lastname: dto.lastname,
-        email: dto.email,
+  async register(registerDto: RegisterDto, requester: User) {
+    const { email, password, ...rest } = registerDto;
+    const existingUser = await this.usersService.findByEmail(email);
+    if (existingUser) {
+      throw new ConflictException('Email already exists');
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = await this.usersService.create(
+      {
+        ...rest,
+        email,
         password: hashedPassword,
-        role: 'admin',
       },
-    });
+      requester, // Replace 'requester' with the appropriate User object
+    );
 
-    const payload = { sub: user.id, email: user.email, role: user.role };
-    const token = this.jwtService.sign(payload);
-
-    return { user, token };
+    return user;
   }
 
-  async login(dto: LoginDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { email: dto.email },
-      include: { permissions: true },
-    });
-
-    if (!user || !(await bcrypt.compare(dto.password, user.password))) {
+  async login(loginDto: LoginDto) {
+    const { email, password } = loginDto;
+    const user = await this.usersService.findByEmail(email);
+    if (!user || !user.isActive) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    if (!user.isActive) {
-      throw new UnauthorizedException('Account is disabled');
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid credentials');
     }
 
-    const payload = {
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-      permissions: user.permissions.map(p => p.name),
-    };
-    const token = this.jwtService.sign(payload);
+    const payload = { sub: user.id, email: user.email };
+    const token = this.jwtService.sign(payload, { expiresIn: '1d' });
 
     return { user, token };
-  }
-
-  verifyToken(token: string) {
-    try {
-      const payload = this.jwtService.verify(token);
-      return this.prisma.user.findUnique({
-        where: { id: BigInt(payload.sub) },
-        include: { permissions: true },
-      });
-    } catch {
-      return null;
-    }
-  }
-
-  findAll() {
-    return `This action returns all auth`;
-  }
-
-  findOne(id: number) {
-    return `This action returns a #${id} auth`;
-  }
-
-  update(id: number, updateAuthDto: UpdateAuthDto) {
-    return `This action updates a #${id} auth`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} auth`;
   }
 }
