@@ -1,12 +1,20 @@
-import { IsString, MinLength, IsOptional } from 'class-validator';
+// schools/dto/update-school.dto.ts
+import { IsString, IsEmail, IsOptional } from 'class-validator';
 
 export class UpdateSchoolDto {
   @IsString()
-  @MinLength(3)
   @IsOptional()
   name?: string;
 
+  @IsEmail()
+  @IsOptional()
+  email?: string;
+
   @IsString()
   @IsOptional()
-  address?: string;
+  contact?: string;
+
+  @IsString()
+  @IsOptional()
+  address?: string | null;
 }

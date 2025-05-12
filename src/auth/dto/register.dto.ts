@@ -24,9 +24,9 @@ export class RegisterDto {
   @IsOptional()
   phone?: string;
 
-  @IsEnum(['Male', 'Female'])
+  @IsEnum(['male', 'female'])
   @IsOptional()
-  gender?: 'Male' | 'Female';
+  gender?: 'male' | 'female';
 
   @IsString()
   @MinLength(6)

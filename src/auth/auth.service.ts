@@ -54,4 +54,17 @@ export class AuthService {
 
     return { user, token };
   }
+
+  async createViewAsToken(
+    userId: string,
+    viewAs: 'admin' | 'superAdmin',
+    schoolId: string,
+  ) {
+    const user = await this.usersService.findById(userId);
+    const payload = { sub: user.id, view_as: viewAs, schoolId };
+    return this.jwtService.sign(payload, {
+      secret: process.env.VIEW_AS_SECRET,
+      expiresIn: '24h',
+    });
+  }
 }

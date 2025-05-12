@@ -7,6 +7,10 @@ import {
   Param,
   Delete,
   UseGuards,
+  ForbiddenException,
+  NotFoundException,
+  Request,
+  Query,
 } from '@nestjs/common';
 import { SchoolsService } from './schools.service';
 import { CreateSchoolDto } from './dto/create-school.dto';
@@ -14,6 +18,9 @@ import { UpdateSchoolDto } from './dto/update-school.dto';
 import { RolesGuard } from '@/auth/guards/roles.guard';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guards';
 import { Roles } from '@/auth/decorators/auth.decorator';
+import { Request as RequestExpress } from 'express';
+import { AuthenticatedUser } from '@/types/express';
+import { PermissionsGuard } from '@/auth/guards/permissions.guard';
 
 @Controller('schools')
 // @UseGuards(JwtAuthGuard, RolesGuard)
@@ -21,28 +28,108 @@ import { Roles } from '@/auth/decorators/auth.decorator';
 export class SchoolsController {
   constructor(private readonly schoolsService: SchoolsService) {}
 
-  @Post('create')
-  create(@Body() createSchoolDto: CreateSchoolDto) {
-    return this.schoolsService.create(createSchoolDto);
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('superAdmin')
+  @Get('list')
+  async getSchools(
+    @Query('search') search: string,
+    @Query('page') page: string,
+    @Query('limit') limit: string,
+    @Request() req: RequestExpress,
+  ) {
+    const user = req.user as AuthenticatedUser;
+    if (user.role !== 'superAdmin') {
+      throw new ForbiddenException('Only superAdmin can access all schools');
+    }
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 5;
+    return this.schoolsService.getSchools({
+      search,
+      page: pageNum,
+      limit: limitNum,
+    });
   }
 
-  @Get()
-  findAll() {
-    return this.schoolsService.findAll();
-  }
-
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.schoolsService.findOne(id);
+  async getSchoolById(@Param('id') id: string, @Request() req: RequestExpress) {
+    const user = req.user as AuthenticatedUser;
+    if (user.role !== 'superAdmin' && user.schoolId !== id) {
+      throw new ForbiddenException('Unauthorized to access this school');
+    }
+    const school = await this.schoolsService.getSchoolById(id);
+    if (!school) {
+      throw new NotFoundException('School not found');
+    }
+    return school;
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('superAdmin')
+  @Post()
+  async createSchool(
+    @Body() createSchoolDto: CreateSchoolDto,
+    @Request() req: RequestExpress,
+  ) {
+    const user = req.user as AuthenticatedUser;
+    if (user.role !== 'superAdmin') {
+      throw new ForbiddenException('Only superAdmin can create schools');
+    }
+    return this.schoolsService.createSchool(createSchoolDto, user);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('superAdmin')
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateSchoolDto: UpdateSchoolDto) {
-    return this.schoolsService.update(id, updateSchoolDto);
+  async updateSchool(
+    @Param('id') id: string,
+    @Body() updateSchoolDto: UpdateSchoolDto,
+    @Request() req: RequestExpress,
+  ) {
+    const user = req.user as AuthenticatedUser;
+    if (user.role !== 'superAdmin') {
+      throw new ForbiddenException('Only superAdmin can update schools');
+    }
+    const school = await this.schoolsService.updateSchool(
+      id,
+      updateSchoolDto,
+      user,
+    );
+    if (!school) {
+      throw new NotFoundException('School not found');
+    }
+    return school;
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+  @Roles('superAdmin')
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.schoolsService.remove(id);
+  async deleteSchool(@Param('id') id: string, @Request() req: RequestExpress) {
+    const user = req.user as AuthenticatedUser;
+    if (user.role !== 'superAdmin') {
+      throw new ForbiddenException('Only superAdmin can delete schools');
+    }
+    await this.schoolsService.deleteSchool(id, user);
+    return { message: 'School deleted successfully' };
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('superAdmin')
+  @Patch(':id/toggle-active')
+  async toggleSchoolActive(
+    @Param('id') id: string,
+    @Request() req: RequestExpress,
+  ) {
+    const user = req.user as AuthenticatedUser;
+    if (user.role !== 'superAdmin') {
+      throw new ForbiddenException(
+        'Only superAdmin can toggle school active status',
+      );
+    }
+    const school = await this.schoolsService.toggleSchoolActive(id, user);
+    if (!school) {
+      throw new NotFoundException('School not found');
+    }
+    return school;
   }
 }

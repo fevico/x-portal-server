@@ -44,7 +44,7 @@ export class UsersService {
       othername?: string;
       email: string;
       phone?: string;
-      gender?: 'Male' | 'Female';
+      gender?: 'male' | 'female';
       password: string;
       role: 'admin' | 'superAdmin';
       schoolId?: string;

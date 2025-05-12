@@ -21,6 +21,7 @@ model User {
   password        String
   role            Role      @default(admin)
   rememberToken   String?
+  avatar          Json?    @map("avatar")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
   schoolId        String?   @map("school_id")
@@ -32,16 +33,19 @@ model User {
 }
 
 model School {
-  id        String    @id @default(uuid())
-  name      String    @unique
-  email     String    @unique
-  contact   String    @unique
-  isActive        Boolean   @default(true)
-  address   String?
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
-  users     User[]
-  subRoles  SubRole[]
+  id             String        @id @default(uuid())
+  name           String        @unique
+  email          String        @unique
+  contact        String        @unique
+  isActive       Boolean       @default(true)
+  address        String?
+  subscriptionId String?       @map("subscription_id")
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+  users          User[]
+  subRoles       SubRole[]
+  logo          Json?    @map("logo")
 
   @@map("schools")
 }
@@ -85,19 +89,21 @@ model SubRolePermission {
 }
 
 model Subscription {
-  id              String     @id @default(uuid())
-  name            String     @unique
-  student_limit   Int?
-  duration        DateTime
-  createdAt       DateTime   @default(now()) @map("created_at")
-  updatedAt       DateTime   @updatedAt @map("updated_at")
+  id            String   @id @default(uuid())
+  name          String   @unique
+  student_limit Int?
+  duration      Int
+  schools        School[]
+  isActive      Boolean @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   @@map("subscriptions")
 }
 
 enum Gender {
-  Male
-  Female
+  male
+  female
 }
 
 enum Role {
