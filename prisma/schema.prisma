@@ -85,8 +85,8 @@ model SubRolePermission {
 }
 
 enum Gender {
-  Male
-  Female
+  male
+  female
 }
 
 enum Role {

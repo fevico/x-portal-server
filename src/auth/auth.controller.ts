@@ -6,21 +6,23 @@ import {
   UseGuards,
   Get,
   Request,
-  Param,
   NotFoundException,
   ForbiddenException,
+  Patch,
+  Req,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-import { Response } from 'express';
+import { Request as RequestExpress, Response } from 'express';
 import { RolesGuard } from './guards/roles.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guards';
 import { Roles } from './decorators/auth.decorator';
 import { Permissions } from './decorators/permissions.decorator';
 import { PermissionsGuard } from './guards/permissions.guard';
-import { SwitchSchoolDto } from './dto/switch-school.dto';
 import { PrismaService } from '@/prisma/prisma.service';
+import { AuthenticatedUser } from '@/types/express';
+import { User } from '@prisma/client';
 // import { SubRolesService } from '@/sub-roles/sub-roles.service';
 
 @Controller('auth')
@@ -48,33 +50,19 @@ export class AuthController {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       maxAge: 24 * 60 * 60 * 1000, // 1 day
+      sameSite: 'lax',
     });
-    res.cookie('xtk_actual_role', user.role, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 24 * 60 * 60 * 1000,
-    });
-    res.cookie('xtk_view_as', user.role, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 24 * 60 * 60 * 1000,
-    });
-
-    if (user.role === 'admin' && user.schoolId) {
-      res.cookie('xtk_sid', user.schoolId, {
-        httpOnly: false, // Allow frontend access
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 24 * 60 * 60 * 1000,
-      });
-    }
-
-    return { message: 'Login successful', user };
+    const safeUser = { ...user } as User;
+    delete safeUser.password;
+    return { message: 'Login successful', safeUser };
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('profile')
   getProfile(@Request() req) {
-    return req.user;
+    const safeUser = { ...req.user } as User;
+    delete safeUser.password;
+    return safeUser;
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -137,57 +125,31 @@ export class AuthController {
   //   return this.subRoleService.update(userId, subRoleId, req.user);
   // }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('superAdmin')
-  @Post('switch-school/:schoolId')
-  async switchSchool(
-    @Param() switchSchoolDto: SwitchSchoolDto,
+  @UseGuards(JwtAuthGuard)
+  @Patch('set-view-as')
+  async setViewAs(
+    @Req() req: RequestExpress,
     @Res({ passthrough: true }) res: Response,
+    @Body() body: { view_as: 'admin' | 'superAdmin'; schoolId: string },
   ) {
-    const school = await this.prisma.school.findUnique({
-      where: { id: switchSchoolDto.schoolId },
-      include: {
-        users: { select: { id: true, firstname: true, lastname: true } },
-        subRoles: { select: { id: true, name: true } },
-      },
-    });
-
-    if (!school) {
-      throw new NotFoundException('School not found');
+    const user = req.user as AuthenticatedUser;
+    if (user.role !== 'superAdmin') {
+      throw new ForbiddenException('Only superAdmin can set view_as');
     }
-
-    res.cookie('view_as', 'admin', {
+    if (!['admin', 'superAdmin'].includes(body.view_as)) {
+      throw new ForbiddenException('Invalid view_as value');
+    }
+    const viewAsToken = await this.authService.createViewAsToken(
+      user.id,
+      body.view_as,
+      body.schoolId,
+    );
+    res.cookie('view_as_token', viewAsToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      maxAge: 24 * 60 * 60 * 1000,
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
     });
-    res.cookie('schoolId', switchSchoolDto.schoolId, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 24 * 60 * 60 * 1000,
-    });
-
-    return { message: 'Switched to school', school };
-  }
-
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('superAdmin')
-  @Post('switch-to-superadmin')
-  async switchToSuperAdmin(@Res({ passthrough: true }) res: Response) {
-    res.cookie('view_as', 'superAdmin', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 24 * 60 * 60 * 1000,
-    });
-    res.clearCookie('schoolId');
-
-    const schools = await this.prisma.school.findMany({
-      include: {
-        users: { select: { id: true, firstname: true, lastname: true } },
-        subRoles: { select: { id: true, name: true } },
-      },
-    });
-
-    return { message: 'Switched to superAdmin', schools };
+    return { view_as: body.view_as, schoolId: body.schoolId };
   }
 }
