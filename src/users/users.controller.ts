@@ -14,7 +14,7 @@ import { UsersService } from './users.service';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
-import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guards';
+import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guards';      
 import { Roles } from '@/auth/decorators/auth.decorator';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateSubRoleIdDto } from '@/sub-roles/dto/update-sub-role-id.dto';

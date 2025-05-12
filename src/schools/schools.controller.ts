@@ -16,12 +16,12 @@ import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guards';
 import { Roles } from '@/auth/decorators/auth.decorator';
 
 @Controller('schools')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('superAdmin')
+// @UseGuards(JwtAuthGuard, RolesGuard)
+// @Roles('superAdmin')
 export class SchoolsController {
   constructor(private readonly schoolsService: SchoolsService) {}
 
-  @Post()
+  @Post('create')
   create(@Body() createSchoolDto: CreateSchoolDto) {
     return this.schoolsService.create(createSchoolDto);
   }

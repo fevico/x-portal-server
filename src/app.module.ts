@@ -9,6 +9,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { PermissionsModule } from './permissions/permissions.module';
 import { SubRolesModule } from './sub-roles/sub-roles.module';
 import { SchoolsModule } from './schools/schools.module';
+import { SubscriptionModule } from './subscription/subscription.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { SchoolsModule } from './schools/schools.module';
     PermissionsModule,
     SubRolesModule,
     SchoolsModule,
+    SubscriptionModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -16,11 +16,14 @@ export class SchoolsService {
       where: { name: createSchoolDto.name },
     });
     if (existing) throw new ConflictException('School name already exists');
-    return this.prisma.school.create({ data: createSchoolDto });
+    const school = await this.prisma.school.create({ data: createSchoolDto });
+    return { data: createSchoolDto, statusCode: 200, message: 'School created' };
   }
 
   async findAll() {
-    return this.prisma.school.findMany();
+    const schools = await this.prisma.school.findMany();
+    if(!schools) throw new NotFoundException('No schools found');
+    return schools;
   }
 
   async findOne(id: string) {

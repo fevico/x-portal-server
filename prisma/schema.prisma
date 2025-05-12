@@ -84,6 +84,17 @@ model SubRolePermission {
   @@map("sub_role_permissions")
 }
 
+model Subscription {
+  id              String     @id @default(uuid())
+  name            String     @unique
+  student_limit   Int?
+  duration        DateTime
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+
+  @@map("subscriptions")
+}
+
 enum Gender {
   Male
   Female

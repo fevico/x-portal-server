@@ -34,7 +34,7 @@ export class UsersService {
 
     const permissions =
       user.subRole?.permissions.map((p) => p.permission.name) || [];
-    return { ...user, permissions };
+    return { ...user, permissions }; 
   }
 
   async create(
@@ -48,9 +48,9 @@ export class UsersService {
       password: string;
       role: 'admin' | 'superAdmin';
       schoolId?: string;
-      subRoleId?: string;
+      subRoleId?: string;                      
     },
-    requester: User,
+    requester: User,     
   ): Promise<User> {
     if (data.role !== 'superAdmin' && !data.schoolId) {
       throw new ForbiddenException(

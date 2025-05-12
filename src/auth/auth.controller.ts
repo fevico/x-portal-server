@@ -126,17 +126,6 @@ export class AuthController {
     return { school };
   }
 
-  // @UseGuards(JwtAuthGuard, PermissionsGuard)
-  // @Permissions('MANAGE_SUBROLES')
-  // @Patch('assign-subrole/:userId/:subRoleId')
-  // async assignSubRole(
-  //   @Param('userId') userId: string,
-  //   @Param('subRoleId') subRoleId: string,
-  //   @Request() req,
-  // ) {
-  //   return this.subRoleService.update(userId, subRoleId, req.user);
-  // }
-
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('superAdmin')
   @Post('switch-school/:schoolId')
