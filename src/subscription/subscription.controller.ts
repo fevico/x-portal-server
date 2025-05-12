@@ -3,10 +3,10 @@ import { SubscriptionService } from './subscription.service';
 
 @Controller('subscription')
 export class SubscriptionController {
-    constructor(private readonly subscriptionService: SubscriptionService){}
+  constructor(private readonly subscriptionService: SubscriptionService) {}
 
-    @Post("create")
-    async createSubscription() {
-        return this.subscriptionService.createSubscription();
-    }
+  @Post('create')
+  async createSubscription() {
+    return this.subscriptionService.createSubscription();
+  }
 }

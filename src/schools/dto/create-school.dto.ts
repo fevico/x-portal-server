@@ -24,6 +24,4 @@ export class CreateSchoolDto {
   @IsString()
   @IsOptional()
   subscriptionStatus?: string;
-
-
 }

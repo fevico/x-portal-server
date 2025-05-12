@@ -5,8 +5,5 @@ import { Injectable } from '@nestjs/common';
 export class SubscriptionService {
   constructor(private prisma: PrismaService) {}
 
-
-    async createSubscription(){
-
-    }
+  async createSubscription() {}
 }
