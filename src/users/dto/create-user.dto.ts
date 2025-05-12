@@ -1,12 +1,12 @@
 import {
-  IsEmail,
   IsString,
-  MinLength,
+  IsEmail,
   IsOptional,
   IsEnum,
+  MinLength,
 } from 'class-validator';
 
-export class RegisterDto {
+export class CreateUserDto {
   @IsString()
   firstname: string;
 
@@ -34,4 +34,12 @@ export class RegisterDto {
 
   @IsEnum(['admin', 'superAdmin'])
   role: 'admin' | 'superAdmin';
+
+  @IsString()
+  @IsOptional()
+  schoolId?: string;
+
+  @IsString()
+  @IsOptional()
+  subRoleId?: string;
 }

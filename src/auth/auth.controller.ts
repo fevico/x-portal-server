@@ -1,182 +1,193 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, ForbiddenException, Req, Res, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Res,
+  UseGuards,
+  Get,
+  Request,
+  Param,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { CreateAuthDto } from './dto/create-auth.dto';
-import { UpdateAuthDto } from './dto/update-auth.dto';
-import { SchoolService } from 'src/school/school.service';
+import { RegisterDto } from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
+import { Response } from 'express';
+import { RolesGuard } from './guards/roles.guard';
+import { JwtAuthGuard } from './guards/jwt-auth.guards';
+import { Roles } from './decorators/auth.decorator';
+import { Permissions } from './decorators/permissions.decorator';
+import { PermissionsGuard } from './guards/permissions.guard';
+import { SwitchSchoolDto } from './dto/switch-school.dto';
+import { PrismaService } from '@/prisma/prisma.service';
+// import { SubRolesService } from '@/sub-roles/sub-roles.service';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService
-    private readonly schoolService: SchoolService
+  constructor(
+    private authService: AuthService,
+    private prisma: PrismaService,
+    // private subRoleService: SubRolesService,
   ) {}
 
-  @Post('create')
-  create(@Body() createAuthDto: CreateAuthDto) {
-    return this.authService.create(createAuthDto);
-  }
-
+  @UseGuards(JwtAuthGuard)
   @Post('register')
-  async register(@Body() dto: RegisterDto, @Res() res: Response) {
-    const { user, token } = await this.authService.register(dto);
-
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 24 * 60 * 60 * 1000, // 1 day
-    });
-
-    res.cookie('actual_role', user.role, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 24 * 60 * 60 * 1000,
-    });
-
-    res.cookie('view_as', user.role, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 24 * 60 * 60 * 1000,
-    });
-
-    res.cookie('school_id', '', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 24 * 60 * 60 * 1000,
-    });
-
-    return res.json({ success: true, user: { id: user.id, email: user.email } });
+  async register(@Body() registerDto: RegisterDto, @Request() req) {
+    return this.authService.register(registerDto, req.user);
   }
 
   @Post('login')
-  async login(@Body() dto: LoginDto, @Res() res: Response) {
-    const { user, token } = await this.authService.login(dto);
+  async login(
+    @Body() loginDto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { user, token } = await this.authService.login(loginDto);
 
     res.cookie('xtk', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 24 * 60 * 60 * 1000,
+      maxAge: 24 * 60 * 60 * 1000, // 1 day
     });
-
-    res.cookie('actual_role', user.role, {
+    res.cookie('xtk_actual_role', user.role, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
       maxAge: 24 * 60 * 60 * 1000,
     });
-
-    res.cookie('view_as', user.role, {
+    res.cookie('xtk_view_as', user.role, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
       maxAge: 24 * 60 * 60 * 1000,
     });
 
-    res.cookie('school_id', '', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 24 * 60 * 60 * 1000,
-    });
-
-    return res.json({ success: true, user: { id: user.id, email: user.email } });
-  }
-
-  @Get('me')
-  @UseGuards(JwtAuthGuard)
-  async getMe(@Req() req: Request) {
-    const token = req.cookies['token'];
-    const actualRole = req.cookies['actual_role'];
-    const viewAs = req.cookies['view_as'];
-    const schoolId = req.cookies['school_id'];
-
-    const user = await this.authService.verifyToken(token);
-    if (!user) throw new UnauthorizedException();
-
-    return {
-      id: user.id,
-      email: user.email,
-      actual_role: actualRole,
-      view_as: viewAs,
-      school_id: schoolId,
-      permissions: user.permissions.map(p => p.name),
-    };
-  }
-
-  @Post('switch-view')
-  @UseGuards(JwtAuthGuard)
-  async switchView(@Req() req: Request, @Res() res: Response, @Body() body: { schoolId: number }) {
-    const actualRole = req.cookies['actual_role'];
-    if (actualRole !== 'superAdmin') {
-      throw new ForbiddenException('Not authorized');
+    if (user.role === 'admin' && user.schoolId) {
+      res.cookie('xtk_sid', user.schoolId, {
+        httpOnly: false, // Allow frontend access
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 24 * 60 * 60 * 1000,
+      });
     }
 
-    const school = await this.schoolService.findById(body.schoolId);
-    if (!school) throw new BadRequestException('Invalid school');
+    return { message: 'Login successful', user };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('profile')
+  getProfile(@Request() req) {
+    return req.user;
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('superAdmin')
+  @Get('admin-only')
+  adminOnly() {
+    return { message: 'This is an admin-only route' };
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('MANAGE_USERS')
+  @Get('manage-users')
+  manageUsers() {
+    return { message: 'This route requires MANAGE_USERS permission' };
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('VIEW_REPORTS')
+  @Get('school-info')
+  async schoolInfo(@Request() req) {
+    if (req.user.role === 'superAdmin') {
+      const schools = await this.prisma.school.findMany({
+        include: {
+          users: { select: { id: true, firstname: true, lastname: true } },
+          subRoles: { select: { id: true, name: true } },
+        },
+      });
+      return { message: 'SuperAdmin view of all schools', schools };
+    }
+
+    if (!req.user.schoolId || !req.user.subRoleId) {
+      throw new ForbiddenException(
+        'User must be associated with a school and sub-role',
+      );
+    }
+
+    const school = await this.prisma.school.findUnique({
+      where: { id: req.user.schoolId },
+      include: {
+        users: { select: { id: true, firstname: true, lastname: true } },
+        subRoles: { select: { id: true, name: true } },
+      },
+    });
+
+    if (!school) {
+      throw new NotFoundException('School not found');
+    }
+
+    return { school };
+  }
+
+  // @UseGuards(JwtAuthGuard, PermissionsGuard)
+  // @Permissions('MANAGE_SUBROLES')
+  // @Patch('assign-subrole/:userId/:subRoleId')
+  // async assignSubRole(
+  //   @Param('userId') userId: string,
+  //   @Param('subRoleId') subRoleId: string,
+  //   @Request() req,
+  // ) {
+  //   return this.subRoleService.update(userId, subRoleId, req.user);
+  // }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('superAdmin')
+  @Post('switch-school/:schoolId')
+  async switchSchool(
+    @Param() switchSchoolDto: SwitchSchoolDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const school = await this.prisma.school.findUnique({
+      where: { id: switchSchoolDto.schoolId },
+      include: {
+        users: { select: { id: true, firstname: true, lastname: true } },
+        subRoles: { select: { id: true, name: true } },
+      },
+    });
+
+    if (!school) {
+      throw new NotFoundException('School not found');
+    }
 
     res.cookie('view_as', 'admin', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
       maxAge: 24 * 60 * 60 * 1000,
     });
-
-    res.cookie('school_id', body.schoolId.toString(), {
+    res.cookie('schoolId', switchSchoolDto.schoolId, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
       maxAge: 24 * 60 * 60 * 1000,
     });
 
-    return res.send({ success: true });
+    return { message: 'Switched to school', school };
   }
 
-  @Post('switch-back')
-  @UseGuards(JwtAuthGuard)
-  async switchBack(@Req() req: Request, @Res() res: Response) {
-    const actualRole = req.cookies['actual_role'];
-    if (actualRole !== 'superAdmin') {
-      throw new ForbiddenException('Not authorized');
-    }
-
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('superAdmin')
+  @Post('switch-to-superadmin')
+  async switchToSuperAdmin(@Res({ passthrough: true }) res: Response) {
     res.cookie('view_as', 'superAdmin', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
       maxAge: 24 * 60 * 60 * 1000,
     });
+    res.clearCookie('schoolId');
 
-    res.cookie('school_id', '', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 24 * 60 * 60 * 1000,
+    const schools = await this.prisma.school.findMany({
+      include: {
+        users: { select: { id: true, firstname: true, lastname: true } },
+        subRoles: { select: { id: true, name: true } },
+      },
     });
 
-    return res.send({ success: true });
-  }
-
-
-  @Get()
-  findAll() {
-    return this.authService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.authService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateAuthDto: UpdateAuthDto) {
-    return this.authService.update(+id, updateAuthDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.authService.remove(+id);
+    return { message: 'Switched to superAdmin', schools };
   }
 }
