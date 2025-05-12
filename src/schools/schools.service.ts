@@ -108,15 +108,83 @@ export class SchoolsService {
     if (requester.role !== 'superAdmin') {
       throw new ForbiddenException('Only superAdmin can update schools');
     }
+
+    // Fetch the current school
+    const currentSchool = await this.prisma.school.findUnique({
+      where: { id },
+      select: { id: true, name: true, email: true, contact: true },
+    });
+
+    if (!currentSchool) {
+      return null; // Handled in controller
+    }
+
+    // Build update data, excluding unchanged unique fields
+    const updateData: Partial<UpdateSchoolDto> = {};
+    if (dto.name && dto.name !== currentSchool.name) {
+      updateData.name = dto.name;
+    }
+    if (dto.email && dto.email !== currentSchool.email) {
+      updateData.email = dto.email;
+    }
+    if (dto.contact && dto.contact !== currentSchool.contact) {
+      updateData.contact = dto.contact;
+    }
+    if (dto.address !== undefined) {
+      updateData.address = dto.address;
+    }
+
+    // Check for conflicts with other schools
+    if (updateData.name || updateData.email || updateData.contact) {
+      const conflicts = await this.prisma.school.findFirst({
+        where: {
+          id: { not: id }, // Exclude the current school
+          OR: [
+            updateData.name ? { name: updateData.name } : undefined,
+            updateData.email ? { email: updateData.email } : undefined,
+            updateData.contact ? { contact: updateData.contact } : undefined,
+          ].filter(Boolean),
+        },
+        select: { id: true, name: true, email: true, contact: true },
+      });
+
+      if (conflicts) {
+        const messages = [];
+        if (updateData.name && conflicts.name === updateData.name) {
+          messages.push(`Name "${updateData.name}" is already taken`);
+        }
+        if (updateData.email && conflicts.email === updateData.email) {
+          messages.push(`Email "${updateData.email}" is already taken`);
+        }
+        if (updateData.contact && conflicts.contact === updateData.contact) {
+          messages.push(`Contact "${updateData.contact}" is already taken`);
+        }
+        throw new ConflictException(messages.join(', '));
+      }
+    }
+
+    // Perform update only if there are changes
+    if (Object.keys(updateData).length === 0) {
+      // No changes, return current school
+      return this.prisma.school.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          contact: true,
+          isActive: true,
+          address: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+    }
+
     try {
       return await this.prisma.school.update({
         where: { id },
-        data: {
-          name: dto.name,
-          email: dto.email,
-          contact: dto.contact,
-          address: dto.address,
-        },
+        data: updateData,
         select: {
           id: true,
           name: true,
@@ -131,11 +199,6 @@ export class SchoolsService {
     } catch (error) {
       if (error.code === 'P2025') {
         return null; // Handled in controller
-      }
-      if (error.code === 'P2002') {
-        throw new ConflictException(
-          'School name, email, or contact already exists',
-        );
       }
       throw new ForbiddenException('Failed to update school');
     }

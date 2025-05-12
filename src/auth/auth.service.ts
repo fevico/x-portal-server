@@ -61,6 +61,7 @@ export class AuthService {
     schoolId: string,
   ) {
     const user = await this.usersService.findById(userId);
+    // console.log(user);
     const payload = { sub: user.id, view_as: viewAs, schoolId };
     return this.jwtService.sign(payload, {
       secret: process.env.VIEW_AS_SECRET,
