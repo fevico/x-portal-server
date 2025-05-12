@@ -126,6 +126,7 @@ export class AuthController {
   // }
 
   @UseGuards(JwtAuthGuard)
+  @Roles('superAdmin')
   @Patch('set-view-as')
   async setViewAs(
     @Req() req: RequestExpress,
@@ -151,5 +152,21 @@ export class AuthController {
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
     });
     return { view_as: body.view_as, schoolId: body.schoolId };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('logout')
+  async logout(@Res({ passthrough: true }) res: Response) {
+    res.clearCookie('xtk', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+    });
+    res.clearCookie('view_as_token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+    });
+    return { message: 'Logged out successfully' };
   }
 }
