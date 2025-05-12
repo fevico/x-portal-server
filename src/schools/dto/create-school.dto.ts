@@ -16,4 +16,14 @@ export class CreateSchoolDto {
   @IsString()
   @IsOptional()
   address?: string;
+
+  @IsString()
+  @IsOptional()
+  subscriptionPlan?: string;
+
+  @IsString()
+  @IsOptional()
+  subscriptionStatus?: string;
+
+
 }

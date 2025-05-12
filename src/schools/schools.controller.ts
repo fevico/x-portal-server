@@ -23,8 +23,8 @@ import { AuthenticatedUser } from '@/types/express';
 import { PermissionsGuard } from '@/auth/guards/permissions.guard';
 
 @Controller('schools')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('superAdmin')
+// @UseGuards(JwtAuthGuard, RolesGuard)
+// @Roles('superAdmin')
 export class SchoolsController {
   constructor(private readonly schoolsService: SchoolsService) {}
 

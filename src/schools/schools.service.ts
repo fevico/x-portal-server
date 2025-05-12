@@ -17,7 +17,7 @@ export class SchoolsService {
   async getSchools({
     search,
     page,
-    limit,
+    limit,  
   }: {
     search?: string;
     page: number;
