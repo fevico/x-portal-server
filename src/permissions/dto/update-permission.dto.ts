@@ -1,3 +1,4 @@
+import { PermissionScope } from '@prisma/client';
 import { IsString, MinLength, IsOptional } from 'class-validator';
 
 export class UpdatePermissionDto {
@@ -9,4 +10,8 @@ export class UpdatePermissionDto {
   @IsString()
   @IsOptional()
   description?: string;
+
+  @IsString()
+  @IsOptional()
+  scope?: PermissionScope;
 }

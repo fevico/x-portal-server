@@ -1,4 +1,11 @@
-import { IsOptional, IsString, IsBooleanString, IsInt, Min, IsBoolean } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsBooleanString,
+  IsInt,
+  Min,
+  IsBoolean,
+} from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class GetSubscriptionsDto {

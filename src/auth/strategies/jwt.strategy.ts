@@ -23,12 +23,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       ]),
       ignoreExpiration: false,
       secretOrKey: configService.get<string>('JWT_SECRET'),
+      passReqToCallback: true,
     });
   }
 
   async validate(
-    payload: { sub: string; email: string; role: string },
     request: Request,
+    payload: { sub: string; email: string; role: string },
   ) {
     const user = await this.usersService.findById(payload.sub);
     if (!user || !user.isActive) return null;
@@ -40,22 +41,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (viewAsToken) {
       try {
         const viewAsPayload = this.jwtService.verify(viewAsToken, {
-          secret: this.configService.get<string>('JWT_SECRET'),
+          secret: this.configService.get<string>('VIEW_AS_SECRET'),
         });
+        // console.log(viewAsPayload);
         view_as = viewAsPayload.view_as;
         view_as_schoolId = viewAsPayload.schoolId;
-      } catch {
+      } catch (error) {
         // Invalid view_as_token, ignore
+        // console.error('view_as_token verification error:', error);
       }
     }
-
-    // return {
-    //   id: user.id,
-    //   email: user.email,
-    //   role: user.role,
-    //   view_as: view_as || user.role,
-    //   schoolId: view_as_schoolId || user.schoolId,
-    // } as AuthenticatedUser;
     return {
       ...user,
       view_as: view_as || user.role,

@@ -5,8 +5,14 @@ import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guards';
 
 @Controller('subscription')
 export class SubscriptionController {
-    constructor(private readonly subscriptionService: SubscriptionService){}
+  constructor(private readonly subscriptionService: SubscriptionService) {}
 
+<<<<<<< HEAD
+  @Post('create')
+  async createSubscription() {
+    return this.subscriptionService.createSubscription();
+  }
+=======
     @Post("create")
     @UseGuards(JwtAuthGuard)
     async createSubscription(@Body() body: any): Promise<any> {
@@ -30,4 +36,5 @@ export class SubscriptionController {
     async deleteSubscription(@Param('id') id: string) {
       return this.subscriptionService.deleteSubscription(id);
     }
+>>>>>>> 56174cfb557867d578e8d642b329559dccbfbf3a
 }
