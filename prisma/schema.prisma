@@ -21,7 +21,7 @@ model User {
   password        String
   role            Role      @default(admin)
   rememberToken   String?
-  avatar          Json?    @map("avatar")
+  avatar          Json?     @map("avatar")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
   schoolId        String?   @map("school_id")
@@ -45,7 +45,7 @@ model School {
   updatedAt      DateTime      @updatedAt @map("updated_at")
   users          User[]
   subRoles       SubRole[]
-  logo          Json?    @map("logo")
+  logo           Json?         @map("logo")
 
   @@map("schools")
 }
@@ -54,6 +54,7 @@ model Permission {
   id          String              @id @default(uuid())
   name        String              @unique
   description String
+  scope       PermissionScope     @default(school)
   subRoles    SubRolePermission[]
   createdAt   DateTime            @default(now()) @map("created_at")
   updatedAt   DateTime            @updatedAt @map("updated_at")
@@ -93,8 +94,8 @@ model Subscription {
   name          String   @unique
   student_limit Int?
   duration      Int
-  schools        School[]
-  isActive      Boolean @default(true)
+  schools       School[]
+  isActive      Boolean  @default(true)
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
@@ -109,4 +110,9 @@ enum Gender {
 enum Role {
   admin
   superAdmin
+}
+
+enum PermissionScope {
+  platform
+  school
 }

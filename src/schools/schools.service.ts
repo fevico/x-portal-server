@@ -39,6 +39,8 @@ export class SchoolsService {
           address: true,
           createdAt: true,
           updatedAt: true,
+          subscriptionId: true,
+          logo: true,
         },
       }),
       this.prisma.school.count({ where }),
@@ -59,6 +61,8 @@ export class SchoolsService {
         address: true,
         createdAt: true,
         updatedAt: true,
+        subscriptionId: true,
+        logo: true,
       },
     });
     return school;
@@ -88,6 +92,8 @@ export class SchoolsService {
           address: true,
           createdAt: true,
           updatedAt: true,
+          subscriptionId: true,
+          logo: true,
         },
       });
     } catch (error) {
@@ -177,6 +183,8 @@ export class SchoolsService {
           address: true,
           createdAt: true,
           updatedAt: true,
+          subscriptionId: true,
+          logo: true,
         },
       });
     }
@@ -194,6 +202,8 @@ export class SchoolsService {
           address: true,
           createdAt: true,
           updatedAt: true,
+          subscriptionId: true,
+          logo: true,
         },
       });
     } catch (error) {
@@ -244,6 +254,8 @@ export class SchoolsService {
           address: true,
           createdAt: true,
           updatedAt: true,
+          subscriptionId: true,
+          logo: true,
         },
       });
     } catch (error) {
