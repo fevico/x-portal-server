@@ -7,7 +7,6 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSchoolDto } from './dto/create-school.dto';
 import { UpdateSchoolDto } from './dto/update-school.dto';
-import { School } from '@prisma/client';
 import { AuthenticatedUser } from '@/types/express';
 
 @Injectable()
@@ -49,7 +48,7 @@ export class SchoolsService {
     return { schools, total };
   }
 
-  async getSchoolById(id: string): Promise<School | null> {
+  async getSchoolById(id: string) {
     const school = await this.prisma.school.findUnique({
       where: { id },
       select: {
@@ -68,10 +67,7 @@ export class SchoolsService {
     return school;
   }
 
-  async createSchool(
-    dto: CreateSchoolDto,
-    requester: AuthenticatedUser,
-  ): Promise<School> {
+  async createSchool(dto: CreateSchoolDto, requester: AuthenticatedUser) {
     if (requester.role !== 'superAdmin') {
       throw new ForbiddenException('Only superAdmin can create schools');
     }
@@ -110,7 +106,7 @@ export class SchoolsService {
     id: string,
     dto: UpdateSchoolDto,
     requester: AuthenticatedUser,
-  ): Promise<School | null> {
+  ) {
     if (requester.role !== 'superAdmin') {
       throw new ForbiddenException('Only superAdmin can update schools');
     }
@@ -228,10 +224,7 @@ export class SchoolsService {
     }
   }
 
-  async toggleSchoolActive(
-    id: string,
-    requester: AuthenticatedUser,
-  ): Promise<School | null> {
+  async toggleSchoolActive(id: string, requester: AuthenticatedUser) {
     if (requester.role !== 'superAdmin') {
       throw new ForbiddenException(
         'Only superAdmin can toggle school active status',
