@@ -6,9 +6,6 @@ import { GetSubscriptionsDto, UpdateSubscriptionDto } from './dto/subscription.d
 export class SubscriptionService {
   constructor(private prisma: PrismaService) {}
 
-<<<<<<< HEAD
-  async createSubscription() {}
-=======
 
     async createSubscription(body: any){
         const {name, duration, studentLimit} = body;
@@ -144,5 +141,4 @@ export class SubscriptionService {
           throw new InternalServerErrorException('Failed to delete subscription');
         }
       }
->>>>>>> 56174cfb557867d578e8d642b329559dccbfbf3a
 }
