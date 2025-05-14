@@ -22,6 +22,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src", "prisma/seed-permissions.ts"],
+  "include": ["src", "prisma/seed/*"],
   // "exclude": [""]
 }

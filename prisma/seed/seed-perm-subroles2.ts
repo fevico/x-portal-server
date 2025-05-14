@@ -3,17 +3,61 @@ import { v4 as uuidv4 } from 'uuid';
 
 const prisma = new PrismaClient();
 
-async function seedPermissions() {
+async function seed() {
+  // Step 1: Clear existing data
+  try {
+    await prisma.subRolePermission.deleteMany();
+    console.log('Cleared existing subrole permissions');
+    await prisma.subRole.deleteMany();
+    console.log('Cleared existing subroles');
+    await prisma.permission.deleteMany();
+    console.log('Cleared existing permissions');
+  } catch (error) {
+    console.error('Error clearing existing data:', error);
+    throw error;
+  }
+
+  // Step 2: Define seed data
+  const globalSubRoles = [
+    {
+      id: uuidv4(),
+      name: 'Staff',
+      description: 'School staff member',
+      isGlobal: true,
+      scope: PermissionScope.school,
+    },
+    {
+      id: uuidv4(),
+      name: 'Student',
+      description: 'School student',
+      isGlobal: true,
+      scope: PermissionScope.school,
+    },
+    {
+      id: uuidv4(),
+      name: 'Parent',
+      description: 'Parent or guardian',
+      isGlobal: true,
+      scope: PermissionScope.school,
+    },
+    {
+      id: uuidv4(),
+      name: 'Admin',
+      description: 'School administrator with full school permissions',
+      isGlobal: true,
+      scope: PermissionScope.school,
+    },
+  ];
+
   const permissions = [
-    // Admin Menu: Dashboard (School Scope)
+    // Admin Menu: Dashboard
     {
       id: uuidv4(),
       name: 'dashboard:view',
       description: 'View the admin dashboard with school metrics',
       scope: PermissionScope.school,
     },
-
-    // Admin Menu: Admission (School Scope)
+    // Admin Menu: Admission
     {
       id: uuidv4(),
       name: 'admission:create',
@@ -44,8 +88,7 @@ async function seedPermissions() {
       description: 'Approve or reject an admission',
       scope: PermissionScope.school,
     },
-
-    // Admin Menu: Attendance (School Scope)
+    // Admin Menu: Attendance
     {
       id: uuidv4(),
       name: 'attendance:mark',
@@ -70,8 +113,7 @@ async function seedPermissions() {
       description: 'Delete attendance records',
       scope: PermissionScope.school,
     },
-
-    // Admin Menu: Fees (School Scope)
+    // Admin Menu: Fees
     {
       id: uuidv4(),
       name: 'fee:create',
@@ -102,8 +144,7 @@ async function seedPermissions() {
       description: 'Collect or process fee payments',
       scope: PermissionScope.school,
     },
-
-    // Admin Menu: Students (School Scope)
+    // Admin Menu: Students
     {
       id: uuidv4(),
       name: 'student:create',
@@ -134,8 +175,7 @@ async function seedPermissions() {
       description: 'Manage student-related settings',
       scope: PermissionScope.school,
     },
-
-    // Admin Menu: Staff (School Scope)
+    // Admin Menu: Staff
     {
       id: uuidv4(),
       name: 'staff:create',
@@ -166,8 +206,7 @@ async function seedPermissions() {
       description: 'Manage staff roles or schedules',
       scope: PermissionScope.school,
     },
-
-    // Admin Menu: Scores (School Scope)
+    // Admin Menu: Scores
     {
       id: uuidv4(),
       name: 'score:create',
@@ -192,8 +231,7 @@ async function seedPermissions() {
       description: 'Delete score records',
       scope: PermissionScope.school,
     },
-
-    // Admin Menu: Results (School Scope)
+    // Admin Menu: Results
     {
       id: uuidv4(),
       name: 'result:read',
@@ -218,8 +256,7 @@ async function seedPermissions() {
       description: 'Delete result records',
       scope: PermissionScope.school,
     },
-
-    // Admin Menu: CBT (School Scope)
+    // Admin Menu: CBT
     {
       id: uuidv4(),
       name: 'cbt:create',
@@ -250,8 +287,7 @@ async function seedPermissions() {
       description: 'Manage CBT schedules or settings',
       scope: PermissionScope.school,
     },
-
-    // Admin Menu: Communication (School Scope)
+    // Admin Menu: Communication
     {
       id: uuidv4(),
       name: 'communication:send',
@@ -270,8 +306,7 @@ async function seedPermissions() {
       description: 'Manage communication templates or settings',
       scope: PermissionScope.school,
     },
-
-    // Admin Menu: Users (School Scope)
+    // Admin Menu: Users
     {
       id: uuidv4(),
       name: 'user:create',
@@ -302,8 +337,7 @@ async function seedPermissions() {
       description: 'Manage user roles or permissions',
       scope: PermissionScope.school,
     },
-
-    // Admin Menu: Lesson Plan (School Scope)
+    // Admin Menu: Lesson Plan
     {
       id: uuidv4(),
       name: 'lesson-plan:create',
@@ -328,8 +362,7 @@ async function seedPermissions() {
       description: 'Delete a lesson plan',
       scope: PermissionScope.school,
     },
-
-    // Admin Menu: Help (School Scope)
+    // Admin Menu: Help
     {
       id: uuidv4(),
       name: 'help:access',
@@ -342,8 +375,7 @@ async function seedPermissions() {
       description: 'Manage help requests or FAQs',
       scope: PermissionScope.school,
     },
-
-    // Admin Menu: Configuration (School Scope)
+    // Admin Menu: Configuration
     {
       id: uuidv4(),
       name: 'configuration:read',
@@ -362,94 +394,7 @@ async function seedPermissions() {
       description: 'Manage advanced configuration settings',
       scope: PermissionScope.school,
     },
-
-    // SuperAdmin Menu: Dashboard (Platform Scope)
-    {
-      id: uuidv4(),
-      name: 'superadmin-dashboard:view',
-      description: 'View the superadmin dashboard with platform metrics',
-      scope: PermissionScope.platform,
-    },
-
-    // SuperAdmin Menu: Schools (Platform Scope)
-    {
-      id: uuidv4(),
-      name: 'school:create',
-      description: 'Create a new school',
-      scope: PermissionScope.platform,
-    },
-    {
-      id: uuidv4(),
-      name: 'school:read',
-      description: 'View school details and lists',
-      scope: PermissionScope.platform,
-    },
-    {
-      id: uuidv4(),
-      name: 'school:update',
-      description: 'Update school details',
-      scope: PermissionScope.platform,
-    },
-    {
-      id: uuidv4(),
-      name: 'school:delete',
-      description: 'Delete a school',
-      scope: PermissionScope.platform,
-    },
-    {
-      id: uuidv4(),
-      name: 'school:manage',
-      description: 'Manage school settings or status',
-      scope: PermissionScope.platform,
-    },
-
-    // SuperAdmin Menu: Subscription (Platform Scope)
-    {
-      id: uuidv4(),
-      name: 'subscription:create',
-      description: 'Create a new subscription plan',
-      scope: PermissionScope.platform,
-    },
-    {
-      id: uuidv4(),
-      name: 'subscription:read',
-      description: 'View subscription plans and details',
-      scope: PermissionScope.platform,
-    },
-    {
-      id: uuidv4(),
-      name: 'subscription:update',
-      description: 'Update subscription details',
-      scope: PermissionScope.platform,
-    },
-    {
-      id: uuidv4(),
-      name: 'subscription:delete',
-      description: 'Delete a subscription plan',
-      scope: PermissionScope.platform,
-    },
-    {
-      id: uuidv4(),
-      name: 'subscription:manage',
-      description: 'Manage subscription assignments or billing',
-      scope: PermissionScope.platform,
-    },
-
-    // SuperAdmin Menu: Support (Platform Scope)
-    {
-      id: uuidv4(),
-      name: 'support:read',
-      description: 'View support tickets or requests',
-      scope: PermissionScope.platform,
-    },
-    {
-      id: uuidv4(),
-      name: 'support:manage',
-      description: 'Manage or respond to support tickets',
-      scope: PermissionScope.platform,
-    },
-
-    // Additional: SubRoles (School Scope)
+    // SubRoles
     {
       id: uuidv4(),
       name: 'sub-role:create',
@@ -480,8 +425,7 @@ async function seedPermissions() {
       description: 'Assign permissions to sub-roles',
       scope: PermissionScope.school,
     },
-
-    // Additional: General (School Scope for reports, Platform Scope for system)
+    // Reports
     {
       id: uuidv4(),
       name: 'report:generate',
@@ -494,6 +438,91 @@ async function seedPermissions() {
       description: 'Export data in various formats',
       scope: PermissionScope.school,
     },
+    // Platform-scoped permissions
+    {
+      id: uuidv4(),
+      name: 'user:read:platform',
+      description: 'View all users across the platform',
+      scope: PermissionScope.platform,
+    },
+    {
+      id: uuidv4(),
+      name: 'superadmin-dashboard:view',
+      description: 'View the superadmin dashboard with platform metrics',
+      scope: PermissionScope.platform,
+    },
+    {
+      id: uuidv4(),
+      name: 'school:create',
+      description: 'Create a new school',
+      scope: PermissionScope.platform,
+    },
+    {
+      id: uuidv4(),
+      name: 'school:read',
+      description: 'View school details and lists',
+      scope: PermissionScope.platform,
+    },
+    {
+      id: uuidv4(),
+      name: 'school:update',
+      description: 'Update school details',
+      scope: PermissionScope.platform,
+    },
+    {
+      id: uuidv4(),
+      name: 'school:delete',
+      description: 'Delete a school',
+      scope: PermissionScope.platform,
+    },
+    {
+      id: uuidv4(),
+      name: 'school:manage',
+      description: 'Manage school settings or status',
+      scope: PermissionScope.platform,
+    },
+    {
+      id: uuidv4(),
+      name: 'subscription:create',
+      description: 'Create a new subscription plan',
+      scope: PermissionScope.platform,
+    },
+    {
+      id: uuidv4(),
+      name: 'subscription:read',
+      description: 'View subscription plans and details',
+      scope: PermissionScope.platform,
+    },
+    {
+      id: uuidv4(),
+      name: 'subscription:update',
+      description: 'Update subscription details',
+      scope: PermissionScope.platform,
+    },
+    {
+      id: uuidv4(),
+      name: 'subscription:delete',
+      description: 'Delete a subscription plan',
+      scope: PermissionScope.platform,
+    },
+    {
+      id: uuidv4(),
+      name: 'subscription:manage',
+      description: 'Manage subscription assignments or billing',
+      scope: PermissionScope.platform,
+    },
+    {
+      id: uuidv4(),
+      name: 'support:read',
+      description: 'View support tickets or requests',
+      scope: PermissionScope.platform,
+    },
+    {
+      id: uuidv4(),
+      name: 'support:manage',
+      description: 'Manage or respond to support tickets',
+      scope: PermissionScope.platform,
+    },
     {
       id: uuidv4(),
       name: 'system:manage',
@@ -502,19 +531,106 @@ async function seedPermissions() {
     },
   ];
 
-  try {
-    await prisma.permission.deleteMany(); // Clear existing permissions (optional)
-    console.log('Cleared existing permissions');
+  const subRolePermissions = {
+    Staff: [
+      'dashboard:view',
+      'attendance:mark',
+      'attendance:read',
+      'attendance:update',
+      'score:create',
+      'score:read',
+      'score:update',
+      'student:read',
+      'student:update',
+      'lesson-plan:create',
+      'lesson-plan:read',
+      'lesson-plan:update',
+      'communication:send',
+      'communication:read',
+      'help:access',
+    ],
+    Student: [
+      'dashboard:view',
+      'attendance:read',
+      'score:read',
+      'result:read',
+      'communication:read',
+      'help:access',
+    ],
+    Parent: [
+      'dashboard:view',
+      'attendance:read',
+      'score:read',
+      'result:read',
+      'communication:send',
+      'communication:read',
+      'help:access',
+    ],
+    Admin: permissions
+      .filter((p) => p.scope === PermissionScope.school)
+      .map((p) => p.name),
+  };
 
+  // Step 3: Seed permissions
+  try {
     await prisma.permission.createMany({
       data: permissions,
     });
     console.log('Seeded permissions successfully');
   } catch (error) {
     console.error('Error seeding permissions:', error);
+    throw error;
+  }
+
+  // Step 4: Seed subroles
+  try {
+    await prisma.subRole.createMany({
+      data: globalSubRoles,
+    });
+    console.log('Seeded subroles successfully');
+  } catch (error) {
+    console.error('Error seeding subroles:', error);
+    throw error;
+  }
+
+  // Step 5: Seed subrole permissions
+  try {
+    const subRolePermissionData = [];
+    for (const subRole of globalSubRoles) {
+      const subRolePerms = subRolePermissions[subRole.name] || [];
+      for (const permName of subRolePerms) {
+        const permission = permissions.find((p) => p.name === permName);
+        if (permission) {
+          subRolePermissionData.push({
+            id: uuidv4(),
+            subRoleId: subRole.id,
+            permissionId: permission.id,
+            schoolId: null, // Global subroles don't require schoolId
+          });
+        }
+      }
+    }
+
+    await prisma.subRolePermission.createMany({
+      data: subRolePermissionData,
+    });
+    console.log('Seeded subrole permissions successfully');
+  } catch (error) {
+    console.error('Error seeding subrole permissions:', error);
+    throw error;
+  }
+}
+
+async function main() {
+  try {
+    await seed();
+    console.log('Seeding completed successfully.');
+  } catch (error) {
+    console.error('Seeding failed:', error);
+    process.exit(1);
   } finally {
     await prisma.$disconnect();
   }
 }
 
-seedPermissions();
+main();

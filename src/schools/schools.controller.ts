@@ -13,18 +13,21 @@ import {
   Query,
 } from '@nestjs/common';
 import { SchoolsService } from './schools.service';
-import { CreateSchoolDto } from './dto/create-school.dto';
-import { UpdateSchoolDto } from './dto/update-school.dto';
+
 import { RolesGuard } from '@/auth/guards/roles.guard';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guards';
+import { PermissionsGuard } from '@/auth/guards/permissions.guard';
 import { Roles } from '@/auth/decorators/auth.decorator';
 import { Request as RequestExpress } from 'express';
 import { AuthenticatedUser } from '@/types/express';
-import { PermissionsGuard } from '@/auth/guards/permissions.guard';
+import {
+  CreateSchoolDto,
+  GetSchoolsQueryDto,
+  UpdateSchoolDto,
+} from './dto/school.dto';
+import { Permissions } from '@/auth/decorators/permissions.decorator';
 
 @Controller('schools')
-// @UseGuards(JwtAuthGuard, RolesGuard)
-// @Roles('superAdmin')
 export class SchoolsController {
   constructor(private readonly schoolsService: SchoolsService) {}
 
@@ -32,25 +35,24 @@ export class SchoolsController {
   @Roles('superAdmin')
   @Get('list')
   async getSchools(
-    @Query('search') search: string,
-    @Query('page') page: string,
-    @Query('limit') limit: string,
+    @Query() query: GetSchoolsQueryDto,
     @Request() req: RequestExpress,
   ) {
     const user = req.user as AuthenticatedUser;
     if (user.role !== 'superAdmin') {
       throw new ForbiddenException('Only superAdmin can access all schools');
     }
-    const pageNum = parseInt(page) || 1;
-    const limitNum = parseInt(limit) || 5;
+    const pageNum = parseInt(query.page) || 1;
+    const limitNum = parseInt(query.limit) || 5;
     return this.schoolsService.getSchools({
-      search,
+      search: query.search,
       page: pageNum,
       limit: limitNum,
     });
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('school:read')
   @Get(':id')
   async getSchoolById(@Param('id') id: string, @Request() req: RequestExpress) {
     const user = req.user as AuthenticatedUser;
@@ -72,9 +74,6 @@ export class SchoolsController {
     @Request() req: RequestExpress,
   ) {
     const user = req.user as AuthenticatedUser;
-    if (user.role !== 'superAdmin') {
-      throw new ForbiddenException('Only superAdmin can create schools');
-    }
     return this.schoolsService.createSchool(createSchoolDto, user);
   }
 
@@ -87,9 +86,6 @@ export class SchoolsController {
     @Request() req: RequestExpress,
   ) {
     const user = req.user as AuthenticatedUser;
-    if (user.role !== 'superAdmin') {
-      throw new ForbiddenException('Only superAdmin can update schools');
-    }
     const school = await this.schoolsService.updateSchool(
       id,
       updateSchoolDto,
@@ -101,14 +97,11 @@ export class SchoolsController {
     return school;
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('superAdmin')
   @Delete(':id')
   async deleteSchool(@Param('id') id: string, @Request() req: RequestExpress) {
     const user = req.user as AuthenticatedUser;
-    if (user.role !== 'superAdmin') {
-      throw new ForbiddenException('Only superAdmin can delete schools');
-    }
     await this.schoolsService.deleteSchool(id, user);
     return { message: 'School deleted successfully' };
   }
@@ -121,11 +114,6 @@ export class SchoolsController {
     @Request() req: RequestExpress,
   ) {
     const user = req.user as AuthenticatedUser;
-    if (user.role !== 'superAdmin') {
-      throw new ForbiddenException(
-        'Only superAdmin can toggle school active status',
-      );
-    }
     const school = await this.schoolsService.toggleSchoolActive(id, user);
     if (!school) {
       throw new NotFoundException('School not found');

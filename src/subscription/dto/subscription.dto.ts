@@ -48,4 +48,5 @@ export class UpdateSubscriptionDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+  studentLimit: any;
 }

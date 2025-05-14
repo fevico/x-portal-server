@@ -4,10 +4,11 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { CreateSchoolDto } from './dto/create-school.dto';
-import { UpdateSchoolDto } from './dto/update-school.dto';
+import { PrismaService } from '../prisma/prisma.service'; // Adjust path
 import { AuthenticatedUser } from '@/types/express';
+import * as bcrypt from 'bcrypt';
+import { CreateSchoolDto, UpdateSchoolDto } from './dto/school.dto';
+import { generateRandomPassword } from '@/types/utils';
 
 @Injectable()
 export class SchoolsService {
@@ -15,12 +16,12 @@ export class SchoolsService {
 
   async getSchools({
     search,
-    page,
-    limit,
+    page = 1,
+    limit = 5,
   }: {
     search?: string;
-    page: number;
-    limit: number;
+    page?: number;
+    limit?: number;
   }) {
     const where = search ? { name: { contains: search } } : {};
 
@@ -45,7 +46,7 @@ export class SchoolsService {
       this.prisma.school.count({ where }),
     ]);
 
-    return { schools, total };
+    return { schools, total, page, limit };
   }
 
   async getSchoolById(id: string) {
@@ -71,26 +72,79 @@ export class SchoolsService {
     if (requester.role !== 'superAdmin') {
       throw new ForbiddenException('Only superAdmin can create schools');
     }
+
+    // Generate username for admin user
+    const generateUniqueUsername = async (base: string): Promise<string> => {
+      const cleanBase = base
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '')
+        .slice(0, 10);
+      let username = `admin_${cleanBase}`;
+      const getRandomNumber = () => Math.floor(Math.random() * 900) + 100;
+      username = `${username}${getRandomNumber()}`;
+      let attempts = 0;
+      const maxAttempts = 10;
+      while (await this.prisma.user.findUnique({ where: { username } })) {
+        if (attempts >= maxAttempts) {
+          throw new ForbiddenException('Unable to generate a unique username');
+        }
+        username = `${cleanBase}${getRandomNumber()}`;
+        attempts++;
+      }
+      return username;
+    };
+
+    // Find Admin subrole
+    const adminSubRole = await this.prisma.subRole.findFirst({
+      where: { name: 'Admin', isGlobal: true },
+    });
+    if (!adminSubRole) {
+      throw new ForbiddenException('Admin subrole not found');
+    }
+
+    // Generate admin user details
+    const adminPassword = generateRandomPassword();
+    const adminUsername = await generateUniqueUsername(dto.name);
+
     try {
-      return await this.prisma.school.create({
-        data: {
-          name: dto.name,
-          email: dto.email,
-          contact: dto.contact,
-          address: dto.address,
-        },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          contact: true,
-          isActive: true,
-          address: true,
-          createdAt: true,
-          updatedAt: true,
-          subscriptionId: true,
-          logo: true,
-        },
+      return await this.prisma.$transaction(async (tx) => {
+        // Create school
+        const school = await tx.school.create({
+          data: {
+            name: dto.name,
+            email: dto.email,
+            contact: dto.contact,
+            address: dto.address,
+            createdBy: requester.id,
+          },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            contact: true,
+            isActive: true,
+            address: true,
+            createdAt: true,
+            updatedAt: true,
+            subscriptionId: true,
+            logo: true,
+          },
+        });
+
+        // Create admin user
+        const hashedPassword = await bcrypt.hash(adminPassword, 10);
+        await tx.user.create({
+          data: {
+            username: adminUsername,
+            email: dto.email, // Use school email
+            password: hashedPassword,
+            schoolId: school.id,
+            subRoleId: adminSubRole.id,
+            createdBy: requester.id,
+          },
+        });
+
+        return { school, adminPassword }; // Return password for superAdmin
       });
     } catch (error) {
       if (error.code === 'P2002') {
@@ -111,18 +165,18 @@ export class SchoolsService {
       throw new ForbiddenException('Only superAdmin can update schools');
     }
 
-    // Fetch the current school
     const currentSchool = await this.prisma.school.findUnique({
       where: { id },
       select: { id: true, name: true, email: true, contact: true },
     });
 
     if (!currentSchool) {
-      return null; // Handled in controller
+      return null;
     }
 
-    // Build update data, excluding unchanged unique fields
-    const updateData: Partial<UpdateSchoolDto> = {};
+    const updateData: Partial<UpdateSchoolDto> & { updatedBy?: string } = {
+      updatedBy: requester.id,
+    };
     if (dto.name && dto.name !== currentSchool.name) {
       updateData.name = dto.name;
     }
@@ -135,12 +189,14 @@ export class SchoolsService {
     if (dto.address !== undefined) {
       updateData.address = dto.address;
     }
+    if (dto.logo !== undefined) {
+      updateData.logo = dto.logo;
+    }
 
-    // Check for conflicts with other schools
     if (updateData.name || updateData.email || updateData.contact) {
       const conflicts = await this.prisma.school.findFirst({
         where: {
-          id: { not: id }, // Exclude the current school
+          id: { not: id },
           OR: [
             updateData.name ? { name: updateData.name } : undefined,
             updateData.email ? { email: updateData.email } : undefined,
@@ -165,9 +221,7 @@ export class SchoolsService {
       }
     }
 
-    // Perform update only if there are changes
-    if (Object.keys(updateData).length === 0) {
-      // No changes, return current school
+    if (Object.keys(updateData).length === 1) {
       return this.prisma.school.findUnique({
         where: { id },
         select: {
@@ -204,7 +258,7 @@ export class SchoolsService {
       });
     } catch (error) {
       if (error.code === 'P2025') {
-        return null; // Handled in controller
+        return null;
       }
       throw new ForbiddenException('Failed to update school');
     }
@@ -215,7 +269,10 @@ export class SchoolsService {
       throw new ForbiddenException('Only superAdmin can delete schools');
     }
     try {
-      await this.prisma.school.delete({ where: { id } });
+      await this.prisma.school.update({
+        where: { id },
+        data: { isActive: false, updatedBy: requester.id },
+      });
     } catch (error) {
       if (error.code === 'P2025') {
         throw new NotFoundException('School not found');
@@ -232,12 +289,12 @@ export class SchoolsService {
     }
     const school = await this.prisma.school.findUnique({ where: { id } });
     if (!school) {
-      return null; // Handled in controller
+      return null;
     }
     try {
       return await this.prisma.school.update({
         where: { id },
-        data: { isActive: !school.isActive },
+        data: { isActive: !school.isActive, updatedBy: requester.id },
         select: {
           id: true,
           name: true,
