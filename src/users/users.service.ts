@@ -7,7 +7,6 @@ import { PrismaService } from '@/prisma/prisma.service';
 import { Prisma, SubRole, User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { GetUsersQueryDto, UpdateUserDto } from './dto/user.dtos';
-import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class UsersService {
@@ -178,6 +177,7 @@ export class UsersService {
       phone: data.phone,
       gender: data.gender,
       password: hashedPassword,
+      plainPassword: data.password,
       role: data.role || 'admin',
       school: data.schoolId ? { connect: { id: data.schoolId } } : undefined,
       subRole: data.subRoleId ? { connect: { id: data.subRoleId } } : undefined,
@@ -396,7 +396,7 @@ export class UsersService {
                 updatedBy: requester.id,
               },
               create: {
-                id: uuidv4(),
+                // id: uuidv4(),
                 userId: id,
                 occupation: data.occupation,
                 relationship: data.relationship,

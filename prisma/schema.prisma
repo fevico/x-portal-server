@@ -21,6 +21,7 @@ model User {
   isActive        Boolean    @default(true)
   emailVerifiedAt DateTime?  @map("email_verified_at")
   password        String
+  plainPassword   String
   role            Role       @default(admin) // System role: admin or superAdmin
   rememberToken   String?    @map("remember_token")
   avatar          Json?      @map("avatar")

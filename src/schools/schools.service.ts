@@ -138,6 +138,7 @@ export class SchoolsService {
             username: adminUsername,
             email: dto.email, // Use school email
             password: hashedPassword,
+            plainPassword: adminPassword,
             schoolId: school.id,
             subRoleId: adminSubRole.id,
             createdBy: requester.id,
