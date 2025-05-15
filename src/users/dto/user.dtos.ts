@@ -54,7 +54,11 @@ export class UpdateUserDto {
 
   @IsString()
   @IsOptional()
-  class?: string;
+  classId?: string;
+
+  @IsString()
+  @IsOptional()
+  classArmId?: string;
 
   @IsString()
   @IsOptional()

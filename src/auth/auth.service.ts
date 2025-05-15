@@ -53,26 +53,4 @@ export class AuthService {
       expiresIn: '24h',
     });
   }
-  // async logout(req: Request, response: Response) {
-  //   const user = req.user as AuthenticatedUser;
-  //   const userId = user.id;
-  //   const schoolId = user.schoolId;
-
-  //   if (!userId || !schoolId) {
-  //     throw new UnauthorizedException('Invalid request');
-  //   }
-
-  //   response.clearCookie('xtk');
-  //   response.clearCookie('view_as_token');
-  //   await this.loggingService.logAction(
-  //     'logout',
-  //     'Auth',
-  //     userId,
-  //     userId,
-  //     schoolId,
-  //     {},
-  //   );
-
-  //   return { message: 'Logged out successfully' };
-  // }
 }
