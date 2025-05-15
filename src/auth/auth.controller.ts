@@ -45,7 +45,7 @@ export class AuthController {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       maxAge: 24 * 60 * 60 * 1000, // 1 day
-      sameSite: 'lax',
+      sameSite: 'strict',
     });
     const safeUser = { ...user } as User;
     delete safeUser.password;

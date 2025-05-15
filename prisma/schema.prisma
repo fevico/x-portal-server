@@ -10,34 +10,36 @@ datasource db {
 
 // User model for common user data
 model User {
-  id              String     @id @default(uuid())
+  id              String    @id @default(uuid())
   firstname       String?
   lastname        String?
   othername       String?
-  username        String     @unique
-  email           String?    @unique
-  phone           String?    @unique
+  username        String    @unique
+  email           String?   @unique
+  phone           String?   @unique
   gender          Gender?
-  isActive        Boolean    @default(true)
-  emailVerifiedAt DateTime?  @map("email_verified_at")
+  isActive        Boolean   @default(true)
+  emailVerifiedAt DateTime? @map("email_verified_at")
   password        String
-  plainPassword   String
-  role            Role       @default(admin) // System role: admin or superAdmin
-  rememberToken   String?    @map("remember_token")
-  avatar          Json?      @map("avatar")
-  createdAt       DateTime   @default(now()) @map("created_at")
-  updatedAt       DateTime   @updatedAt @map("updated_at")
-  createdBy      String?   @map("created_by") // Added
- 
-  updatedBy      String?   @map("updated_by") // Added
-  schoolId        String?    @map("school_id")
-  school          School?    @relation(fields: [schoolId], references: [id])
-  subRoleId       String?    @map("sub_role_id")
-  subRole         SubRole?   @relation(fields: [subRoleId], references: [id])
-  logEntries      LogEntry[]
-  staff           Staff?     @relation("UserToStaff")
-  student         Student?   @relation("UserToStudent")
-  parent          Parent?    @relation("UserToParent")
+  isDeleted       Boolean   @default(false)
+
+  plainPassword String
+  role          Role     @default(admin) // System role: admin or superAdmin
+  rememberToken String?  @map("remember_token")
+  avatar        Json?    @map("avatar")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  createdBy     String?  @map("created_by") // Added
+
+  updatedBy  String?    @map("updated_by") // Added
+  schoolId   String?    @map("school_id")
+  school     School?    @relation(fields: [schoolId], references: [id])
+  subRoleId  String?    @map("sub_role_id")
+  subRole    SubRole?   @relation(fields: [subRoleId], references: [id])
+  logEntries LogEntry[]
+  staff      Staff?     @relation("UserToStaff")
+  student    Student?   @relation("UserToStudent")
+  parent     Parent?    @relation("UserToParent")
 
   @@map("users")
 }
@@ -49,11 +51,12 @@ model School {
   email              String              @unique
   contact            String              @unique
   isActive           Boolean             @default(true)
+  isDeleted          Boolean             @default(false)
   address            String?
   subscriptionId     String?             @map("subscription_id")
   subscription       Subscription?       @relation(fields: [subscriptionId], references: [id])
   createdAt          DateTime            @default(now()) @map("created_at")
-  createdBy          String? // Tracks who created the school
+  createdBy          String?
   updatedBy          String?
   updatedAt          DateTime            @updatedAt @map("updated_at")
   users              User[]
@@ -61,6 +64,13 @@ model School {
   logo               Json?               @map("logo")
   subRolePermissions SubRolePermission[]
   logEntries         LogEntry[]
+  classes            Class[] // Links to classes
+  classArms          ClassArm[] // Links to class arms
+  subjects           Subject[] // Links to subjects
+  classClassArms     ClassClassArm[] // Links to class-arm mappings
+  studentSubjects    StudentSubject[] // Links to student-subject mappings
+  classSubjects      ClassSubject[]
+  // students           Student[]           // Links to students
 
   @@map("schools")
 }
@@ -78,28 +88,31 @@ model Staff {
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
   createdBy      String?   @map("created_by") // Added
- 
-  updatedBy      String?   @map("updated_by") // Added
+
+  updatedBy String? @map("updated_by") // Added
 
   @@map("staff")
 }
 
 // Student model for student-specific data
 model Student {
-  id            String    @id @default(uuid())
-  userId        String    @unique @map("user_id")
-  user          User      @relation("UserToStudent", fields: [userId], references: [id])
-  studentId     String?   @unique @map("student_id") // School-assigned student ID
-  class         String? // e.g., JSS1, SSS2
-  admissionDate DateTime? @map("admission_date")
-  dateOfBirth   DateTime? @map("date_of_birth")
-  parentId      String?   @map("parent_id")
-  parent        Parent?   @relation(fields: [parentId], references: [id])
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
-  createdBy      String?   @map("created_by") // Added
- 
-  updatedBy      String?   @map("updated_by") // Added
+  id            String           @id @default(uuid())
+  userId        String           @unique @map("user_id")
+  user          User             @relation("UserToStudent", fields: [userId], references: [id])
+  studentId     String?          @unique @map("student_id") // School-assigned student ID
+  classId       String?          @map("class_id") // Link to Class
+  class         Class?           @relation(fields: [classId], references: [id])
+  classArmId    String?          @map("class_arm_id") // Link to ClassArm
+  classArm      ClassArm?        @relation(fields: [classArmId], references: [id])
+  admissionDate DateTime?        @map("admission_date")
+  dateOfBirth   DateTime?        @map("date_of_birth")
+  parentId      String?          @map("parent_id")
+  parent        Parent?          @relation(fields: [parentId], references: [id])
+  subjects      StudentSubject[] // Links to subjects taken by the student
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+  createdBy     String?          @map("created_by")
+  updatedBy     String?          @map("updated_by")
 
   @@map("students")
 }
@@ -115,11 +128,123 @@ model Parent {
   students     Student[] // Links to students they are responsible for
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
-  createdBy      String?   @map("created_by") // Added
- 
-  updatedBy      String?   @map("updated_by") // Added
+  createdBy    String?   @map("created_by") // Added
+
+  updatedBy String? @map("updated_by") // Added
 
   @@map("parents")
+}
+
+model Class {
+  id            String          @id @default(uuid())
+  name          String // e.g., JS1, JS2, SS1
+  schoolId      String          @map("school_id")
+  school        School          @relation(fields: [schoolId], references: [id])
+  classArms     ClassClassArm[] // Links to class arms via junction table
+  classSubjects ClassSubject[] // Links to subjects via explicit junction table
+  students      Student[] // Links to students in this class
+  isDeleted     Boolean         @default(false)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  createdBy String?  @map("created_by")
+  updatedBy String?  @map("updated_by")
+
+  @@unique([name, schoolId]) // Ensure class names are unique per school
+  @@map("classes")
+}
+
+// ClassArm model for independent, school-scoped class arms
+model ClassArm {
+  id        String          @id @default(uuid())
+  name      String // e.g., Gold, Silver, Diamond
+  schoolId  String          @map("school_id")
+  school    School          @relation(fields: [schoolId], references: [id])
+  classes   ClassClassArm[] // Links to classes via junction table
+  isDeleted Boolean         @default(false)
+
+  students  Student[] // Links to students in this class arm
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  createdBy String?   @map("created_by")
+  updatedBy String?   @map("updated_by")
+
+  @@unique([name, schoolId]) // Ensure arm names are unique per school
+  @@map("class_arms")
+}
+
+// ClassClassArm junction table for many-to-many Class ↔ ClassArm relationship
+model ClassClassArm {
+  id         String  @id @default(uuid())
+  classId    String  @map("class_id")
+  classArmId String  @map("class_arm_id")
+  schoolId   String  @map("school_id")
+  isDeleted  Boolean @default(false)
+
+  class     Class    @relation(fields: [classId], references: [id])
+  classArm  ClassArm @relation(fields: [classArmId], references: [id])
+  school    School   @relation(fields: [schoolId], references: [id])
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  createdBy String?  @map("created_by")
+  updatedBy String?  @map("updated_by")
+
+  @@unique([classId, classArmId, schoolId]) // Ensure unique class-arm pairs per school
+  @@map("class_class_arms")
+}
+
+model ClassSubject {
+  id        String @id @default(uuid())
+  classId   String @map("class_id")
+  subjectId String @map("subject_id")
+  schoolId  String @map("school_id")
+
+  class     Class    @relation(fields: [classId], references: [id])
+  subject   Subject  @relation(fields: [subjectId], references: [id])
+  school    School   @relation(fields: [schoolId], references: [id])
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  createdBy String?  @map("created_by")
+  updatedBy String?  @map("updated_by")
+
+  @@unique([classId, subjectId, schoolId]) // Ensure unique class-subject pairs per school
+  @@map("class_subjects")
+}
+
+// Subject model for subjects offered in classes
+model Subject {
+  id              String           @id @default(uuid())
+  name            String // e.g., Mathematics, English
+  schoolId        String           @map("school_id")
+  isDeleted       Boolean          @default(false)
+  school          School           @relation(fields: [schoolId], references: [id])
+  classSubjects   ClassSubject[] // Links to classes via explicit junction table
+  studentSubjects StudentSubject[] // Links to students taking this subject
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  createdBy       String?          @map("created_by")
+  updatedBy       String?          @map("updated_by")
+
+  @@unique([name, schoolId]) // Ensure subject names are unique per school
+  @@map("subjects")
+}
+
+// StudentSubject model for many-to-many relationship between students and subjects
+model StudentSubject {
+  id        String   @id @default(uuid())
+  studentId String   @map("student_id")
+  subjectId String   @map("subject_id")
+  schoolId  String   @map("school_id")
+  student   Student  @relation(fields: [studentId], references: [id])
+  subject   Subject  @relation(fields: [subjectId], references: [id])
+  school    School   @relation(fields: [schoolId], references: [id])
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  createdBy String?  @map("created_by")
+  updatedBy String?  @map("updated_by")
+
+  @@unique([studentId, subjectId, schoolId]) // Ensure unique student-subject pairs per school
+  @@map("student_subjects")
 }
 
 // Permission model
@@ -127,13 +252,14 @@ model Permission {
   id                 String              @id @default(uuid())
   name               String              @unique
   description        String
+  isDeleted          Boolean             @default(false)
   scope              PermissionScope     @default(school) // platform or school
   subRolePermissions SubRolePermission[]
   createdAt          DateTime            @default(now()) @map("created_at")
   updatedAt          DateTime            @updatedAt @map("updated_at")
-  createdBy      String?   @map("created_by") // Added
- 
-  updatedBy      String?   @map("updated_by") // Added
+  createdBy          String?             @map("created_by") // Added
+
+  updatedBy String? @map("updated_by") // Added
 
   @@map("permissions")
 }
@@ -148,12 +274,14 @@ model SubRole {
   isGlobal    Boolean             @default(false) // Global subroles: Staff, Student, Parent
   permissions SubRolePermission[]
   users       User[]
-  scope       PermissionScope     @default(school)
-  createdAt   DateTime            @default(now()) @map("created_at")
-  updatedAt   DateTime            @updatedAt @map("updated_at")
-  createdBy      String?   @map("created_by") // Added
- 
-  updatedBy      String?   @map("updated_by") // Added
+  isDeleted   Boolean             @default(false)
+
+  scope     PermissionScope @default(school)
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+  createdBy String?         @map("created_by") // Added
+
+  updatedBy String? @map("updated_by") // Added
 
   @@unique([name, schoolId]) // Unique subrole names per school (null schoolId for global)
   @@map("sub_roles")
@@ -170,9 +298,9 @@ model SubRolePermission {
   permission   Permission @relation(fields: [permissionId], references: [id])
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
-  createdBy      String?   @map("created_by") // Added
- 
-  updatedBy      String?   @map("updated_by") // Added
+  createdBy    String?    @map("created_by") // Added
+
+  updatedBy String? @map("updated_by") // Added
 
   @@unique([subRoleId, permissionId, schoolId], name: "subRole_perm_school_unique")
   @@map("sub_role_permissions")
@@ -185,23 +313,27 @@ model Subscription {
   studentLimit Int?     @map("student_limit") // Max students allowed
   duration     Int // Duration in months
   schools      School[]
-  isActive     Boolean  @default(true)
-  features     Json? // Store plan features (e.g., max users, modules)
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-  createdBy      String?   @map("created_by") // Added
- 
-  updatedBy      String?   @map("updated_by") // Added
+  isDeleted    Boolean  @default(false)
+
+  isActive  Boolean  @default(true)
+  features  Json? // Store plan features (e.g., max users, modules)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  createdBy String?  @map("created_by") // Added
+
+  updatedBy String? @map("updated_by") // Added
 
   @@map("subscriptions")
 }
 
 // LogEntry model for system activity logs
 model LogEntry {
-  id        String   @id @default(uuid())
+  id        String  @id @default(uuid())
   action    String // e.g., "create_user", "update_permission"
   target    String? // e.g., "User", "School"
   targetId  String? // ID of the target entity
+  isDeleted Boolean @default(false)
+
   userId    String?  @map("user_id") @db.VarChar(191)
   schoolId  String?  @map("school_id") @db.VarChar(191)
   meta      Json? // Additional details (e.g., changed fields)
