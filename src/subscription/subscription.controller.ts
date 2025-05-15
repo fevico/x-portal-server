@@ -20,7 +20,7 @@ export class SubscriptionController {
     }
 
     @Patch(':id')
-    @UseGuards(JwtAuthGuard)
+    @UseGuards(JwtAuthGuard)    
     async updateSubscription(@Param('id') id: string, @Body() body: UpdateSubscriptionDto) {
       return this.subscriptionService.updateSubscription(id, body);
     }
