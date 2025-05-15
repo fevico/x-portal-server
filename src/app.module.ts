@@ -11,7 +11,8 @@ import { SubRolesModule } from './sub-roles/sub-roles.module';
 import { SchoolsModule } from './schools/schools.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { LoggingService } from './log/logging.service';
-
+import { ConfigurationModule } from './configuration/configuration.module';     
+        
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -23,6 +24,7 @@ import { LoggingService } from './log/logging.service';
     SubRolesModule,
     SchoolsModule,
     SubscriptionModule,
+    ConfigurationModule,
   ],
   controllers: [AppController],
   providers: [AppService, LoggingService],

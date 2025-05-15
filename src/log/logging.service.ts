@@ -37,7 +37,7 @@ import { PrismaService } from '../prisma/prisma.service'; // Adjust path
 
 @Injectable()
 export class LoggingService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) {}  
 
   async logAction(
     action: string,
