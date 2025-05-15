@@ -27,10 +27,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(
-    request: Request,
-    payload: { sub: string; email: string; role: string },
-  ) {
+  async validate(request: Request, payload: { sub: string }) {
     const user = await this.usersService.findById(payload.sub);
     if (!user || !user.isActive) return null;
 
@@ -48,9 +45,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         view_as_schoolId = viewAsPayload.schoolId;
       } catch (error) {
         // Invalid view_as_token, ignore
-        // console.error('view_as_token verification error:', error);
+        console.error('view_as_token verification error:', error);
       }
     }
+
     return {
       ...user,
       view_as: view_as || user.role,

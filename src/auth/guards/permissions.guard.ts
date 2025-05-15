@@ -15,7 +15,13 @@ export class PermissionsGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
-    if (!user || !user.permissions) return false;
+    if (!user) return false;
+
+    // Allow superAdmin to bypass permission checks
+    if (user.role === 'superAdmin') return true;
+
+    // Check if user has all required permissions
+    if (!user.permissions || !Array.isArray(user.permissions)) return false;
 
     return requiredPermissions.every((permission) =>
       user.permissions.includes(permission),
