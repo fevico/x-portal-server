@@ -44,7 +44,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         view_as = viewAsPayload.view_as;
         view_as_schoolId = viewAsPayload.schoolId;
       } catch (error) {
-        // Invalid view_as_token, ignore
+        // Invalid view_as_token; set flag to clear cookie in guard
+        request['clearViewAsToken'] = true; // Custom flag for guard
         console.error('view_as_token verification error:', error);
       }
     }

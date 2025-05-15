@@ -85,13 +85,14 @@ export class UsersService {
       gender?: 'male' | 'female';
       password: string;
       role?: 'admin' | 'superAdmin';
+      classId?: string;
       schoolId?: string;
       subRoleId?: string;
       staffId?: string;
       department?: string;
       position?: string;
       studentId?: string;
-      class?: string;
+      classArmId?: string;
       parentId?: string;
       occupation?: string;
       relationship?: string;
@@ -208,7 +209,12 @@ export class UsersService {
               data: {
                 user: { connect: { id: createdUser.id } },
                 studentId: data.studentId,
-                class: data.class,
+                class: data.classId
+                  ? { connect: { id: data.classId } }
+                  : undefined,
+                classArm: data.classArmId
+                  ? { connect: { id: data.classArmId } }
+                  : undefined,
                 parent: data.parentId
                   ? { connect: { id: data.parentId } }
                   : undefined,
@@ -370,7 +376,12 @@ export class UsersService {
               where: { userId: id },
               update: {
                 studentId: data.studentId,
-                class: data.class,
+                class: data.classId
+                  ? { connect: { id: data.classId } }
+                  : undefined,
+                classArm: data.classArmId
+                  ? { connect: { id: data.classArmId } }
+                  : undefined,
                 parent: data.parentId
                   ? { connect: { id: data.parentId } }
                   : undefined,
@@ -380,7 +391,12 @@ export class UsersService {
                 // id: uuidv4(),
                 user: { connect: { id } },
                 studentId: data.studentId,
-                class: data.class,
+                class: data.classId
+                  ? { connect: { id: data.classId } }
+                  : undefined,
+                classArm: data.classArmId
+                  ? { connect: { id: data.classArmId } }
+                  : undefined,
                 parent: data.parentId
                   ? { connect: { id: data.parentId } }
                   : undefined,
