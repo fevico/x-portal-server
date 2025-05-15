@@ -12,7 +12,6 @@ import {
   Req,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { Request as RequestExpress, Response } from 'express';
 import { RolesGuard } from './guards/roles.guard';
@@ -23,6 +22,7 @@ import { PermissionsGuard } from './guards/permissions.guard';
 import { PrismaService } from '@/prisma/prisma.service';
 import { AuthenticatedUser } from '@/types/express';
 import { User } from '@prisma/client';
+import { LoggingService } from '@/log/logging.service';
 // import { SubRolesService } from '@/sub-roles/sub-roles.service';
 
 @Controller('auth')
@@ -30,14 +30,9 @@ export class AuthController {
   constructor(
     private authService: AuthService,
     private prisma: PrismaService,
+    private loggingService: LoggingService,
     // private subRoleService: SubRolesService,
   ) {}
-
-  @UseGuards(JwtAuthGuard)
-  @Post('register')
-  async register(@Body() registerDto: RegisterDto, @Request() req) {
-    return this.authService.register(registerDto, req.user);
-  }
 
   @Post('login')
   async login(
@@ -156,7 +151,19 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Post('logout')
-  async logout(@Res({ passthrough: true }) res: Response) {
+  async logout(@Request() req, @Res({ passthrough: true }) res: Response) {
+    const user = req.user;
+    // Log logout action
+    await this.loggingService.logAction(
+      'logout',
+      'Auth',
+      user.id,
+      user.id,
+      user.schoolId,
+      { action: 'logout' },
+    );
+
+    // Clear cookies
     res.clearCookie('xtk', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -167,6 +174,7 @@ export class AuthController {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
     });
+
     return { message: 'Logged out successfully' };
   }
 }

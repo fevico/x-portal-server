@@ -10,6 +10,7 @@ import { PermissionsModule } from './permissions/permissions.module';
 import { SubRolesModule } from './sub-roles/sub-roles.module';
 import { SchoolsModule } from './schools/schools.module';
 import { SubscriptionModule } from './subscription/subscription.module';
+import { LoggingService } from './log/logging.service';
 
 @Module({
   imports: [
@@ -24,6 +25,6 @@ import { SubscriptionModule } from './subscription/subscription.module';
     SubscriptionModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, LoggingService],
 })
 export class AppModule {}

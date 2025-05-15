@@ -1,0 +1,18 @@
+npx ts-node prisma/seed/seed-perm-subroles2.ts - to run seed
+
+
+{
+    "school": {
+        "id": "92801adb-19ac-4c8e-a265-77c9c70f5583",
+        "name": "Riverside High School 2",
+        "email": "admin2@riversidehigh.edu",
+        "contact": "+2349035348684",
+        "isActive": true,
+        "address": "456 oak ve",
+        "createdAt": "2025-05-14T19:03:15.623Z",
+        "updatedAt": "2025-05-14T19:03:15.623Z",
+        "subscriptionId": null,
+        "logo": null
+    },
+    "adminPassword": "ug9E*Y"
+}
