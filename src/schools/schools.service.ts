@@ -23,7 +23,11 @@ export class SchoolsService {
     page?: number;
     limit?: number;
   }) {
-    const where = search ? { name: { contains: search } } : {};
+    const where = search
+      ? {
+          OR: [{ name: { contains: search } }, { email: { contains: search } }],
+        }
+      : {};
 
     const [schools, total] = await Promise.all([
       this.prisma.school.findMany({
