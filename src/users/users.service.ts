@@ -2,6 +2,8 @@ import {
   Injectable,
   ForbiddenException,
   NotFoundException,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 import { Prisma, SubRole, User } from '@prisma/client';
@@ -36,7 +38,7 @@ export class UsersService {
         include: {
           school: { select: { id: true, name: true } },
           subRole: {
-            include: {
+            include: { 
               permissions: {
                 select: { permission: { select: { name: true } } },
               },
@@ -547,4 +549,34 @@ export class UsersService {
       limit,
     };
   }
+
+  async getTotals(userId: string) {
+    // Verify user is Admin
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { subRole: true },
+    });
+
+    if (!user || user.subRole.name !== 'Admin' || !user.subRole.isGlobal) {
+      throw new HttpException('Unauthorized: Admin access required', HttpStatus.FORBIDDEN);
+    }
+
+    const [totalSchools, totalSubscriptions] = await Promise.all([
+      this.prisma.school.count({
+        where: { isDeleted: false },
+      }),
+      this.prisma.subscription.count({
+        where: { isDeleted: false, isActive: true }, 
+      }),
+    ]);
+
+    const result = {
+      totalSchools,
+      totalSubscriptions,
+    };
+
+    return result;
+  }
+
+  
 }

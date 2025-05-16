@@ -49,6 +49,7 @@ async function seed() {
     },
   ];
 
+  
   const permissions = [
     // Admin Menu: Dashboard
     {
