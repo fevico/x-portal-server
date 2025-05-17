@@ -10,6 +10,9 @@ import { PermissionsModule } from './permissions/permissions.module';
 import { SubRolesModule } from './sub-roles/sub-roles.module';
 import { SchoolsModule } from './schools/schools.module';
 import { SubscriptionModule } from './subscription/subscription.module';
+import { ClassModule } from './class/class.module';
+import { SubjectModule } from './subject/subject.module';
+import { ArmModule } from './arm/arm.module';
 
 @Module({
   imports: [
@@ -22,6 +25,9 @@ import { SubscriptionModule } from './subscription/subscription.module';
     SubRolesModule,
     SchoolsModule,
     SubscriptionModule,
+    ClassModule,
+    SubjectModule,
+    ArmModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,6 +1,8 @@
 import { PrismaService } from '@/prisma/prisma.service';
 import {
   BadRequestException,
+  HttpException,
+  HttpStatus,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -10,6 +12,7 @@ import {
   GetSubscriptionsDto,
   UpdateSubscriptionDto,
 } from './dto/subscription.dto';
+import * as moment from 'moment';
 
 @Injectable()
 export class SubscriptionService {
@@ -149,5 +152,47 @@ export class SubscriptionService {
       console.error('Error deleting subscription:', error);
       throw new InternalServerErrorException('Failed to delete subscription');
     }
+  }
+
+  async getSubscriptionGraph(userId: string) {
+    // Verify user is Admin
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { subRole: true },
+    });
+
+    if (!user || user.subRole.name !== 'Admin' || !user.subRole.isGlobal) {
+      throw new HttpException(
+        'Unauthorized: Admin access required',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    const endDate = moment().endOf('month');
+    const startDate = moment(endDate).subtract(11, 'months').startOf('month');
+    const months: { month: string; sub: number }[] = [];
+
+    // Generate 12 months array
+    for (let i = 0; i < 12; i++) {
+      const currentMonth = moment(startDate).add(i, 'months');
+      const monthName = currentMonth.format('MMMM');
+      const monthStart = currentMonth.startOf('month').toDate();
+      const monthEnd = currentMonth.endOf('month').toDate();
+
+      const subCount = await this.prisma.subscription.count({
+        where: {
+          isDeleted: false,
+          isActive: true,
+          createdAt: {
+            gte: monthStart,
+            lte: monthEnd,
+          },
+        },
+      });
+
+      months.push({ month: monthName, sub: subCount });
+    }
+
+    return months;
   }
 }
