@@ -11,9 +11,8 @@ import {
 import {
   GetSubscriptionsDto,
   UpdateSubscriptionDto,
-} from './dto/subscription.dto';      
+} from './dto/subscription.dto';
 import * as moment from 'moment';
-
 
 @Injectable()
 export class SubscriptionService {
@@ -155,7 +154,6 @@ export class SubscriptionService {
     }
   }
 
-  
   async getSubscriptionGraph(userId: string) {
     // Verify user is Admin
     const user = await this.prisma.user.findUnique({
@@ -164,7 +162,10 @@ export class SubscriptionService {
     });
 
     if (!user || user.subRole.name !== 'Admin' || !user.subRole.isGlobal) {
-      throw new HttpException('Unauthorized: Admin access required', HttpStatus.FORBIDDEN);
+      throw new HttpException(
+        'Unauthorized: Admin access required',
+        HttpStatus.FORBIDDEN,
+      );
     }
 
     const endDate = moment().endOf('month');

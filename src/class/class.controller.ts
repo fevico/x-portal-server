@@ -1,7 +1,17 @@
 import { Permissions } from '@/auth/decorators/permissions.decorator';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guards';
 import { PermissionsGuard } from '@/auth/guards/permissions.guard';
-import { Body, Controller, Delete, Get, Param, Patch, Post, Request, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 import { ClassesService } from './class.service';
 
 @Controller('classes')
@@ -32,7 +42,11 @@ export class ClassesController {
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('configuration:update')
   @Patch(':id')
-  async update(@Param('id') id: string, @Body() updateClassDto: { name?: string }, @Request() req) {
+  async update(
+    @Param('id') id: string,
+    @Body() updateClassDto: { name?: string },
+    @Request() req,
+  ) {
     return this.classesService.update(id, updateClassDto, req.user);
   }
 

@@ -530,6 +530,80 @@ async function seed() {
       description: 'Manage system-wide settings',
       scope: PermissionScope.platform,
     },
+    {
+      id: uuidv4(),
+      name: 'subject:create',
+      description: 'Create a new subject',
+      scope: PermissionScope.school,
+    },
+    {
+      id: uuidv4(),
+      name: 'subject:read',
+      description: 'View subject details or lists',
+      scope: PermissionScope.school,
+    },
+    {
+      id: uuidv4(),
+      name: 'subject:update',
+      description: 'Update subject details',
+      scope: PermissionScope.school,
+    },
+    {
+      id: uuidv4(),
+      name: 'subject:delete',
+      description: 'Delete a subject',
+      scope: PermissionScope.school,
+    },
+    // New Class permissions
+    {
+      id: uuidv4(),
+      name: 'class:create',
+      description: 'Create a new class',
+      scope: PermissionScope.school,
+    },
+    {
+      id: uuidv4(),
+      name: 'class:read',
+      description: 'View class details or lists',
+      scope: PermissionScope.school,
+    },
+    {
+      id: uuidv4(),
+      name: 'class:update',
+      description: 'Update class details',
+      scope: PermissionScope.school,
+    },
+    {
+      id: uuidv4(),
+      name: 'class:delete',
+      description: 'Delete a class',
+      scope: PermissionScope.school,
+    },
+    // New ClassArm permissions
+    {
+      id: uuidv4(),
+      name: 'class-arm:create',
+      description: 'Create a new class arm',
+      scope: PermissionScope.school,
+    },
+    {
+      id: uuidv4(),
+      name: 'class-arm:read',
+      description: 'View class arm details or lists',
+      scope: PermissionScope.school,
+    },
+    {
+      id: uuidv4(),
+      name: 'class-arm:update',
+      description: 'Update class arm details',
+      scope: PermissionScope.school,
+    },
+    {
+      id: uuidv4(),
+      name: 'class-arm:delete',
+      description: 'Delete a class arm',
+      scope: PermissionScope.school,
+    },
   ];
 
   const subRolePermissions = {

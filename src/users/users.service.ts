@@ -38,7 +38,7 @@ export class UsersService {
         include: {
           school: { select: { id: true, name: true } },
           subRole: {
-            include: { 
+            include: {
               permissions: {
                 select: { permission: { select: { name: true } } },
               },
@@ -79,8 +79,8 @@ export class UsersService {
 
   async create(
     data: {
-      firstname: string;
-      lastname: string;
+      firstname?: string;
+      lastname?: string;
       othername?: string;
       email?: string;
       phone?: string;
@@ -558,7 +558,10 @@ export class UsersService {
     });
 
     if (!user || user.subRole.name !== 'Admin' || !user.subRole.isGlobal) {
-      throw new HttpException('Unauthorized: Admin access required', HttpStatus.FORBIDDEN);
+      throw new HttpException(
+        'Unauthorized: Admin access required',
+        HttpStatus.FORBIDDEN,
+      );
     }
 
     const [totalSchools, totalSubscriptions] = await Promise.all([
@@ -566,7 +569,7 @@ export class UsersService {
         where: { isDeleted: false },
       }),
       this.prisma.subscription.count({
-        where: { isDeleted: false, isActive: true }, 
+        where: { isDeleted: false, isActive: true },
       }),
     ]);
 
@@ -577,6 +580,4 @@ export class UsersService {
 
     return result;
   }
-
-  
 }

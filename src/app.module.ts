@@ -10,15 +10,14 @@ import { PermissionsModule } from './permissions/permissions.module';
 import { SubRolesModule } from './sub-roles/sub-roles.module';
 import { SchoolsModule } from './schools/schools.module';
 import { SubscriptionModule } from './subscription/subscription.module';
-import { LoggingService } from './log/logging.service';
 import { ClassModule } from './class/class.module';
 import { SubjectModule } from './subject/subject.module';
 import { ArmModule } from './arm/arm.module';
-        
+
 @Module({
-  imports: [   
+  imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    ThrottlerModule.forRoot([{ ttl: 60, limit: 10 }]),   
+    ThrottlerModule.forRoot([{ ttl: 60, limit: 10 }]),
     UsersModule,
     AuthModule,
     PrismaModule,
@@ -31,6 +30,6 @@ import { ArmModule } from './arm/arm.module';
     ArmModule,
   ],
   controllers: [AppController],
-  providers: [AppService, LoggingService],
+  providers: [AppService],
 })
 export class AppModule {}
