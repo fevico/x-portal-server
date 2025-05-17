@@ -4,7 +4,7 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service'; // Adjust path
+import { PrismaService } from '../prisma/prisma.service';
 import { AuthenticatedUser } from '@/types/express';
 import * as bcrypt from 'bcrypt';
 import { CreateSchoolDto, UpdateSchoolDto } from './dto/school.dto';
