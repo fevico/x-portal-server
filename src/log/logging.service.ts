@@ -78,17 +78,17 @@ export class LoggingService {
         meta: sanitizeMeta(meta),
       });
 
-      //   await this.prisma.logEntry.create({
-      //     data: {
-      //       action,
-      //       target,
-      //       targetId,
-      //       userId,
-      //       schoolId,
-      //       meta: sanitizeMeta(meta),
-      //       timestamp: new Date(),
-      //     },
-      //   });
+      await this.prisma.logEntry.create({
+        data: {
+          action,
+          target,
+          targetId,
+          userId,
+          schoolId,
+          meta: sanitizeMeta(meta),
+          timestamp: new Date(),
+        },
+      });
     } catch (error) {
       console.error('Failed to log action:', error);
       // Swallow error to avoid breaking main operation

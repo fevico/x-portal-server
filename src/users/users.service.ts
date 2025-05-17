@@ -77,8 +77,8 @@ export class UsersService {
 
   async create(
     data: {
-      firstname: string;
-      lastname: string;
+      firstname?: string;
+      lastname?: string;
       othername?: string;
       email?: string;
       phone?: string;
