@@ -16,3 +16,5 @@ npx ts-node prisma/seed/seed-perm-subroles2.ts - to run seed
     },
     "adminPassword": "ug9E*Y"
 }
+
+use decorators route wise for cread udate and delte app wise...for logs

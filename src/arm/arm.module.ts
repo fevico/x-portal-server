@@ -4,8 +4,8 @@ import { ArmController } from './arm.controller';
 import { PrismaModule } from '@/prisma/prisma.module';
 
 @Module({
-    imports: [PrismaModule],
+  imports: [PrismaModule],
   providers: [ClassArmsService],
-  controllers: [ArmController]
+  controllers: [ArmController],
 })
 export class ArmModule {}

@@ -19,7 +19,6 @@ import { AuthenticatedUser } from '@/types/express';
 import { Request as RequestExpress } from 'express';
 import { User } from '@prisma/client';
 
-
 @Controller('sub-roles')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('superAdmin')
@@ -27,14 +26,17 @@ export class SubRolesController {
   constructor(private readonly subRolesService: SubRolesService) {}
 
   @Post()
-  create(@Body() createSubRoleDto: CreateSubRoleDto, @Req() req: RequestExpress) {
-        const user = req.user as AuthenticatedUser;
-    
+  create(
+    @Body() createSubRoleDto: CreateSubRoleDto,
+    @Req() req: RequestExpress,
+  ) {
+    const user = req.user as AuthenticatedUser;
+
     return this.subRolesService.create(createSubRoleDto, user);
   }
 
-  @Get(":/schoolId")
-  findAll(@Param("schoolId") schoolId: "schoolId", @Req() req: RequestExpress) {
+  @Get(':/schoolId')
+  findAll(@Param('schoolId') schoolId: 'schoolId', @Req() req: RequestExpress) {
     const user = req.user as User;
 
     return this.subRolesService.findAll(schoolId, user);
@@ -48,7 +50,11 @@ export class SubRolesController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateSubRoleDto: UpdateSubRoleDto, @Req() req: RequestExpress) {
+  update(
+    @Param('id') id: string,
+    @Body() updateSubRoleDto: UpdateSubRoleDto,
+    @Req() req: RequestExpress,
+  ) {
     const user = req.user as AuthenticatedUser;
     return this.subRolesService.update(id, updateSubRoleDto, user);
   }

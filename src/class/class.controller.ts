@@ -1,7 +1,17 @@
 import { Permissions } from '@/auth/decorators/permissions.decorator';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guards';
 import { PermissionsGuard } from '@/auth/guards/permissions.guard';
-import { Body, Controller, Delete, Get, Param, Patch, Post, Request, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 import { ClassesService } from './class.service';
 import { AssignClassArmsDto } from './dto/assign.class.dto';
 import { Request as RequestExpress } from 'express';

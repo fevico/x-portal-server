@@ -5,10 +5,8 @@ import { AuthenticatedUser } from '@/types/express';
 
 @Injectable()
 export class ClassesService {
+  constructor(private prisma: PrismaService) {}
 
-    constructor(
-        private prisma: PrismaService,
-      ) {}
     
       async create(createClassDto: { name: string }, user: { id: string; schoolId: string }) {
         if (!createClassDto.name) {

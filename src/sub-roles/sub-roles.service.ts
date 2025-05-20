@@ -16,7 +16,10 @@ import { AuthenticatedUser } from '@/types/express';
 export class SubRolesService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createSubRoleDto: CreateSubRoleDto, requester: AuthenticatedUser) {
+  async create(
+    createSubRoleDto: CreateSubRoleDto,
+    requester: AuthenticatedUser,
+  ) {
     if (!requester.permissions.includes('MANAGE_SUBROLES')) {
       throw new ForbiddenException('Requires MANAGE_SUBROLES permission');
     }
