@@ -3,6 +3,9 @@ import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guards';
 import { PermissionsGuard } from '@/auth/guards/permissions.guard';
 import { Body, Controller, Delete, Get, Param, Patch, Post, Request, UseGuards } from '@nestjs/common';
 import { ClassesService } from './class.service';
+import { AssignClassArmsDto } from './dto/assign.class.dto';
+import { Request as RequestExpress } from 'express';
+import { AuthenticatedUser } from '@/types/express';
 
 @Controller('classes')
 export class ClassesController {
@@ -32,8 +35,10 @@ export class ClassesController {
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('configuration:update')
   @Patch(':id')
-  async update(@Param('id') id: string, @Body() updateClassDto: { name?: string }, @Request() req) {
-    return this.classesService.update(id, updateClassDto, req.user);
+  async update(@Param('id') id: string, @Body() updateClassDto: { name?: string }, @Request() req: RequestExpress) {
+    const user = req.user as AuthenticatedUser;
+
+    return this.classesService.update(id, updateClassDto, user);
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -41,5 +46,16 @@ export class ClassesController {
   @Delete(':id')
   async delete(@Param('id') id: string, @Request() req) {
     return this.classesService.delete(id, req.user);
+  }
+
+  @Post()
+  @Permissions('configuration:manage')
+  async assignClassArms(
+    @Body() assignClassArmsDto: AssignClassArmsDto, @Request() req: RequestExpress,
+    // @GetUser() user: { id: string; schoolId: string },
+  ) {
+        const user = req.user as AuthenticatedUser;
+    
+    return this.classesService.assignClassArms(assignClassArmsDto, user);
   }
 }

@@ -138,8 +138,8 @@ export class SubRolesService {
     if (!subRole) throw new NotFoundException('SubRole not found');
     if (requester.schoolId && subRole.schoolId !== requester.schoolId) {
       throw new ForbiddenException(
-        'Cannot delete sub-role for a different school',
-      );
+        'Cannot delete sub-role for a different school',             
+      );    
     }
     return this.prisma.subRole.delete({ where: { id } });
   }
