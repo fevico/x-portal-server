@@ -12,18 +12,40 @@ import { GetUsersQueryDto, UpdateUserDto } from './dto/user.dtos';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async findByEmail(email: string): Promise<User | null> {
     return this.prisma.user.findUnique({ where: { email } });
   }
 
-  async findByUsernameOrEmail(identifier: string) {
-    return this.prisma.user.findFirst({
+  async findByUsernameOrEmail(
+    identifier: string,
+  ): Promise<(User & { permissions: string[] }) | null> {
+    const user = await this.prisma.user.findFirst({
       where: {
         OR: [{ email: identifier }, { username: identifier }],
       },
+      include: {
+        school: { select: { id: true, name: true } },
+        subRole: {
+          include: {
+            permissions: {
+              select: { permission: { select: { name: true } } },
+            },
+          },
+        },
+      },
     });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return {
+      ...user,
+      permissions:
+        user.subRole?.permissions.map((p) => p.permission.name) || [],
+    };
   }
 
   async findById(
@@ -488,7 +510,6 @@ export class UsersService {
       page = 1,
       limit = 10,
     } = query;
-    console.log(query)
     // 1. Restrict school access if not superAdmin
     if (
       requester.role !== 'superAdmin' &&
@@ -532,10 +553,10 @@ export class UsersService {
       subRoleId: subRoleId || undefined,
       OR: q
         ? [
-          { firstname: { contains: q } },
-          { lastname: { contains: q } },
-          { email: { contains: q } },
-        ]
+            { firstname: { contains: q } },
+            { lastname: { contains: q } },
+            { email: { contains: q } },
+          ]
         : undefined,
     };
 
