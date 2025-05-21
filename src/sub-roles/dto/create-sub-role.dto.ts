@@ -6,9 +6,6 @@ export class CreateSubRoleDto {
   name: string;
 
   @IsString()
-  schoolId: string;
-
-  @IsString()
   @IsOptional()
   description?: string;
 }

@@ -26,7 +26,7 @@ export class PermissionsController {
   @Roles('superAdmin')
   @Post()
   create(@Body() createPermissionDto: CreatePermissionDto, @Request() req) {
-    return this.permissionsService.create(createPermissionDto, req.user);
+    return this.permissionsService.create(createPermissionDto, req);
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)

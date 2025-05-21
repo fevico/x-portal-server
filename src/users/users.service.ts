@@ -4,11 +4,14 @@ import {
   NotFoundException,
   HttpException,
   HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 import { Prisma, SubRole, User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { GetUsersQueryDto, UpdateUserDto } from './dto/user.dtos';
+import { AuthenticatedUser } from '@/types/express';
+import { generateRandomPassword } from '@/types/utils';
 
 @Injectable()
 export class UsersService {
@@ -107,10 +110,9 @@ export class UsersService {
       email?: string;
       phone?: string;
       gender?: 'male' | 'female';
-      password: string;
+      password?: string;
       role?: 'admin' | 'superAdmin';
       classId?: string;
-      schoolId?: string;
       subRoleId?: string;
       staffId?: string;
       department?: string;
@@ -126,7 +128,7 @@ export class UsersService {
     // Validate subRoleId for non-superAdmin users
     let subRole: SubRole | null = null;
     if (data.role !== 'superAdmin') {
-      if (!data.schoolId) {
+      if (!requester.schoolId) {
         throw new ForbiddenException('schoolId is required for users');
       }
       if (!data.subRoleId) {
@@ -142,7 +144,7 @@ export class UsersService {
       // For non-global subroles, ensure schoolId is provided and subRole belongs to that school
       if (
         !subRole.isGlobal &&
-        (!data.schoolId || subRole.schoolId !== data.schoolId)
+        (!requester.schoolId || subRole.schoolId !== requester.schoolId)
       ) {
         throw new ForbiddenException(
           'SubRole is not valid for the specified school',
@@ -164,9 +166,9 @@ export class UsersService {
     }
 
     // Validate schoolId if provided
-    if (data.schoolId) {
+    if (requester.schoolId) {
       const school = await this.prisma.school.findUnique({
-        where: { id: data.schoolId },
+        where: { id: requester.schoolId },
       });
       if (!school) {
         throw new ForbiddenException('School does not exist');
@@ -174,14 +176,6 @@ export class UsersService {
     }
 
     // Restrict requester to their own school unless they are superAdmin
-    if (
-      requester.role !== 'superAdmin' &&
-      data.schoolId &&
-      requester.schoolId &&
-      data.schoolId !== requester.schoolId
-    ) {
-      throw new ForbiddenException('Cannot create user for a different school');
-    }
 
     // Generate unique username
     const username = await this.generateUniqueUsername(
@@ -190,7 +184,16 @@ export class UsersService {
     );
 
     // Hash password
-    const hashedPassword = await bcrypt.hash(data.password, 10);
+    let hashedPassword = '';
+    let plainPassword = '';
+    if (data.password) {
+      hashedPassword = await bcrypt.hash(data.password, 10);
+      plainPassword = data.password;
+    } else {
+      const autoPassword = generateRandomPassword();
+      hashedPassword = await bcrypt.hash(autoPassword, 10);
+      plainPassword = autoPassword;
+    }
 
     // Create base user
     const userData: Prisma.UserCreateInput = {
@@ -202,9 +205,11 @@ export class UsersService {
       phone: data.phone,
       gender: data.gender,
       password: hashedPassword,
-      plainPassword: data.password,
+      plainPassword,
       role: data.role || 'admin',
-      school: data.schoolId ? { connect: { id: data.schoolId } } : undefined,
+      school: requester.schoolId
+        ? { connect: { id: requester.schoolId } }
+        : undefined,
       subRole: data.subRoleId ? { connect: { id: data.subRoleId } } : undefined,
       createdBy: requester.id,
     };
@@ -494,104 +499,131 @@ export class UsersService {
 
   async findAll(
     query: GetUsersQueryDto,
-    requester: User,
+    requester: AuthenticatedUser,
   ): Promise<{
-    data: User[];
+    users: User[];
     total: number;
     page: number;
     limit: number;
   }> {
-    const {
-      schoolId,
-      q,
-      gender,
-      subRoleId,
-      subRoleFlag, // 'student' | 'staff' | 'parent'
-      page = 1,
-      limit = 10,
-    } = query;
-    // 1. Restrict school access if not superAdmin
-    if (
-      requester.role !== 'superAdmin' &&
-      schoolId &&
-      requester.schoolId &&
-      schoolId !== requester.schoolId
-    ) {
-      throw new ForbiddenException('Cannot view users from a different school');
-    }
+    try {
+      const {
+        schoolId,
+        q,
+        gender,
+        subRoleId,
+        subRoleFlag, // 'student' | 'staff' | 'parent'
+        page = 1,
+        limit = 10,
+      } = query;
+      // console.log(page, limit, 'check 0');
+      // Convert page and limit to integers
+      const pageInt = parseInt(page.toString(), 10);
+      const limitInt = parseInt(limit.toString(), 10);
 
-    // 2. Validate schoolId
-    if (schoolId) {
-      const school = await this.prisma.school.findUnique({
-        where: { id: schoolId },
-      });
-      if (!school) {
-        throw new ForbiddenException('School does not exist');
+      // Validate page and limit
+      if (isNaN(pageInt) || pageInt < 1) {
+        throw new BadRequestException('Invalid page number');
       }
-    }
-
-    // 3. Validate subRoleId
-    if (subRoleId) {
-      const subRole = await this.prisma.subRole.findUnique({
-        where: { id: subRoleId },
-      });
-      if (!subRole) {
-        throw new ForbiddenException('SubRole does not exist');
+      if (isNaN(limitInt) || limitInt < 1) {
+        throw new BadRequestException('Invalid limit value');
       }
-      if (!subRole.isGlobal && (!schoolId || subRole.schoolId !== schoolId)) {
+      // 1. Restrict school access if not superAdmin
+      if (
+        requester.role !== 'superAdmin' &&
+        schoolId &&
+        requester.schoolId &&
+        schoolId !== requester.schoolId
+      ) {
         throw new ForbiddenException(
-          'SubRole is not valid for the specified school',
+          'Cannot view users from a different school',
         );
       }
+      // console.log(requester.role, schoolId, requester.schoolId, 'check 1');
+      // 2. Validate schoolId
+      if (schoolId) {
+        const school = await this.prisma.school.findUnique({
+          where: { id: schoolId },
+        });
+        if (!school) {
+          throw new ForbiddenException('School does not exist');
+        }
+        // console.log(school, 'check 2');
+      }
+
+      // 3. Validate subRoleId
+      if (subRoleId) {
+        const subRole = await this.prisma.subRole.findUnique({
+          where: { id: subRoleId },
+        });
+        if (!subRole) {
+          throw new ForbiddenException('SubRole does not exist');
+        }
+        // console.log(subRole, 'check 3');
+
+        if (!subRole.isGlobal && (!schoolId || subRole.schoolId !== schoolId)) {
+          throw new ForbiddenException(
+            'SubRole is not valid for the specified school',
+          );
+        }
+        // console.log('check 4');
+      }
+
+      // 4. Build where clause
+      const where: Prisma.UserWhereInput = {
+        isActive: true,
+        gender: gender || undefined,
+        schoolId: schoolId || undefined,
+        subRoleId: subRoleId || undefined,
+        OR: q
+          ? [
+              { firstname: { contains: q } },
+              { lastname: { contains: q } },
+              { email: { contains: q } },
+            ]
+          : undefined,
+      };
+      // console.log(where, 'check 5');
+
+      // 5. Add subRoleFlag filter
+      if (subRoleFlag === 'student') {
+        where.student = { isNot: null };
+      } else if (subRoleFlag === 'staff') {
+        where.staff = { isNot: null };
+      } else if (subRoleFlag === 'parent') {
+        where.parent = { isNot: null };
+      }
+      // console.log('check 6');
+
+      // 6. Fetch with pagination
+      const [users, total] = await Promise.all([
+        this.prisma.user.findMany({
+          where,
+          skip: (pageInt - 1) * limitInt,
+          take: limitInt,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            student: true,
+            staff: true,
+            parent: true,
+            subRole: true,
+          },
+        }),
+        this.prisma.user.count({ where }),
+      ]);
+
+      // console.log(users, 'check 7');
+
+      return {
+        users,
+        total,
+        page,
+        limit,
+      };
+    } catch (error) {
+      console.error('Error in findAll:', error);
+      throw new ForbiddenException(`Failed to fetch users: ${error.message}`);
     }
-
-    // 4. Build where clause
-    const where: Prisma.UserWhereInput = {
-      isActive: true,
-      gender: gender || undefined,
-      schoolId: schoolId || undefined,
-      subRoleId: subRoleId || undefined,
-      OR: q
-        ? [
-            { firstname: { contains: q } },
-            { lastname: { contains: q } },
-            { email: { contains: q } },
-          ]
-        : undefined,
-    };
-
-    // 5. Add subRoleFlag filter
-    if (subRoleFlag === 'student') {
-      where.student = { isNot: null };
-    } else if (subRoleFlag === 'staff') {
-      where.staff = { isNot: null };
-    } else if (subRoleFlag === 'parent') {
-      where.parent = { isNot: null };
-    }
-
-    // 6. Fetch with pagination
-    const [users, total] = await Promise.all([
-      this.prisma.user.findMany({
-        where,
-        skip: (page - 1) * limit,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          student: true,
-          staff: true,
-          parent: true,
-          subRole: true,
-        },
-      }),
-      this.prisma.user.count({ where }),
-    ]);
-
-    return {
-      data: users,
-      total,
-      page,
-      limit,
-    };
   }
 
   async getTotals(userId: string) {
@@ -601,7 +633,7 @@ export class UsersService {
       include: { subRole: true },
     });
 
-    if (!user || user.subRole.name !== 'Admin' || !user.subRole.isGlobal) {
+    if (!user || user.subRole.name !== 'admin' || !user.subRole.isGlobal) {
       throw new HttpException(
         'Unauthorized: Admin access required',
         HttpStatus.FORBIDDEN,

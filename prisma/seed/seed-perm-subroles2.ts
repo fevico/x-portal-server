@@ -603,6 +603,20 @@ async function seed() {
       description: 'Delete a class arm',
       scope: PermissionScope.school,
     },
+
+    // logs
+    {
+      id: uuidv4(),
+      name: 'logs:read',
+      description: 'View logs for various actions',
+      scope: PermissionScope.school,
+    },
+    {
+      id: uuidv4(),
+      name: 'logs:manage',
+      description: 'Manage log settings or retention policies',
+      scope: PermissionScope.school,
+    },
   ];
 
   const subRolePermissions = {

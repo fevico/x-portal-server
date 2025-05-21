@@ -13,6 +13,8 @@ import { SubscriptionModule } from './subscription/subscription.module';
 import { ClassModule } from './class/class.module';
 import { SubjectModule } from './subject/subject.module';
 import { ArmModule } from './arm/arm.module';
+import { HttpModule } from '@nestjs/axios';
+import { LoggingModule } from './log/loggging.module';
 
 @Module({
   imports: [
@@ -28,6 +30,11 @@ import { ArmModule } from './arm/arm.module';
     ClassModule,
     SubjectModule,
     ArmModule,
+    HttpModule.register({
+      timeout: 5000,
+      maxRedirects: 5,
+    }),
+    LoggingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

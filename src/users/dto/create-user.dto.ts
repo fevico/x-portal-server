@@ -26,16 +26,12 @@ export class CreateUserDto {
   gender?: 'male' | 'female';
 
   @IsString()
-  @IsNotEmpty()
-  password: string;
+  @IsOptional()
+  password?: string;
 
   @IsEnum(['admin', 'superAdmin'])
   @IsOptional()
   role?: 'admin' | 'superAdmin' = 'admin'; // Default to admin
-
-  @IsString()
-  @IsOptional()
-  schoolId?: string;
 
   @IsString()
   @IsOptional()
