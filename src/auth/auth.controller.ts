@@ -45,7 +45,7 @@ export class AuthController {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       maxAge: 24 * 60 * 60 * 1000, // 1 day
-      sameSite: 'lax',
+      sameSite: 'none',
     });
     const safeUser = { ...user } as User;
     delete safeUser.password;
@@ -143,7 +143,7 @@ export class AuthController {
     res.cookie('view_as_token', viewAsToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: 'none',
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
     });
     return { view_as: body.view_as, schoolId: body.schoolId };
@@ -167,12 +167,12 @@ export class AuthController {
     res.clearCookie('xtk', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: 'none',
     });
     res.clearCookie('view_as_token', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: 'none',
     });
 
     return { message: 'Logged out successfully' };
