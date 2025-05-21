@@ -72,7 +72,7 @@ export class UsersController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Permissions('user:read', 'user:read:platform')
+  @Permissions('user:read')
   @Get('fetch-users')
   async findAll(@Query() query: GetUsersQueryDto, @Request() req) {
     return this.usersService.findAll(query, req.user);
