@@ -3,12 +3,17 @@ import {
   ConflictException,
   NotFoundException,
   ForbiddenException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service'; // Adjust path
 import { AuthenticatedUser } from '@/types/express';
 import * as bcrypt from 'bcrypt';
 import { CreateSchoolDto, UpdateSchoolDto } from './dto/school.dto';
 import { generateRandomPassword } from '@/types/utils';
+import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
+import { Readable } from 'stream';
+import { ConfigService } from '@nestjs/config';
+
 
 @Injectable()
 export class SchoolsService {
@@ -161,27 +166,155 @@ export class SchoolsService {
     }
   }
 
-  async updateSchool(
-    id: string,
-    dto: UpdateSchoolDto,
-    requester: AuthenticatedUser,
-  ) {
+  // async updateSchool(id: string, dto: UpdateSchoolDto, requester: AuthenticatedUser, file?: Express.Multer.File) {
+  //   if (requester.role !== 'superAdmin') {
+  //     throw new ForbiddenException('Only superAdmin can update schools');
+  //   }
+
+  //   const currentSchool = await this.prisma.school.findUnique({
+  //     where: { id },
+  //     select: { id: true, name: true, email: true, contact: true, logo: true },
+  //   });
+
+  //   if (!currentSchool) {
+  //     return null;
+  //   }
+
+  //   const updateData: Partial<UpdateSchoolDto> & { updatedBy?: string; logo?: any } = {
+  //     updatedBy: requester.id,
+  //   };
+
+  //   // Handle text fields
+  //   if (dto.name && dto.name !== currentSchool.name) {
+  //     updateData.name = dto.name;
+  //   }
+  //   if (dto.email && dto.email !== currentSchool.email) {
+  //     updateData.email = dto.email;
+  //   }
+  //   if (dto.contact && dto.contact !== currentSchool.contact) {
+  //     updateData.contact = dto.contact;
+  //   }
+  //   if (dto.address !== undefined) {
+  //     updateData.address = dto.address;
+  //   }
+
+  //   // Handle logo upload to Cloudinary
+  //   if (file) {
+  //     try {
+  //       // Create a readable stream from the file buffer
+  //       const stream = Readable.from(file.buffer);
+  //       const uploadResult = await new Promise((resolve, reject) => {
+  //         const uploadStream = cloudinary.uploader.upload_stream(
+  //           {
+  //             folder: 'school_logos',
+  //             public_id: `school_${id}_${Date.now()}`,
+  //           },
+  //           (error, result) => {
+  //             if (error) reject(error);
+  //             else resolve(result);
+  //           },
+  //         );
+  //         stream.pipe(uploadStream);
+  //       });
+
+  //       updateData.logo = { url: uploadResult.secure_url };
+  //     } catch (error) {
+  //       throw new InternalServerErrorException('Failed to upload logo to Cloudinary');
+  //     }
+  //   }
+
+  //   // Check for conflicts
+  //   if (updateData.name || updateData.email || updateData.contact) {
+  //     const conflicts = await this.prisma.school.findFirst({
+  //       where: {
+  //         id: { not: id },
+  //         OR: [
+  //           updateData.name ? { name: updateData.name } : undefined,
+  //           updateData.email ? { email: updateData.email } : undefined,
+  //           updateData.contact ? { contact: updateData.contact } : undefined,
+  //         ].filter(Boolean),
+  //       },
+  //       select: { id: true, name: true, email: true, contact: true },
+  //     });
+
+  //     if (conflicts) {
+  //       const messages = [];
+  //       if (updateData.name && conflicts.name === updateData.name) {
+  //         messages.push(`Name "${updateData.name}" is already taken`);
+  //       }
+  //       if (updateData.email && conflicts.email === updateData.email) {
+  //         messages.push(`Email "${updateData.email}" is already taken`);
+  //       }
+  //       if (updateData.contact && conflicts.contact === updateData.contact) {
+  //         messages.push(`Contact "${updateData.contact}" is already taken`);
+  //       }
+  //       throw new ConflictException(messages.join(', '));
+  //     }
+  //   }
+
+  //   // If only updatedBy is present and no other changes, return current school
+  //   if (Object.keys(updateData).length === 1 && !updateData.logo) {
+  //     return this.prisma.school.findUnique({
+  //       where: { id },
+  //       select: {
+  //         id: true,
+  //         name: true,
+  //         email: true,
+  //         contact: true,
+  //         isActive: true,
+  //         address: true,
+  //         createdAt: true,
+  //         updatedAt: true,
+  //         subscriptionId: true,
+  //         logo: true,
+  //       },
+  //     });
+  //   }
+
+  //   try {
+  //     return await this.prisma.school.update({
+  //       where: { id },
+  //       data: updateData,
+  //       select: {
+  //         id: true,
+  //         name: true,
+  //         email: true,
+  //         contact: true,
+  //         isActive: true,
+  //         address: true,
+  //         createdAt: true,
+  //         updatedAt: true,
+  //         subscriptionId: true,
+  //         logo: true,
+  //       },
+  //     });
+  //   } catch (error) {
+  //     if (error.code === 'P2025') {
+  //       return null;
+  //     }
+  //     throw new ForbiddenException('Failed to update school');
+  //   }
+  // }
+
+  async updateSchool(id: string, dto: UpdateSchoolDto, requester: AuthenticatedUser, file?: Express.Multer.File) {
     if (requester.role !== 'superAdmin') {
       throw new ForbiddenException('Only superAdmin can update schools');
     }
 
     const currentSchool = await this.prisma.school.findUnique({
       where: { id },
-      select: { id: true, name: true, email: true, contact: true },
+      select: { id: true, name: true, email: true, contact: true, logo: true },
     });
 
     if (!currentSchool) {
       return null;
     }
 
-    const updateData: Partial<UpdateSchoolDto> & { updatedBy?: string } = {
+    const updateData: Partial<UpdateSchoolDto> & { updatedBy?: string; logo?: any } = {
       updatedBy: requester.id,
     };
+
+    // Handle text fields
     if (dto.name && dto.name !== currentSchool.name) {
       updateData.name = dto.name;
     }
@@ -194,10 +327,33 @@ export class SchoolsService {
     if (dto.address !== undefined) {
       updateData.address = dto.address;
     }
-    if (dto.logo !== undefined) {
-      updateData.logo = dto.logo;
+
+    // Handle logo upload to Cloudinary
+    if (file) {
+      try {
+        // Create a readable stream from the file buffer
+        const stream = Readable.from(file.buffer);
+        const uploadResult: UploadApiResponse = await new Promise((resolve, reject) => {
+          const uploadStream = cloudinary.uploader.upload_stream(
+            {
+              folder: 'school_logos',
+              public_id: `school_${id}_${Date.now()}`,
+            },
+            (error, result) => {
+              if (error) reject(error);
+              else resolve(result as UploadApiResponse);
+            },
+          );
+          stream.pipe(uploadStream);
+        });
+
+        updateData.logo = { url: uploadResult.secure_url };
+      } catch (error) {
+        throw new InternalServerErrorException('Failed to upload logo to Cloudinary');
+      }
     }
 
+    // Check for conflicts
     if (updateData.name || updateData.email || updateData.contact) {
       const conflicts = await this.prisma.school.findFirst({
         where: {
@@ -226,7 +382,8 @@ export class SchoolsService {
       }
     }
 
-    if (Object.keys(updateData).length === 1) {
+    // If only updatedBy is present and no other changes, return current school
+    if (Object.keys(updateData).length === 1 && !updateData.logo) {
       return this.prisma.school.findUnique({
         where: { id },
         select: {
@@ -317,4 +474,75 @@ export class SchoolsService {
       throw new ForbiddenException('Failed to toggle school active status');
     }
   }
+
+  async  getSchoolClassStatistics(schoolId) {
+    // Define the class names to filter
+    const classNames = ['JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3'];
+  
+    // Fetch the statistics
+    const classStats = await this.prisma.class.findMany({
+      where: {
+        schoolId: schoolId,
+        name: {
+          in: classNames,
+        },
+        isDeleted: false,
+      },
+      select: {
+        id: true,
+        name: true,
+        // Count class arms associated with this class
+        classArms: {
+          where: {
+            isDeleted: false,
+          },
+          select: {
+            id: true,
+          },
+        },
+        // Aggregate student data
+        students: {
+          where: {
+            user: {
+              isDeleted: false,
+              subRole: {
+                name: 'Student',                 isGlobal: true,
+              },
+            },
+          },
+          select: {
+            id: true,
+            user: {
+              select: {
+                gender: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  
+    // Process the data to format the statistics
+    const result = classStats.map((classItem) => {
+      const totalClassArms = classItem.classArms.length;
+      const totalStudents = classItem.students.length;
+      const totalMale = classItem.students.filter(
+        (student) => student.user.gender === 'male'
+      ).length;
+      const totalFemale = classItem.students.filter(
+        (student) => student.user.gender === 'female'
+      ).length;
+  
+      return {
+        className: classItem.name,
+        totalClassArms,
+        totalStudents,
+        totalMale,
+        totalFemale,
+      };
+    });
+  
+    return result;
+  }
+
 }

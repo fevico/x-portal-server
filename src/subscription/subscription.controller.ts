@@ -26,6 +26,12 @@ export class SubscriptionController {
     return this.subscriptionService.createSubscription(body);
   }
 
+  @Post('assign-subscription-to-school')
+  @UseGuards(JwtAuthGuard)
+  async assignSubscriptionToSchool(@Body() body: any){
+    return this.subscriptionService.assignSubscriptionToSchool(body);
+  }
+
   @Get('fetch')
   @UseGuards(JwtAuthGuard)
   async getAllSubscriptions(@Query() query: GetSubscriptionsDto) {

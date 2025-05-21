@@ -13,12 +13,12 @@ export class ClassesService {
           throw new HttpException('Class name is required', HttpStatus.BAD_REQUEST);
         }
     
-        // Check for existing class
+        // Check for existing class   
         const existing = await this.prisma.class.findFirst({
           where: {
             name: createClassDto.name,
             schoolId: user.schoolId,
-            isDeleted: false,
+            isDeleted: false,    
           },
         });
     

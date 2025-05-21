@@ -11,6 +11,9 @@ import {
   NotFoundException,
   Request,
   Query,
+  Req,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
 import { SchoolsService } from './schools.service';
 
@@ -26,16 +29,26 @@ import {
   UpdateSchoolDto,
 } from './dto/school.dto';
 import { Permissions } from '@/auth/decorators/permissions.decorator';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { FileUploadMiddleware } from '@/middleware/fileUpload';
 
 @Controller('schools')
 export class SchoolsController {
   constructor(private readonly schoolsService: SchoolsService) {}
 
+  @Get('school-class-statistics')
+  @UseGuards(JwtAuthGuard)
+  async getSchoolClassStatistics(@Req() req: RequestExpress) {   
+    const user = req.user as AuthenticatedUser;   
+    return this.schoolsService.getSchoolClassStatistics(user.schoolId);
+ 
+  }
+
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('superAdmin')
   @Get('list')
   async getSchools(
-    @Query() query: GetSchoolsQueryDto,
+    @Query() query: GetSchoolsQueryDto, 
     @Request() req: RequestExpress,
   ) {
     const user = req.user as AuthenticatedUser;
@@ -79,18 +92,16 @@ export class SchoolsController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('superAdmin')
+  @UseInterceptors(FileInterceptor('logo', FileUploadMiddleware.multerOptions))
   @Patch(':id')
   async updateSchool(
     @Param('id') id: string,
     @Body() updateSchoolDto: UpdateSchoolDto,
     @Request() req: RequestExpress,
+    @UploadedFile() file: Express.Multer.File,
   ) {
     const user = req.user as AuthenticatedUser;
-    const school = await this.schoolsService.updateSchool(
-      id,
-      updateSchoolDto,
-      user,
-    );
+    const school = await this.schoolsService.updateSchool(id, updateSchoolDto, user, file);
     if (!school) {
       throw new NotFoundException('School not found');
     }
@@ -120,4 +131,5 @@ export class SchoolsController {
     }
     return school;
   }
+
 }

@@ -13,6 +13,7 @@ import { SubscriptionModule } from './subscription/subscription.module';
 import { ClassModule } from './class/class.module';
 import { SubjectModule } from './subject/subject.module';
 import { ArmModule } from './arm/arm.module';
+import { ResultsModule } from './results/results.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { ArmModule } from './arm/arm.module';
     ClassModule,
     SubjectModule,
     ArmModule,
+    ResultsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -8,6 +8,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+
 // User model for common user data
 model User {
   id              String    @id @default(uuid())
@@ -70,10 +71,48 @@ model School {
   classClassArms     ClassClassArm[] // Links to class-arm mappings
   studentSubjects    StudentSubject[] // Links to student-subject mappings
   classSubjects      ClassSubject[]
+  session            Session[] 
   // students           Student[]           // Links to students
 
   @@map("schools")
 }
+
+model Session {
+  id         String    @id @default(uuid())
+  schoolId     String    @map("school_id")
+  term         Term 
+  isActive    Boolean   @default(false)
+  startDate    DateTime? @map("start_date")
+  endDate      DateTime? @map("end_date")
+  isDeleted    Boolean   @default(false)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at") 
+  createdBy    String?   @map("created_by")
+  updatedBy    String?   @map("updated_by")
+  school       School    @relation(fields: [schoolId], references: [id])
+}
+
+model Admission {
+  id         String    @id @default(uuid())
+  schoolId     String    @map("school_id")
+  presentClass      String    @map("class_id")
+  classApplying    String    @map("class_applying")
+  surname           String    @map("surname")
+  firstName          String    @map("first_name")
+  address           String    @map("address")
+  gender            Gender    @map("gender")
+  phone            String    @map("phone")
+  email            String    @map("email")
+  dateOfBirth       DateTime  @map("date_of_birth")
+  religion             String    @map("religion")
+  nationality         String    @map("nationality")
+  stateOfOrigin      String    @map("state_of_origin")
+  localGovernment    String    @map("local_government")
+  image               String    @map("image")
+  isDeleted    Boolean   @default(false)
+  createdAt    DateTime  @default(now()) @map("created_at")
+}
+
 
 // Staff model for staff-specific data
 model Staff {
@@ -358,4 +397,10 @@ enum Role {
 enum PermissionScope {
   platform
   school
+}
+
+enum Term {
+  first
+  second
+  third
 }
