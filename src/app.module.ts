@@ -13,6 +13,9 @@ import { SubscriptionModule } from './subscription/subscription.module';
 import { ClassModule } from './class/class.module';
 import { SubjectModule } from './subject/subject.module';
 import { ArmModule } from './arm/arm.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { HttpModule } from '@nestjs/axios';
+import { PingService } from './ping/ping.service';
 
 @Module({
   imports: [
@@ -28,8 +31,10 @@ import { ArmModule } from './arm/arm.module';
     ClassModule,
     SubjectModule,
     ArmModule,
+    ScheduleModule.forRoot(), // starts the cron system
+    HttpModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, PingService],
 })
 export class AppModule {}

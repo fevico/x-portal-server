@@ -45,7 +45,11 @@ export class ClassesController {
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('configuration:update')
   @Patch(':id')
-  async update(@Param('id') id: string, @Body() updateClassDto: { name?: string }, @Request() req: RequestExpress) {
+  async update(
+    @Param('id') id: string,
+    @Body() updateClassDto: { name?: string },
+    @Request() req: RequestExpress,
+  ) {
     const user = req.user as AuthenticatedUser;
 
     return this.classesService.update(id, updateClassDto, user);
@@ -61,11 +65,12 @@ export class ClassesController {
   @Post()
   @Permissions('configuration:manage')
   async assignClassArms(
-    @Body() assignClassArmsDto: AssignClassArmsDto, @Request() req: RequestExpress,
+    @Body() assignClassArmsDto: AssignClassArmsDto,
+    @Request() req: RequestExpress,
     // @GetUser() user: { id: string; schoolId: string },
   ) {
-        const user = req.user as AuthenticatedUser;
-    
+    const user = req.user as AuthenticatedUser;
+
     return this.classesService.assignClassArms(assignClassArmsDto, user);
   }
 }
