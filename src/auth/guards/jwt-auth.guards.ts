@@ -18,14 +18,14 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       response.clearCookie('xtk', {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'none',
+        sameSite: 'lax',
       });
       // Clear view_as_token if present
       if (request.cookies?.['view_as_token']) {
         response.clearCookie('view_as_token', {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
-          sameSite: 'none',
+          sameSite: 'lax',
         });
       }
       throw err || new UnauthorizedException('Invalid or expired token');
@@ -36,7 +36,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       response.clearCookie('view_as_token', {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'none',
+        sameSite: 'lax',
       });
     }
 

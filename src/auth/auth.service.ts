@@ -41,10 +41,7 @@ export class AuthService {
       permissions: user.permissions,
       role: user.role,
     };
-    const token = this.jwtService.sign(payload, {
-      secret: process.env.JWT_SECRET,
-      expiresIn: '1d',
-    });
+    const token = this.jwtService.sign(payload);
 
     return { user, token };
   }
