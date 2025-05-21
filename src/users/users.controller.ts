@@ -71,8 +71,8 @@ export class UsersController {
     return this.usersService.delete(id, req.user);
   }
 
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Permissions('user:read')
+  // @UseGuards(JwtAuthGuard, PermissionsGuard)
+  // @Permissions('user:read')
   @Get('fetch-users')
   async findAll(@Query() query: GetUsersQueryDto, @Request() req) {
     return this.usersService.findAll(query, req.user);
