@@ -17,6 +17,7 @@ export class AuthService {
     const { email, username, password } = loginDto;
     const identifier = email || username; // Use provided email or username
     const user = await this.usersService.findByUsernameOrEmail(identifier);
+
     if (!user || !user.isActive) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -34,8 +35,13 @@ export class AuthService {
       user.schoolId,
       { email },
     );
-    const payload = { sub: user.id };
-    const token = this.jwtService.sign(payload, { expiresIn: '1d' });
+
+    const payload = {
+      sub: user.id,
+      permissions: user.permissions,
+      role: user.role,
+    };
+    const token = this.jwtService.sign(payload);
 
     return { user, token };
   }

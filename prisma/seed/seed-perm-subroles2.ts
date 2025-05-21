@@ -21,35 +21,34 @@ async function seed() {
   const globalSubRoles = [
     {
       id: uuidv4(),
-      name: 'Staff',
+      name: 'staff',
       description: 'School staff member',
       isGlobal: true,
       scope: PermissionScope.school,
     },
     {
       id: uuidv4(),
-      name: 'Student',
+      name: 'student',
       description: 'School student',
       isGlobal: true,
       scope: PermissionScope.school,
     },
     {
       id: uuidv4(),
-      name: 'Parent',
+      name: 'parent',
       description: 'Parent or guardian',
       isGlobal: true,
       scope: PermissionScope.school,
     },
     {
       id: uuidv4(),
-      name: 'Admin',
+      name: 'admin',
       description: 'School administrator with full school permissions',
       isGlobal: true,
       scope: PermissionScope.school,
     },
   ];
 
-  
   const permissions = [
     // Admin Menu: Dashboard
     {
@@ -604,10 +603,24 @@ async function seed() {
       description: 'Delete a class arm',
       scope: PermissionScope.school,
     },
+
+    // logs
+    {
+      id: uuidv4(),
+      name: 'logs:read',
+      description: 'View logs for various actions',
+      scope: PermissionScope.school,
+    },
+    {
+      id: uuidv4(),
+      name: 'logs:manage',
+      description: 'Manage log settings or retention policies',
+      scope: PermissionScope.school,
+    },
   ];
 
   const subRolePermissions = {
-    Staff: [
+    staff: [
       'dashboard:view',
       'attendance:mark',
       'attendance:read',
@@ -624,7 +637,7 @@ async function seed() {
       'communication:read',
       'help:access',
     ],
-    Student: [
+    student: [
       'dashboard:view',
       'attendance:read',
       'score:read',
@@ -632,7 +645,7 @@ async function seed() {
       'communication:read',
       'help:access',
     ],
-    Parent: [
+    parent: [
       'dashboard:view',
       'attendance:read',
       'score:read',
@@ -641,7 +654,7 @@ async function seed() {
       'communication:read',
       'help:access',
     ],
-    Admin: permissions
+    admin: permissions
       .filter((p) => p.scope === PermissionScope.school)
       .map((p) => p.name),
   };

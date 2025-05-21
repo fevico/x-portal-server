@@ -8,6 +8,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { PassportModule } from '@nestjs/passport';
 import { PrismaService } from '@/prisma/prisma.service';
 import { LoggingService } from '@/log/logging.service';
+import { HttpModule } from '@nestjs/axios';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { LoggingService } from '@/log/logging.service';
       }),
       inject: [ConfigService],
     }),
+    HttpModule,
   ],
   controllers: [AuthController],
   providers: [PrismaService, AuthService, JwtStrategy, LoggingService],

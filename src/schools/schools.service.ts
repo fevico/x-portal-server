@@ -5,19 +5,27 @@ import {
   ForbiddenException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service'; // Adjust path
+import { PrismaService } from '../prisma/prisma.service';
 import { AuthenticatedUser } from '@/types/express';
 import * as bcrypt from 'bcrypt';
 import { CreateSchoolDto, UpdateSchoolDto } from './dto/school.dto';
 import { generateRandomPassword } from '@/types/utils';
+<<<<<<< HEAD
 import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
 import { Readable } from 'stream';
 import { ConfigService } from '@nestjs/config';
 
+=======
+import { LoggingService } from '@/log/logging.service';
+import { Prisma } from '@prisma/client';
+>>>>>>> 617479739d877a5e5165cfd0f5c096da5d9ab287
 
 @Injectable()
 export class SchoolsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private loggingService: LoggingService,
+  ) {}
 
   async getSchools({
     search,
@@ -77,92 +85,121 @@ export class SchoolsService {
     return school;
   }
 
-  async createSchool(dto: CreateSchoolDto, requester: AuthenticatedUser) {
-    if (requester.role !== 'superAdmin') {
-      throw new ForbiddenException('Only superAdmin can create schools');
-    }
-
-    // Generate username for admin user
-    const generateUniqueUsername = async (base: string): Promise<string> => {
-      const cleanBase = base
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, '')
-        .slice(0, 10);
-      let username = `admin_${cleanBase}`;
-      const getRandomNumber = () => Math.floor(Math.random() * 900) + 100;
-      username = `${username}${getRandomNumber()}`;
-      let attempts = 0;
-      const maxAttempts = 10;
-      while (await this.prisma.user.findUnique({ where: { username } })) {
-        if (attempts >= maxAttempts) {
-          throw new ForbiddenException('Unable to generate a unique username');
-        }
-        username = `${cleanBase}${getRandomNumber()}`;
-        attempts++;
-      }
-      return username;
-    };
-
-    // Find Admin subrole
-    const adminSubRole = await this.prisma.subRole.findFirst({
-      where: { name: 'Admin', isGlobal: true },
-    });
-    if (!adminSubRole) {
-      throw new ForbiddenException('Admin subrole not found');
-    }
-
-    // Generate admin user details
-    const adminPassword = generateRandomPassword();
-    const adminUsername = await generateUniqueUsername(dto.name);
-
+  async createSchool(dto: CreateSchoolDto, req: any) {
     try {
-      return await this.prisma.$transaction(async (tx) => {
-        // Create school
-        const school = await tx.school.create({
-          data: {
-            name: dto.name,
-            email: dto.email,
-            contact: dto.contact,
-            address: dto.address,
-            createdBy: requester.id,
-          },
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            contact: true,
-            isActive: true,
-            address: true,
-            createdAt: true,
-            updatedAt: true,
-            subscriptionId: true,
-            logo: true,
-          },
-        });
+      const requester = req.user;
+      if (requester.role !== 'superAdmin') {
+        throw new ForbiddenException('Only superAdmin can create schools');
+      }
 
-        // Create admin user
-        const hashedPassword = await bcrypt.hash(adminPassword, 10);
-        await tx.user.create({
-          data: {
-            username: adminUsername,
-            email: dto.email, // Use school email
-            password: hashedPassword,
-            plainPassword: adminPassword,
-            schoolId: school.id,
-            subRoleId: adminSubRole.id,
-            createdBy: requester.id,
-          },
-        });
+      // Generate username for admin user
+      const generateUniqueUsername = async (base: string): Promise<string> => {
+        const cleanBase = base
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '')
+          .slice(0, 10);
+        let username = `admin_${cleanBase}`;
+        const getRandomNumber = () => Math.floor(Math.random() * 900) + 100;
+        username = `${username}${getRandomNumber()}`;
+        let attempts = 0;
+        const maxAttempts = 10;
+        while (await this.prisma.user.findUnique({ where: { username } })) {
+          if (attempts >= maxAttempts) {
+            throw new ForbiddenException(
+              'Unable to generate a unique username',
+            );
+          }
+          username = `${cleanBase}${getRandomNumber()}`;
+          attempts++;
+        }
+        return username;
+      };
 
-        return { school, adminPassword }; // Return password for superAdmin
+      // Find Admin subrole
+      const adminSubRole = await this.prisma.subRole.findFirst({
+        where: { name: 'admin', isGlobal: true },
       });
+      if (!adminSubRole) {
+        throw new ForbiddenException('Admin subrole not found');
+      }
+
+      // Generate admin user details
+      const adminPassword = generateRandomPassword();
+      const adminUsername = await generateUniqueUsername(dto.name);
+      const hashedPassword = await bcrypt.hash(adminPassword, 10); // Precompute hash
+
+      // Run transaction for school and user creation
+      const { school } = await this.prisma.$transaction(
+        async (tx) => {
+          // Create school
+          const school = await tx.school.create({
+            data: {
+              name: dto.name,
+              email: dto.email,
+              contact: dto.contact,
+              address: dto.address,
+              createdBy: requester.id,
+            },
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              contact: true,
+              isActive: true,
+              address: true,
+              createdAt: true,
+              updatedAt: true,
+              subscriptionId: true,
+              logo: true,
+            },
+          });
+
+          // Create admin user
+          const adminUser = await tx.user.create({
+            data: {
+              firstname: 'Admin',
+              lastname: 'User',
+              username: adminUsername,
+              email: dto.email,
+              password: hashedPassword,
+              plainPassword: adminPassword,
+              schoolId: school.id,
+              subRoleId: adminSubRole.id,
+              createdBy: requester.id,
+            },
+          });
+
+          return { school, adminUser };
+        },
+        { timeout: 10000 }, // Increase timeout to 10s
+      );
+
+      // Log action after transaction
+      await this.loggingService.logAction(
+        'create_school',
+        'School',
+        school.id,
+        requester.id,
+        school.id,
+        { args: dto, result: school },
+        req,
+      );
+
+      return { school, adminPassword };
     } catch (error) {
-      if (error.code === 'P2002') {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
         throw new ConflictException(
-          'School name, email, or contact already exists',
+          'Contact number already in use by another school',
         );
       }
-      throw new ForbiddenException('Failed to create school');
+      console.error('Error creating school:', error);
+      throw error instanceof ForbiddenException ||
+        error instanceof ConflictException
+        ? error
+        : new Error(`Failed to create school: ${error.message}`);
     }
   }
 

@@ -14,7 +14,11 @@ import { ClassModule } from './class/class.module';
 import { SubjectModule } from './subject/subject.module';
 import { ArmModule } from './arm/arm.module';
 import { ResultsModule } from './results/results.module';
-
+import { HttpModule } from '@nestjs/axios';
+import { LoggingModule } from './log/loggging.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { PingService } from './ping/ping.service';
+            
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -30,8 +34,15 @@ import { ResultsModule } from './results/results.module';
     SubjectModule,
     ArmModule,
     ResultsModule,
+    HttpModule.register({
+      timeout: 5000,
+      maxRedirects: 5,
+    }),
+    LoggingModule,
+    ScheduleModule.forRoot(), // starts the cron system
+    HttpModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, PingService],
 })
 export class AppModule {}

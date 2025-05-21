@@ -1,4 +1,4 @@
-import { IsString, MinLength, IsOptional, IsArray } from 'class-validator';
+import { IsString, MinLength, IsOptional } from 'class-validator';
 
 export class CreateSubRoleDto {
   @IsString()
@@ -6,12 +6,6 @@ export class CreateSubRoleDto {
   name: string;
 
   @IsString()
-  schoolId: string;
-
-  @IsString()
   @IsOptional()
   description?: string;
-
-  @IsArray()
-  permissionIds: string[];
 }
