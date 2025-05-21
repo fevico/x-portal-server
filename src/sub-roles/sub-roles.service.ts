@@ -7,7 +7,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 // import { CreateSubRoleDto } from './dto/create-sub-role.dto';
 // import { UpdateSubRoleDto } from './dto/update-sub-role.dto';
-import { User } from '@prisma/client';
+import { Prisma, SubRole } from '@prisma/client';
 import { CreateSubRoleDto } from './dto/create-sub-role.dto';
 import { UpdateSubRoleDto } from './dto/update-sub-role.dto';
 import { AuthenticatedUser } from '@/types/express';
@@ -20,8 +20,11 @@ export class SubRolesService {
     createSubRoleDto: CreateSubRoleDto,
     requester: AuthenticatedUser,
   ) {
-    if (!requester.permissions.includes('MANAGE_SUBROLES')) {
-      throw new ForbiddenException('Requires MANAGE_SUBROLES permission');
+    if (
+      requester.role !== 'superAdmin' &&
+      !requester.permissions.includes('sub-role:create')
+    ) {
+      throw new ForbiddenException('Requires MANAGE SUBROLES permission');
     }
     if (
       requester.schoolId &&
@@ -43,33 +46,44 @@ export class SubRolesService {
     if (existing)
       throw new ConflictException('SubRole name already exists in this school');
 
-    const { permissionIds, ...subRoleData } = createSubRoleDto;
+    // const { permissionIds, ...subRoleData } = createSubRoleDto;
     return this.prisma.subRole.create({
       data: {
-        ...subRoleData,
-        permissions: {
-          create: permissionIds.map((permissionId) => ({
-            permissionId,
-          })),
-        },
+        ...createSubRoleDto,
       },
-      include: { permissions: { include: { permission: true } } },
     });
   }
 
-  async findAll(schoolId: string, requester: User) {
-    if (requester.schoolId && schoolId !== requester.schoolId) {
-      throw new ForbiddenException(
-        'Cannot view sub-roles for a different school',
-      );
-    }
-    return this.prisma.subRole.findMany({
-      where: { schoolId },
-      include: { permissions: { include: { permission: true } } },
-    });
+  async findAll(
+    q: string,
+    requester: AuthenticatedUser,
+  ): Promise<{
+    data: SubRole[];
+    total: number;
+  }> {
+    const where: Prisma.SubRoleWhereInput = {
+      schoolId: requester.schoolId,
+      ...(q
+        ? {
+            name: {
+              contains: q,
+            },
+          }
+        : {}),
+    };
+
+    const [data, total] = await Promise.all([
+      this.prisma.subRole.findMany({
+        where,
+        include: { permissions: { include: { permission: true } } },
+      }),
+      this.prisma.subRole.count({ where }),
+    ]);
+
+    return { data, total };
   }
 
-  async findOne(id: string, requester: User) {
+  async findOne(id: string, requester: AuthenticatedUser) {
     const subRole = await this.prisma.subRole.findUnique({
       where: { id },
       include: { permissions: { include: { permission: true } } },

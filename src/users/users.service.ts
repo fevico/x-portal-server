@@ -12,7 +12,7 @@ import { GetUsersQueryDto, UpdateUserDto } from './dto/user.dtos';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async findByEmail(email: string): Promise<User | null> {
     return this.prisma.user.findUnique({ where: { email } });
@@ -479,9 +479,17 @@ export class UsersService {
     page: number;
     limit: number;
   }> {
-    const { schoolId, q, gender, subRoleId, page = 1, limit = 10 } = query;
-
-    // Restrict non-superAdmin to their own school if schoolId is provided
+    const {
+      schoolId,
+      q,
+      gender,
+      subRoleId,
+      subRoleFlag, // 'student' | 'staff' | 'parent'
+      page = 1,
+      limit = 10,
+    } = query;
+    console.log(query)
+    // 1. Restrict school access if not superAdmin
     if (
       requester.role !== 'superAdmin' &&
       schoolId &&
@@ -491,7 +499,7 @@ export class UsersService {
       throw new ForbiddenException('Cannot view users from a different school');
     }
 
-    // Validate schoolId if provided
+    // 2. Validate schoolId
     if (schoolId) {
       const school = await this.prisma.school.findUnique({
         where: { id: schoolId },
@@ -501,7 +509,7 @@ export class UsersService {
       }
     }
 
-    // Validate subRoleId if provided
+    // 3. Validate subRoleId
     if (subRoleId) {
       const subRole = await this.prisma.subRole.findUnique({
         where: { id: subRoleId },
@@ -516,28 +524,43 @@ export class UsersService {
       }
     }
 
-    // Build where clause
+    // 4. Build where clause
     const where: Prisma.UserWhereInput = {
-      isActive: true, // Only active users
-      schoolId: schoolId || undefined,
+      isActive: true,
       gender: gender || undefined,
+      schoolId: schoolId || undefined,
       subRoleId: subRoleId || undefined,
       OR: q
         ? [
-            { firstname: { contains: q } },
-            { lastname: { contains: q } },
-            { email: { contains: q } },
-          ]
+          { firstname: { contains: q } },
+          { lastname: { contains: q } },
+          { email: { contains: q } },
+        ]
         : undefined,
     };
 
-    // Fetch users with pagination
+    // 5. Add subRoleFlag filter
+    if (subRoleFlag === 'student') {
+      where.student = { isNot: null };
+    } else if (subRoleFlag === 'staff') {
+      where.staff = { isNot: null };
+    } else if (subRoleFlag === 'parent') {
+      where.parent = { isNot: null };
+    }
+
+    // 6. Fetch with pagination
     const [users, total] = await Promise.all([
       this.prisma.user.findMany({
         where,
         skip: (page - 1) * limit,
         take: limit,
         orderBy: { createdAt: 'desc' },
+        include: {
+          student: true,
+          staff: true,
+          parent: true,
+          subRole: true,
+        },
       }),
       this.prisma.user.count({ where }),
     ]);

@@ -91,6 +91,10 @@ export class GetUsersQueryDto {
   @IsOptional()
   subRoleId?: string;
 
+  @IsString()
+  @IsOptional()
+  subRoleFlag?: 'student' | 'staff' | 'parent';
+
   @IsInt()
   @Min(1)
   @IsOptional()

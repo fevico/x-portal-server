@@ -8,23 +8,23 @@ import {
   Delete,
   UseGuards,
   Req,
+  Query,
 } from '@nestjs/common';
 import { SubRolesService } from './sub-roles.service';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guards';
-import { RolesGuard } from '@/auth/guards/roles.guard';
-import { Roles } from '@/auth/decorators/auth.decorator';
 import { CreateSubRoleDto } from './dto/create-sub-role.dto';
 import { UpdateSubRoleDto } from './dto/update-sub-role.dto';
 import { AuthenticatedUser } from '@/types/express';
 import { Request as RequestExpress } from 'express';
-import { User } from '@prisma/client';
+import { PermissionsGuard } from '@/auth/guards/permissions.guard';
+import { Permissions } from '@/auth/decorators/permissions.decorator';
 
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('sub-roles')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('superAdmin')
 export class SubRolesController {
   constructor(private readonly subRolesService: SubRolesService) {}
 
+  @Permissions('sub-role:create')
   @Post()
   create(
     @Body() createSubRoleDto: CreateSubRoleDto,
@@ -35,16 +35,16 @@ export class SubRolesController {
     return this.subRolesService.create(createSubRoleDto, user);
   }
 
-  @Get(':/schoolId')
-  findAll(@Param('schoolId') schoolId: 'schoolId', @Req() req: RequestExpress) {
-    const user = req.user as User;
+  @Get()
+  findAll(@Query('q') q: string, @Req() req: RequestExpress) {
+    const user = req.user as AuthenticatedUser;
 
-    return this.subRolesService.findAll(schoolId, user);
+    return this.subRolesService.findAll(q, user);
   }
 
   @Get(':id')
   findOne(@Param('id') id: string, @Req() req: RequestExpress) {
-    const user = req.user as User;
+    const user = req.user as AuthenticatedUser;
 
     return this.subRolesService.findOne(id, user);
   }
