@@ -44,8 +44,10 @@ export class AuthController {
     res.cookie('xtk', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      maxAge: 24 * 60 * 60 * 1000, // 1 day
-      sameSite: 'lax',
+      sameSite: 'lax', // fine for subdomain ↔ subdomain
+      domain: '.bitekitchen.com.ng', // share across all subdomains
+      path: '/', // send on every request
+      maxAge: 24 * 60 * 60 * 1000,
     });
     const safeUser = { ...user } as User;
     delete safeUser.password;
@@ -143,8 +145,10 @@ export class AuthController {
     res.cookie('view_as_token', viewAsToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      sameSite: 'lax', // fine for subdomain ↔ subdomain
+      domain: '.bitekitchen.com.ng', // share across all subdomains
+      path: '/', // send on every request
+      maxAge: 24 * 60 * 60 * 1000,
     });
     return { view_as: body.view_as, schoolId: body.schoolId };
   }

@@ -16,8 +16,9 @@ export class PermissionsService {
     private loggingService: LoggingService,
   ) {}
 
-  async create(createPermissionDto: CreatePermissionDto, user: any) {
+  async create(createPermissionDto: CreatePermissionDto, req: any) {
     try {
+      const user = req.user; // Extract user from request
       const existing = await this.prisma.permission.findUnique({
         where: { name: createPermissionDto.name },
       });
@@ -38,6 +39,7 @@ export class PermissionsService {
         user.id,
         user.schoolId,
         { name: permission.name },
+        req, // Pass req
       );
 
       return permission;

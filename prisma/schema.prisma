@@ -328,16 +328,18 @@ model Subscription {
 
 // LogEntry model for system activity logs
 model LogEntry {
-  id        String  @id @default(uuid())
+  id        String   @id @default(uuid())
   action    String // e.g., "create_user", "update_permission"
   target    String? // e.g., "User", "School"
   targetId  String? // ID of the target entity
-  isDeleted Boolean @default(false)
-
+  isDeleted Boolean  @default(false)
   userId    String?  @map("user_id") @db.VarChar(191)
   schoolId  String?  @map("school_id") @db.VarChar(191)
   meta      Json? // Additional details (e.g., changed fields)
   timestamp DateTime @default(now())
+  ipAddress String?  @map("ip_address") // New: Store IP address
+  device    String? // New: Store device info (e.g., "Chrome on Windows")
+  location  String? // New: Store location (e.g., "Lagos, Nigeria")
   user      User?    @relation(fields: [userId], references: [id])
   school    School?  @relation(fields: [schoolId], references: [id])
 

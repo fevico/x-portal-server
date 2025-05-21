@@ -13,8 +13,9 @@ import { SubscriptionModule } from './subscription/subscription.module';
 import { ClassModule } from './class/class.module';
 import { SubjectModule } from './subject/subject.module';
 import { ArmModule } from './arm/arm.module';
-import { ScheduleModule } from '@nestjs/schedule';
 import { HttpModule } from '@nestjs/axios';
+import { LoggingModule } from './log/loggging.module';
+import { ScheduleModule } from '@nestjs/schedule';
 import { PingService } from './ping/ping.service';
 
 @Module({
@@ -31,6 +32,11 @@ import { PingService } from './ping/ping.service';
     ClassModule,
     SubjectModule,
     ArmModule,
+    HttpModule.register({
+      timeout: 5000,
+      maxRedirects: 5,
+    }),
+    LoggingModule,
     ScheduleModule.forRoot(), // starts the cron system
     HttpModule,
   ],

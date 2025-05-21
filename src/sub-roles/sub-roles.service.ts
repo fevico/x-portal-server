@@ -26,20 +26,12 @@ export class SubRolesService {
     ) {
       throw new ForbiddenException('Requires MANAGE SUBROLES permission');
     }
-    if (
-      requester.schoolId &&
-      createSubRoleDto.schoolId !== requester.schoolId
-    ) {
-      throw new ForbiddenException(
-        'Cannot create sub-role for a different school',
-      );
-    }
 
     const existing = await this.prisma.subRole.findUnique({
       where: {
         name_schoolId: {
           name: createSubRoleDto.name,
-          schoolId: createSubRoleDto.schoolId,
+          schoolId: requester.schoolId,
         },
       },
     });
@@ -50,6 +42,7 @@ export class SubRolesService {
     return this.prisma.subRole.create({
       data: {
         ...createSubRoleDto,
+        schoolId: requester.schoolId,
       },
     });
   }
@@ -62,7 +55,7 @@ export class SubRolesService {
     total: number;
   }> {
     const where: Prisma.SubRoleWhereInput = {
-      schoolId: requester.schoolId,
+      OR: [{ schoolId: requester.schoolId }, { isGlobal: true }],
       ...(q
         ? {
             name: {
@@ -102,8 +95,8 @@ export class SubRolesService {
     updateSubRoleDto: UpdateSubRoleDto,
     requester: AuthenticatedUser,
   ) {
-    if (!requester.permissions.includes('MANAGE_SUBROLES')) {
-      throw new ForbiddenException('Requires MANAGE_SUBROLES permission');
+    if (!requester.permissions.includes('sub-role:update')) {
+      throw new ForbiddenException('Requires MANAGE SUBROLES permission');
     }
     const subRole = await this.prisma.subRole.findUnique({ where: { id } });
     if (!subRole) throw new NotFoundException('SubRole not found');
@@ -129,27 +122,28 @@ export class SubRolesService {
       }
     }
 
-    const { permissionIds, ...subRoleData } = updateSubRoleDto;
-    return this.prisma.subRole.update({
-      where: { id },
-      data: {
-        ...subRoleData,
-        permissions: permissionIds
-          ? {
-              deleteMany: {},
-              create: permissionIds.map((permissionId) => ({
-                permissionId,
-              })),
-            }
-          : undefined,
-      },
-      include: { permissions: { include: { permission: true } } },
-    });
+    // Only allow updating name or description, not permissions
+    const { name, description } = updateSubRoleDto;
+
+    try {
+      return await this.prisma.subRole.update({
+        where: { id },
+        data: {
+          ...(name !== undefined ? { name } : {}),
+          ...(description !== undefined ? { description } : {}),
+        },
+        include: { permissions: { include: { permission: true } } },
+      });
+    } catch (error) {
+      throw new ConflictException(
+        'Failed to update sub-role. Please ensure the name is unique and try again.',
+      );
+    }
   }
 
   async remove(id: string, requester: AuthenticatedUser) {
-    if (!requester.permissions.includes('MANAGE_SUBROLES')) {
-      throw new ForbiddenException('Requires MANAGE_SUBROLES permission');
+    if (!requester.permissions.includes('sub-role:delete')) {
+      throw new ForbiddenException('Requires sub-role:delete permission');
     }
     const subRole = await this.prisma.subRole.findUnique({ where: { id } });
     if (!subRole) throw new NotFoundException('SubRole not found');

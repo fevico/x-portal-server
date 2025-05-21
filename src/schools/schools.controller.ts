@@ -73,8 +73,7 @@ export class SchoolsController {
     @Body() createSchoolDto: CreateSchoolDto,
     @Request() req: RequestExpress,
   ) {
-    const user = req.user as AuthenticatedUser;
-    return this.schoolsService.createSchool(createSchoolDto, user);
+    return this.schoolsService.createSchool(createSchoolDto, req);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
