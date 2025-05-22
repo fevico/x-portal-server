@@ -38,17 +38,16 @@ export class SchoolsController {
 
   @Get('school-class-statistics')
   @UseGuards(JwtAuthGuard)
-  async getSchoolClassStatistics(@Req() req: RequestExpress) {   
-    const user = req.user as AuthenticatedUser;   
+  async getSchoolClassStatistics(@Req() req: RequestExpress) {
+    const user = req.user as AuthenticatedUser;
     return this.schoolsService.getSchoolClassStatistics(user.schoolId);
- 
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('superAdmin')
   @Get('list')
   async getSchools(
-    @Query() query: GetSchoolsQueryDto, 
+    @Query() query: GetSchoolsQueryDto,
     @Request() req: RequestExpress,
   ) {
     const user = req.user as AuthenticatedUser;
@@ -100,7 +99,12 @@ export class SchoolsController {
     @UploadedFile() file: Express.Multer.File,
   ) {
     const user = req.user as AuthenticatedUser;
-    const school = await this.schoolsService.updateSchool(id, updateSchoolDto, user, file);
+    const school = await this.schoolsService.updateSchool(
+      id,
+      updateSchoolDto,
+      user,
+      file,
+    );
     if (!school) {
       throw new NotFoundException('School not found');
     }
@@ -130,5 +134,4 @@ export class SchoolsController {
     }
     return school;
   }
-
 }

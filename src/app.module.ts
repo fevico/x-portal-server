@@ -11,15 +11,17 @@ import { SubRolesModule } from './sub-roles/sub-roles.module';
 import { SchoolsModule } from './schools/schools.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { ClassModule } from './class/class.module';
-import { SubjectModule } from './subject/subject.module';
 import { ArmModule } from './arm/arm.module';
-import { ResultsModule } from './results/results.module';
 import { HttpModule } from '@nestjs/axios';
 import { LoggingModule } from './log/loggging.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { PingService } from './ping/ping.service';
-import { AddmissionModule } from './addmission/addmission.module';
-            
+import { SubjectModule } from './subject/subject.module';
+
+// import { ResultsModule } from './results/results.module';
+import { SessionModule } from './session/session.module';
+import { AdmissionsModule } from './addmission/addmission.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -32,16 +34,18 @@ import { AddmissionModule } from './addmission/addmission.module';
     SchoolsModule,
     SubscriptionModule,
     ClassModule,
-    SubjectModule,
     ArmModule,
-    ResultsModule,
     HttpModule.register({
       timeout: 5000,
       maxRedirects: 5,
     }),
     LoggingModule,
     ScheduleModule.forRoot(), // starts the cron system
-    HttpModule, AddmissionModule,
+    HttpModule,
+    SubjectModule,
+    SessionModule,
+    AdmissionsModule,
+    // ResultsModule,
   ],
   controllers: [AppController],
   providers: [AppService, PingService],
