@@ -72,9 +72,9 @@ model School {
   studentSubjects    StudentSubject[] // Links to student-subject mappings
   classSubjects      ClassSubject[]
   session            Session[] 
-  admissions  Admission[]
+  admissions  Admission[]   
   // students           Student[]           // Links to students
-  
+      
   @@map("schools")
 }
 
@@ -93,42 +93,36 @@ model Session {
   school       School    @relation(fields: [schoolId], references: [id])
 }
 
-// model Admission {
-//   id         String    @id @default(uuid())
-//   schoolId     String    @map("school_id")
-//   presentClass      String    @map("class_id")
-//   classApplying    String    @map("class_applying")
-//   surname           String    @map("surname")
-//   firstName          String    @map("first_name")
-//   address           String    @map("address")
-//   gender            Gender    @map("gender")
-//   phone            String    @map("phone")
-//   email            String    @map("email")
-//   dateOfBirth       DateTime  @map("date_of_birth")
-//   religion             String    @map("religion")
-//   nationality         String    @map("nationality")
-//   stateOfOrigin      String    @map("state_of_origin")
-//   localGovernment    String    @map("local_government")
-//   image               String    @map("image")
-//   guardianId        String?     // Foreign key to Guardian
-//   guardian          Guardian?   @relation(fields: [guardianId], references: [id])
-//   school            School      @relation(fields: [schoolId], references: [id])
-//   isDeleted    Boolean   @default(false)
-//   createdAt    DateTime  @default(now()) @map("created_at")
-// }
-
 model Guardian {
   id            String      @id @default(uuid())
   surname       String
   middleName    String?
+  firstName     String
   email         String      @unique
   phone         String?
   address       String?
+  relationship     String?   
   createdAt     DateTime    @default(now())
   isDeleted     Boolean     @default(false)
   admissions    Admission[] // One guardian can be linked to multiple students
 
   @@map("guardians")
+}
+
+model SchoolInformation {
+  id            String      @id @default(uuid())
+  schoolName    String
+  address       String
+  contact       String
+  admission    Admission[]
+}
+
+model OtherInfo {
+  id            String      @id @default(uuid())
+  healthProblem    String
+  hearAboutUs      String
+  admission    Admission[]
+
 }
 
 model Admission {
@@ -146,15 +140,20 @@ model Admission {
   religion          String
   nationality       String
   stateOfOrigin     String
+  isAccepted        Boolean     @default(false)
   localGovernment   String
   image             String      // Cloudinary URL
   guardianId        String?     // Foreign key to Guardian
+  otherInfoId       String?     // Foreign key to OtherInfo
+  schoolInformationId       String?     // Foreign key to SchoolInformation
   isDeleted         Boolean     @default(false)
   createdAt         DateTime    @default(now())
   school            School      @relation(fields: [schoolId], references: [id])
   presentClass      Class?      @relation("PresentClass", fields: [presentClassId], references: [id])
   classApplying     Class       @relation("ClassApplying", fields: [classApplyingId], references: [id])
   guardian          Guardian?   @relation(fields: [guardianId], references: [id])
+  otherInfo         OtherInfo?  @relation(fields: [otherInfoId], references: [id])
+  schoolInformation SchoolInformation?  @relation(fields: [schoolInformationId], references: [id])
   
   @@map("admissions")
 }
