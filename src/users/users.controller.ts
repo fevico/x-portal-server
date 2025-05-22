@@ -25,8 +25,8 @@ import { GetUsersQueryDto, UpdateUserDto } from './dto/user.dtos';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Permissions('user:create')
+  // @UseGuards(JwtAuthGuard, PermissionsGuard)
+  // @Permissions('user:create')
   @Post()
   async create(@Body() createUserDto: CreateUserDto, @Request() req) {
     return this.usersService.create(createUserDto, req.user);

@@ -1,200 +1,578 @@
-import { ConflictException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
-import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
-import { Readable } from 'stream';
-import { CreateAdmissionDto, UpdateAdmissionDto } from './dto/addmission.dto';
-import { PrismaService } from '@/prisma/prisma.service';
+import {
+  Injectable,
+  ForbiddenException,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import * as bcrypt from 'bcrypt';
+import {
+  AcceptAdmissionDto,
+  CreateAdmissionDto,
+  RejectAdmissionDto,
+  UpdateAdmissionDto,
+} from './dto/addmission.dto';
+import { generateRandomPassword, generateUniqueUsername } from '@/utils';
 
 @Injectable()
-export class AddmissionService {
-    constructor(private prisma: PrismaService) {}
+export class AdmissionsService {
+  constructor(private prisma: PrismaService) {}
 
-    async createAdmission(dto: CreateAdmissionDto, file?: Express.Multer.File) {
-        // Validate school
-        const school = await this.prisma.school.findUnique({ where: { id: dto.schoolId } });
-        if (!school) {
-          throw new NotFoundException('School not found');
-        }
-    
-        // Validate classApplying
-        const classApplying = await this.prisma.class.findUnique({ where: { id: dto.classApplyingId } });
-        if (!classApplying || classApplying.schoolId !== dto.schoolId) {
-          throw new NotFoundException('Class applying not found or does not belong to the school');
-        }
-    
-        // Validate presentClass (if provided)
-        if (dto.presentClassId) {
-          const presentClass = await this.prisma.class.findUnique({ where: { id: dto.presentClassId } });
-          if (!presentClass || presentClass.schoolId !== dto.schoolId) {
-            throw new NotFoundException('Present class not found or does not belong to the school');
-          }
-        }
-    
-        // Check for duplicate guardian email
-        let guardian = await this.prisma.guardian.findUnique({ where: { email: dto.guardianEmail } });
-        if (!guardian) {
-          guardian = await this.prisma.guardian.create({
-            data: {
-              surname: dto.guardianSurname,
-              middleName: dto.guardianMiddleName,
-              email: dto.guardianEmail,
-              phone: dto.guardianPhone,
-              address: dto.guardianAddress,
-            },
-          });
-        } else if (guardian.surname !== dto.guardianSurname || guardian.middleName !== dto.guardianMiddleName) {
-          throw new ConflictException('Guardian email already exists with different details');
-        }
-    
-        // Upload image to Cloudinary
-        let imageUrl = '';
-        if (file) {
-          try {
-            const stream = Readable.from(file.buffer);
-            const uploadResult: UploadApiResponse = await new Promise((resolve, reject) => {
-              const uploadStream = cloudinary.uploader.upload_stream(
-                {
-                  folder: 'student_images',
-                  public_id: `admission_${dto.surname}_${Date.now()}`,
-                },
-                (error, result) => {
-                  if (error) reject(error);
-                  else resolve(result as UploadApiResponse);
-                },
-              );
-              stream.pipe(uploadStream);
-            });
-            imageUrl = uploadResult.secure_url;
-          } catch (error) {
-            throw new InternalServerErrorException('Failed to upload image to Cloudinary');
-          }
-        }
-    
-        // Create admission
-        return this.prisma.admission.create({
+  async createAdmission(dto: CreateAdmissionDto, req: any) {
+    const {
+      student,
+      parent,
+      formerSchool,
+      otherInfo,
+      sessionId,
+      schoolId,
+      presentClassId,
+      classApplyingForId,
+    } = dto;
+    const requester = req.user;
+
+    // Validate session and school
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+    });
+    if (!session || session.schoolId !== schoolId) {
+      throw new ForbiddenException('Invalid session or school');
+    }
+
+    // Find subroles
+    const studentSubRole = await this.prisma.subRole.findFirst({
+      where: { name: 'student', isGlobal: true },
+    });
+    const parentSubRole = await this.prisma.subRole.findFirst({
+      where: { name: 'parent', isGlobal: true },
+    });
+    if (!studentSubRole || !parentSubRole) {
+      throw new ForbiddenException('Student or Parent subrole not found');
+    }
+
+    // Generate passwords
+    const studentPassword = await generateRandomPassword();
+    const parentPassword = await generateRandomPassword();
+    const studentHashedPassword = await bcrypt.hash(studentPassword, 10);
+    const parentHashedPassword = await bcrypt.hash(parentPassword, 10);
+
+    return await this.prisma.$transaction(async (tx) => {
+      // Create student user
+      const studentUser = await tx.user.create({
+        data: {
+          firstname: student.firstname,
+          lastname: student.lastname,
+          username: await generateUniqueUsername(student.firstname),
+          email: student.email,
+          phone: student.contact,
+          gender: student.gender,
+          religion: student.religion,
+          nationality: student.nationality,
+          stateOfOrigin: student.stateOfOrigin,
+          lga: student.lga,
+          password: studentHashedPassword,
+          plainPassword: studentPassword,
+          role: 'admin',
+          subRoleId: studentSubRole.id,
+          schoolId,
+          createdBy: requester?.id,
+        },
+      });
+
+      // Create parent user
+      const parentUser = await tx.user.create({
+        data: {
+          firstname: parent.firstname,
+          lastname: parent.lastname,
+          othername: parent.othername,
+          username: await generateUniqueUsername(parent.firstname),
+          email: parent.email,
+          phone: parent.contact,
+          password: parentHashedPassword,
+          plainPassword: parentPassword,
+          role: 'admin',
+          subRoleId: parentSubRole.id,
+          schoolId,
+          createdBy: requester?.id,
+        },
+      });
+
+      // Create student
+      const studentRecord = await tx.student.create({
+        data: {
+          userId: studentUser.id,
+          studentId: `STU-${Math.floor(Math.random() * 1000000)
+            .toString()
+            .padStart(6, '0')}`,
+          dateOfBirth: student.dateOfBirth,
+          isAdmitted: false,
+          createdBy: requester?.id,
+        },
+      });
+
+      // Create parent
+      const parentRecord = await tx.parent.create({
+        data: {
+          userId: parentUser.id,
+          address: parent.address,
+          relationship: parent.relationship,
+          createdBy: requester?.id,
+        },
+      });
+
+      // Create admission
+      const admission = await tx.admission.create({
+        data: {
+          sessionId,
+          schoolId,
+          studentId: studentRecord.id,
+          parentId: parentRecord.id,
+          presentClassId,
+          classApplyingForId,
+          homeAddress: student.homeAddress,
+          contact: student.contact,
+          email: student.email,
+          dateOfBirth: student.dateOfBirth,
+          religion: student.religion,
+          nationality: student.nationality,
+          stateOfOrigin: student.stateOfOrigin,
+          lga: student.lga,
+          parentLastname: parent.lastname,
+          parentFirstname: parent.firstname,
+          parentOthername: parent.othername,
+          parentAddress: parent.address,
+          parentContact: parent.contact,
+          parentEmail: parent.email,
+          parentRelationship: parent.relationship,
+          formerSchoolName: formerSchool.name,
+          formerSchoolAddress: formerSchool.address,
+          formerSchoolContact: formerSchool.contact,
+          healthProblems: otherInfo.healthProblems,
+          howHeardAboutUs: otherInfo.howHeardAboutUs,
+          createdBy: requester?.id,
+        },
+      });
+
+      // Update student with parent link
+      await tx.student.update({
+        where: { id: studentRecord.id },
+        data: { parentId: parentRecord.id },
+      });
+
+      return { admission, studentPassword, parentPassword };
+    });
+  }
+
+  async rejectAdmission(id: string, dto: RejectAdmissionDto, req: any) {
+    const { rejectionReason } = dto;
+    const requester = req.user;
+
+    // Validate admission
+    const admission = await this.prisma.admission.findUnique({
+      where: { id, isDeleted: false },
+      include: { student: true },
+    });
+    if (!admission) {
+      throw new NotFoundException('Admission not found');
+    }
+
+    // Validate permissions
+    if (
+      requester.role !== 'superAdmin' &&
+      requester.schoolId !== admission.schoolId
+    ) {
+      throw new ForbiddenException(
+        'You can only reject admissions for your school',
+      );
+    }
+
+    return await this.prisma.$transaction(async (tx) => {
+      // Update admission
+      const updatedAdmission = await tx.admission.update({
+        where: { id },
+        data: {
+          isAdmitted: false,
+          rejectionReason,
+          updatedBy: requester.id,
+          classId: null,
+          classArmId: null,
+        },
+        include: {
+          session: { select: { name: true } },
+          school: { select: { name: true } },
+          presentClass: { select: { name: true } },
+          classApplyingFor: { select: { name: true } },
+          class: { select: { name: true } },
+          classArm: { select: { name: true } },
+          student: {
+            include: { user: { select: { firstname: true, lastname: true } } },
+          },
+        },
+      });
+
+      // Update student
+      await tx.student.update({
+        where: { id: admission.studentId },
+        data: {
+          isAdmitted: false,
+          classId: null,
+          classArmId: null,
+          admissionDate: null,
+          updatedBy: requester.id,
+        },
+      });
+
+      // Log the action
+      await tx.logEntry.create({
+        data: {
+          action: 'reject_admission',
+          target: 'Admission',
+          targetId: id,
+          userId: requester.id,
+          schoolId: admission.schoolId,
+          meta: { rejectionReason },
+          ipAddress: req.ip || '::1',
+          device: req.headers['user-agent'] || 'Unknown',
+          location: 'Localhost',
+        },
+      });
+
+      return updatedAdmission;
+    });
+  }
+
+  async acceptAdmission(id: string, dto: AcceptAdmissionDto, req: any) {
+    const { classId, classArmId } = dto;
+    const requester = req.user;
+
+    // Validate admission
+    const admission = await this.prisma.admission.findUnique({
+      where: { id, isDeleted: false },
+      include: { student: true },
+    });
+    if (!admission) {
+      throw new NotFoundException('Admission not found');
+    }
+
+    // Validate permissions
+    if (
+      requester.role !== 'superAdmin' &&
+      requester.schoolId !== admission.schoolId
+    ) {
+      throw new ForbiddenException(
+        'You can only accept admissions for your school',
+      );
+    }
+
+    // Validate class and class arm
+    const classRecord = await this.prisma.class.findUnique({
+      where: { id: classId },
+    });
+    const classArmRecord = await this.prisma.classArm.findUnique({
+      where: { id: classArmId },
+    });
+    if (!classRecord || classRecord.schoolId !== admission.schoolId) {
+      throw new BadRequestException('Invalid class ID');
+    }
+    if (!classArmRecord || classArmRecord.schoolId !== admission.schoolId) {
+      throw new BadRequestException('Invalid class arm ID');
+    }
+
+    // Validate class-class arm compatibility
+    const classClassArm = await this.prisma.classClassArm.findFirst({
+      where: {
+        classId,
+        classArmId,
+        schoolId: admission.schoolId,
+        isDeleted: false,
+      },
+    });
+    if (!classClassArm) {
+      throw new BadRequestException('Class and class arm are not linked');
+    }
+
+    return await this.prisma.$transaction(async (tx) => {
+      // Update admission
+      const updatedAdmission = await tx.admission.update({
+        where: { id },
+        data: {
+          isAdmitted: true,
+          classId,
+          classArmId,
+          rejectionReason: null,
+          updatedBy: requester.id,
+        },
+        include: {
+          session: { select: { name: true } },
+          school: { select: { name: true } },
+          presentClass: { select: { name: true } },
+          classApplyingFor: { select: { name: true } },
+          class: { select: { name: true } },
+          classArm: { select: { name: true } },
+          student: {
+            include: { user: { select: { firstname: true, lastname: true } } },
+          },
+        },
+      });
+
+      // Update student
+      await tx.student.update({
+        where: { id: admission.studentId },
+        data: {
+          isAdmitted: true,
+          classId,
+          classArmId,
+          admissionDate: new Date(),
+          updatedBy: requester.id,
+        },
+      });
+
+      // Log the action
+      await tx.logEntry.create({
+        data: {
+          action: 'accept_admission',
+          target: 'Admission',
+          targetId: id,
+          userId: requester.id,
+          schoolId: admission.schoolId,
+          meta: { classId, classArmId },
+          ipAddress: req.ip || '::1',
+          device: req.headers['user-agent'] || 'Unknown',
+          location: 'Localhost',
+        },
+      });
+
+      return updatedAdmission;
+    });
+  }
+
+  async updateAdmission(id: string, dto: UpdateAdmissionDto, req: any) {
+    const requester = req.user;
+
+    // Validate admission
+    const admission = await this.prisma.admission.findUnique({
+      where: { id, isDeleted: false },
+      include: { student: true },
+    });
+    if (!admission) {
+      throw new NotFoundException('Admission not found');
+    }
+
+    // Validate permissions
+    if (
+      requester.role !== 'superAdmin' &&
+      requester.schoolId !== admission.schoolId
+    ) {
+      throw new ForbiddenException(
+        'You can only update admissions for your school',
+      );
+    }
+
+    // Validate session and class IDs if provided
+    if (dto.sessionId) {
+      const session = await this.prisma.session.findUnique({
+        where: { id: dto.sessionId },
+      });
+      if (!session || session.schoolId !== admission.schoolId) {
+        throw new BadRequestException('Invalid session');
+      }
+    }
+    if (dto.presentClassId || dto.classApplyingForId || dto.classId) {
+      const classIds = [
+        dto.presentClassId,
+        dto.classApplyingForId,
+        dto.classId,
+      ].filter(Boolean);
+      const classes = await this.prisma.class.findMany({
+        where: { id: { in: classIds }, schoolId: admission.schoolId },
+      });
+      if (classes.length !== classIds.length) {
+        throw new BadRequestException('Invalid class IDs');
+      }
+    }
+    if (dto.classArmId) {
+      const classArm = await this.prisma.classArm.findUnique({
+        where: { id: dto.classArmId },
+      });
+      if (!classArm || classArm.schoolId !== admission.schoolId) {
+        throw new BadRequestException('Invalid class arm');
+      }
+    }
+
+    return await this.prisma.$transaction(async (tx) => {
+      // Update admission
+      const updatedAdmission = await tx.admission.update({
+        where: { id },
+        data: {
+          sessionId: dto.sessionId,
+          presentClassId: dto.presentClassId,
+          classApplyingForId: dto.classApplyingForId,
+          classId: dto.classId,
+          classArmId: dto.classArmId,
+          homeAddress: dto.student?.homeAddress,
+          contact: dto.student?.contact,
+          email: dto.student?.email,
+          dateOfBirth: dto.student?.dateOfBirth,
+          religion: dto.student?.religion,
+          nationality: dto.student?.nationality,
+          stateOfOrigin: dto.student?.stateOfOrigin,
+          lga: dto.student?.lga,
+          parentLastname: dto.parent?.lastname,
+          parentFirstname: dto.parent?.firstname,
+          parentOthername: dto.parent?.othername,
+          parentAddress: dto.parent?.address,
+          parentContact: dto.parent?.contact,
+          parentEmail: dto.parent?.email,
+          parentRelationship: dto.parent?.relationship,
+          formerSchoolName: dto.formerSchool?.name,
+          formerSchoolAddress: dto.formerSchool?.address,
+          formerSchoolContact: dto.formerSchool?.contact,
+          healthProblems: dto.otherInfo?.healthProblems,
+          howHeardAboutUs: dto.otherInfo?.howHeardAboutUs,
+          updatedBy: requester.id,
+        },
+        include: {
+          session: { select: { name: true } },
+          school: { select: { name: true } },
+          presentClass: { select: { name: true } },
+          classApplyingFor: { select: { name: true } },
+          class: { select: { name: true } },
+          classArm: { select: { name: true } },
+          student: {
+            include: { user: { select: { firstname: true, lastname: true } } },
+          },
+        },
+      });
+
+      // Optionally update student
+      if (dto.student) {
+        await tx.student.update({
+          where: { id: admission.studentId },
           data: {
-            schoolId: dto.schoolId,
-            presentClassId: dto.presentClassId,
-            classApplyingId: dto.classApplyingId,
-            surname: dto.surname,
-            firstName: dto.firstName,
-            address: dto.address,
-            gender: dto.gender,
-            phone: dto.phone,
-            email: dto.email,
-            dateOfBirth: new Date(dto.dateOfBirth),
-            religion: dto.religion,
-            nationality: dto.nationality,
-            stateOfOrigin: dto.stateOfOrigin,
-            localGovernment: dto.localGovernment,
-            image: imageUrl,
-            guardianId: guardian.id,
+            dateOfBirth: dto.student.dateOfBirth,
+            updatedBy: requester.id,
           },
-          include: {
-            school: { select: { id: true, name: true, email: true } },
-            guardian: true,
-            presentClass: true,
-            classApplying: true,
+        });
+        await tx.user.update({
+          where: { id: admission.student.userId },
+          data: {
+            firstname: dto.student.firstname,
+            lastname: dto.student.lastname,
+            email: dto.student.email,
+            phone: dto.student.contact,
+            gender: dto.student.gender,
+            religion: dto.student.religion,
+            nationality: dto.student.nationality,
+            stateOfOrigin: dto.student.stateOfOrigin,
+            lga: dto.student.lga,
+            updatedBy: requester.id,
           },
         });
       }
-    
-      async updateAdmission(id: string, dto: UpdateAdmissionDto, file?: Express.Multer.File) {
-        const admission = await this.prisma.admission.findUnique({ where: { id } });
-        if (!admission) {
-          throw new NotFoundException('Admission not found');
-        }
-    
-        const updateData: any = {};
-    
-        // Update student fields
-        if (dto.surname) updateData.surname = dto.surname;
-        if (dto.firstName) updateData.firstName = dto.firstName;
-        if (dto.address) updateData.address = dto.address;
-        if (dto.gender) updateData.gender = dto.gender;
-        if (dto.phone) updateData.phone = dto.phone;
-        if (dto.email) updateData.email = dto.email;
-        if (dto.dateOfBirth) updateData.dateOfBirth = new Date(dto.dateOfBirth);
-        if (dto.religion) updateData.religion = dto.religion;
-        if (dto.nationality) updateData.nationality = dto.nationality;
-        if (dto.stateOfOrigin) updateData.stateOfOrigin = dto.stateOfOrigin;
-        if (dto.localGovernment) updateData.localGovernment = dto.localGovernment;
-        if (dto.isDeleted !== undefined) updateData.isDeleted = dto.isDeleted;
-    
-        // Validate and update classes
-        if (dto.presentClassId) {
-          const presentClass = await this.prisma.class.findUnique({ where: { id: dto.presentClassId } });
-          if (!presentClass || presentClass.schoolId !== admission.schoolId) {
-            throw new NotFoundException('Present class not found or does not belong to the school');
-          }
-          updateData.presentClassId = dto.presentClassId;
-        }
-        if (dto.classApplyingId) {
-          const classApplying = await this.prisma.class.findUnique({ where: { id: dto.classApplyingId } });
-          if (!classApplying || classApplying.schoolId !== admission.schoolId) {
-            throw new NotFoundException('Class applying not found or does not belong to the school');
-          }
-          updateData.classApplyingId = dto.classApplyingId;
-        }
-    
-        // Update guardian
-        if (dto.guardianEmail) {
-          let guardian = await this.prisma.guardian.findUnique({ where: { email: dto.guardianEmail } });
-          if (!guardian) {
-            guardian = await this.prisma.guardian.create({
-              data: {
-                surname: dto.guardianSurname || admission.surname,
-                middleName: dto.guardianMiddleName,
-                email: dto.guardianEmail,
-                phone: dto.guardianPhone,
-                address: dto.guardianAddress,
-              },
-            });
-          } else {
-            await this.prisma.guardian.update({
-              where: { id: guardian.id },
-              data: {
-                surname: dto.guardianSurname || guardian.surname,
-                middleName: dto.guardianMiddleName,
-                phone: dto.guardianPhone,
-                address: dto.guardianAddress,
-              },
-            });
-          }
-          updateData.guardianId = guardian.id;
-        }
-    
-        // Update image
-        if (file) {
-          try {
-            const stream = Readable.from(file.buffer);
-            const uploadResult: UploadApiResponse = await new Promise((resolve, reject) => {
-              const uploadStream = cloudinary.uploader.upload_stream(
-                {
-                  folder: 'student_images',
-                  public_id: `admission_${dto.surname || admission.surname}_${Date.now()}`,
-                },
-                (error, result) => {
-                  if (error) reject(error);
-                  else resolve(result as UploadApiResponse);
-                },
-              );
-              stream.pipe(uploadStream);
-            });
-            updateData.image = uploadResult.secure_url;
-          } catch (error) {
-            throw new InternalServerErrorException('Failed to upload image to Cloudinary');
-          }
-        }
-    
-        return this.prisma.admission.update({
-          where: { id },
-          data: updateData,
-          include: {
-            school: { select: { id: true, name: true, email: true } },
-            guardian: true,
-            presentClass: true,
-            classApplying: true,
+
+      // Optionally update parent
+      if (dto.parent) {
+        await tx.parent.update({
+          where: { id: admission.parentId },
+          data: {
+            address: dto.parent.address,
+            relationship: dto.parent.relationship,
+            updatedBy: requester.id,
+          },
+        });
+        await tx.user.update({
+          where: {
+            id: (
+              await tx.parent.findUnique({ where: { id: admission.parentId } })
+            ).userId,
+          },
+          data: {
+            firstname: dto.parent.firstname,
+            lastname: dto.parent.lastname,
+            othername: dto.parent.othername,
+            email: dto.parent.email,
+            phone: dto.parent.contact,
+            updatedBy: requester.id,
           },
         });
       }
+
+      // Log the action
+      await tx.logEntry.create({
+        data: {
+          action: 'update_admission',
+          target: 'Admission',
+          targetId: id,
+          userId: requester.id,
+          schoolId: admission.schoolId,
+          meta: { updatedFields: Object.keys(dto) },
+          ipAddress: req.ip || '::1',
+          device: req.headers['user-agent'] || 'Unknown',
+          location: 'Localhost',
+        },
+      });
+
+      return updatedAdmission;
+    });
+  }
+
+  async getStudentsByParentId(parentId: string, req: any) {
+    const requester = req.user;
+
+    // Validate parent
+    const parent = await this.prisma.parent.findUnique({
+      where: { id: parentId },
+      include: {
+        user: {
+          select: {
+            schoolId: true,
+            firstname: true,
+            lastname: true,
+            email: true,
+          },
+        },
+        students: {
+          include: {
+            user: { select: { firstname: true, lastname: true, email: true } },
+            class: { select: { name: true } },
+            classArm: { select: { name: true } },
+            admission: { select: { isAdmitted: true } },
+          },
+        },
+      },
+    });
+
+    if (!parent) {
+      throw new NotFoundException('Parent not found');
+    }
+
+    // Validate permissions
+    if (
+      requester.role !== 'superAdmin' &&
+      requester.schoolId !== parent.user.schoolId
+    ) {
+      throw new ForbiddenException(
+        'You can only access students for your school',
+      );
+    }
+
+    return {
+      parentId: parent.id,
+      parentUser: {
+        firstname: parent.user.firstname,
+        lastname: parent.user.lastname,
+        email: parent.user.email,
+      },
+      students: parent.students.map((student) => ({
+        id: student.id,
+        studentId: student.studentId,
+        firstname: student.user.firstname,
+        lastname: student.user.lastname,
+        email: student.user.email,
+        class: student.class?.name,
+        classArm: student.classArm?.name,
+        isAdmitted: student.admission?.isAdmitted,
+      })),
+    };
+  }
 }

@@ -28,7 +28,7 @@ export class SubscriptionController {
 
   @Post('assign-subscription-to-school')
   @UseGuards(JwtAuthGuard)
-  async assignSubscriptionToSchool(@Body() body: any){
+  async assignSubscriptionToSchool(@Body() body: any) {
     return this.subscriptionService.assignSubscriptionToSchool(body);
   }
 

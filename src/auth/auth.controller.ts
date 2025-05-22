@@ -38,14 +38,17 @@ export class AuthController {
   async login(
     @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) res: Response,
-  ) {
-    const { user, token } = await this.authService.login(loginDto);
+    @Request() req: RequestExpress,
+  ): Promise<{ message: string; safeUser: User } | { error: string } | void> {
+    const { user, token } = await this.authService.login(loginDto, req);
 
     res.cookie('xtk', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax', // fine for subdomain ↔ subdomain
-      domain: '.bitekitchen.com.ng', // share across all subdomains
+      ...(process.env.NODE_ENV === 'production'
+        ? { domain: '.bitekitchen.com.ng' }
+        : {}),
       path: '/', // send on every request
       maxAge: 24 * 60 * 60 * 1000,
     });
@@ -111,17 +114,6 @@ export class AuthController {
     return { school };
   }
 
-  // @UseGuards(JwtAuthGuard, PermissionsGuard)
-  // @Permissions('MANAGE_SUBROLES')
-  // @Patch('assign-subrole/:userId/:subRoleId')
-  // async assignSubRole(
-  //   @Param('userId') userId: string,
-  //   @Param('subRoleId') subRoleId: string,
-  //   @Request() req,
-  // ) {
-  //   return this.subRoleService.update(userId, subRoleId, req.user);
-  // }
-
   @UseGuards(JwtAuthGuard)
   @Roles('superAdmin')
   @Patch('set-view-as')
@@ -146,7 +138,9 @@ export class AuthController {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax', // fine for subdomain ↔ subdomain
-      domain: '.bitekitchen.com.ng', // share across all subdomains
+      ...(process.env.NODE_ENV === 'production'
+        ? { domain: '.bitekitchen.com.ng' }
+        : {}),
       path: '/', // send on every request
       maxAge: 24 * 60 * 60 * 1000,
     });

@@ -196,26 +196,28 @@ export class SubscriptionService {
     return months;
   }
 
-  async assignSubscriptionToSchool(body: any){
-    const {schoolId, subscriptionId} = body
+  async assignSubscriptionToSchool(body: any) {
+    const { schoolId, subscriptionId } = body;
     try {
       const subscription = await this.prisma.subscription.findUnique({
         where: { id: subscriptionId },
-      })
-      if(!subscription) throw new NotFoundException('Subscription not found')
-        const school = await this.prisma.school.findUnique({
-          where: { id: schoolId },
-        })
-        if(!school) throw new NotFoundException('School not found')
-          await this.prisma.school.update({
-            where: { id: schoolId },
-            data: { subscriptionId: subscriptionId }
-          })
-     
-      return {message: "Subscription assigned to school successfully"};
+      });
+      if (!subscription) throw new NotFoundException('Subscription not found');
+      const school = await this.prisma.school.findUnique({
+        where: { id: schoolId },
+      });
+      if (!school) throw new NotFoundException('School not found');
+      await this.prisma.school.update({
+        where: { id: schoolId },
+        data: { subscriptionId: subscriptionId },
+      });
+
+      return { message: 'Subscription assigned to school successfully' };
     } catch (error) {
       console.error('Error assigning subscription to school:', error);
-      throw new InternalServerErrorException('Failed to assign subscription to school');
+      throw new InternalServerErrorException(
+        'Failed to assign subscription to school',
+      );
     }
   }
 }
