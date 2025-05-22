@@ -10,15 +10,12 @@ import { AuthenticatedUser } from '@/types/express';
 import * as bcrypt from 'bcrypt';
 import { CreateSchoolDto, UpdateSchoolDto } from './dto/school.dto';
 import { generateRandomPassword } from '@/types/utils';
-<<<<<<< HEAD
 import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
 import { Readable } from 'stream';
 import { ConfigService } from '@nestjs/config';
 
-=======
 import { LoggingService } from '@/log/logging.service';
 import { Prisma } from '@prisma/client';
->>>>>>> 617479739d877a5e5165cfd0f5c096da5d9ab287
 
 @Injectable()
 export class SchoolsService {

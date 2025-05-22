@@ -18,6 +18,7 @@ import { HttpModule } from '@nestjs/axios';
 import { LoggingModule } from './log/loggging.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { PingService } from './ping/ping.service';
+import { AddmissionModule } from './addmission/addmission.module';
             
 @Module({
   imports: [
@@ -40,7 +41,7 @@ import { PingService } from './ping/ping.service';
     }),
     LoggingModule,
     ScheduleModule.forRoot(), // starts the cron system
-    HttpModule,
+    HttpModule, AddmissionModule,
   ],
   controllers: [AppController],
   providers: [AppService, PingService],

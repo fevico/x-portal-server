@@ -65,15 +65,16 @@ model School {
   logo               Json?               @map("logo")
   subRolePermissions SubRolePermission[]
   logEntries         LogEntry[]
-  classes            Class[] // Links to classes
-  classArms          ClassArm[] // Links to class arms
-  subjects           Subject[] // Links to subjects
+  classes            Class[] 
+  classArms          ClassArm[] 
+  subjects           Subject[] 
   classClassArms     ClassClassArm[] // Links to class-arm mappings
   studentSubjects    StudentSubject[] // Links to student-subject mappings
   classSubjects      ClassSubject[]
   session            Session[] 
+  admissions  Admission[]
   // students           Student[]           // Links to students
-
+  
   @@map("schools")
 }
 
@@ -92,25 +93,70 @@ model Session {
   school       School    @relation(fields: [schoolId], references: [id])
 }
 
+// model Admission {
+//   id         String    @id @default(uuid())
+//   schoolId     String    @map("school_id")
+//   presentClass      String    @map("class_id")
+//   classApplying    String    @map("class_applying")
+//   surname           String    @map("surname")
+//   firstName          String    @map("first_name")
+//   address           String    @map("address")
+//   gender            Gender    @map("gender")
+//   phone            String    @map("phone")
+//   email            String    @map("email")
+//   dateOfBirth       DateTime  @map("date_of_birth")
+//   religion             String    @map("religion")
+//   nationality         String    @map("nationality")
+//   stateOfOrigin      String    @map("state_of_origin")
+//   localGovernment    String    @map("local_government")
+//   image               String    @map("image")
+//   guardianId        String?     // Foreign key to Guardian
+//   guardian          Guardian?   @relation(fields: [guardianId], references: [id])
+//   school            School      @relation(fields: [schoolId], references: [id])
+//   isDeleted    Boolean   @default(false)
+//   createdAt    DateTime  @default(now()) @map("created_at")
+// }
+
+model Guardian {
+  id            String      @id @default(uuid())
+  surname       String
+  middleName    String?
+  email         String      @unique
+  phone         String?
+  address       String?
+  createdAt     DateTime    @default(now())
+  isDeleted     Boolean     @default(false)
+  admissions    Admission[] // One guardian can be linked to multiple students
+
+  @@map("guardians")
+}
+
 model Admission {
-  id         String    @id @default(uuid())
-  schoolId     String    @map("school_id")
-  presentClass      String    @map("class_id")
-  classApplying    String    @map("class_applying")
-  surname           String    @map("surname")
-  firstName          String    @map("first_name")
-  address           String    @map("address")
-  gender            Gender    @map("gender")
-  phone            String    @map("phone")
-  email            String    @map("email")
-  dateOfBirth       DateTime  @map("date_of_birth")
-  religion             String    @map("religion")
-  nationality         String    @map("nationality")
-  stateOfOrigin      String    @map("state_of_origin")
-  localGovernment    String    @map("local_government")
-  image               String    @map("image")
-  isDeleted    Boolean   @default(false)
-  createdAt    DateTime  @default(now()) @map("created_at")
+  id                String      @id @default(uuid())
+  schoolId          String
+  presentClassId    String?     @map("class_id") // Foreign key to Class
+  classApplyingId   String      @map("class_applying") // Foreign key to Class
+  surname           String
+  firstName         String
+  address           String
+  gender            Gender
+  phone             String
+  email             String
+  dateOfBirth       DateTime
+  religion          String
+  nationality       String
+  stateOfOrigin     String
+  localGovernment   String
+  image             String      // Cloudinary URL
+  guardianId        String?     // Foreign key to Guardian
+  isDeleted         Boolean     @default(false)
+  createdAt         DateTime    @default(now())
+  school            School      @relation(fields: [schoolId], references: [id])
+  presentClass      Class?      @relation("PresentClass", fields: [presentClassId], references: [id])
+  classApplying     Class       @relation("ClassApplying", fields: [classApplyingId], references: [id])
+  guardian          Guardian?   @relation(fields: [guardianId], references: [id])
+  
+  @@map("admissions")
 }
 
 
@@ -179,9 +225,11 @@ model Class {
   name          String // e.g., JS1, JS2, SS1
   schoolId      String          @map("school_id")
   school        School          @relation(fields: [schoolId], references: [id])
+  admissionsPresent  Admission[] @relation("PresentClass")
+  admissionsApplying Admission[] @relation("ClassApplying")
   classArms     ClassClassArm[] // Links to class arms via junction table
-  classSubjects ClassSubject[] // Links to subjects via explicit junction table
-  students      Student[] // Links to students in this class
+  classSubjects ClassSubject[] 
+  students      Student[]
   isDeleted     Boolean         @default(false)
 
   createdAt DateTime @default(now()) @map("created_at")
