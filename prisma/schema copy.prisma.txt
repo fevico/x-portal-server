@@ -1,69 +1,20 @@
-generator client {
-  provider = "prisma-client-js"
-  output   = "../node_modules/.prisma/client"
-}
-
-datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
-}
-
-// User model for common user data
-model User {
-  id              String    @id @default(uuid())
-  firstname       String?
-  lastname        String?
-  othername       String?
-  username        String    @unique
-  email           String?   @unique
-  phone           String?   @unique
-  gender          Gender?
-  religion        String?
-  nationality     String?
-  stateOfOrigin   String?   @map("state_of_origin")
-  lga             String?
-  isActive        Boolean   @default(true)
-  emailVerifiedAt DateTime? @map("email_verified_at")
-  password        String
-  isDeleted       Boolean   @default(false)
-  plainPassword   String
-  role            Role      @default(admin)
-  rememberToken   String?   @map("remember_token")
-  avatar          Json?     @map("avatar")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
-  createdBy       String?   @map("created_by")
-  updatedBy       String?   @map("updated_by")
-  schoolId        String?   @map("school_id")
-  school          School?   @relation(fields: [schoolId], references: [id])
-  subRoleId       String?   @map("sub_role_id")
-  subRole         SubRole?  @relation(fields: [subRoleId], references: [id])
-  logEntries      LogEntry[]
-  staff           Staff?    @relation("UserToStaff")
-  student         Student?  @relation("UserToStudent")
-  parent          Parent?   @relation("UserToParent")
-
-  @@map("users")
-}
-
-// School model
 model School {
-  id                 String              @id @default(uuid())
-  name               String              @unique
-  email              String              @unique
-  contact            String              @unique
-  isActive           Boolean             @default(true)
-  isDeleted          Boolean             @default(false)
+  id                 String               @id @default(uuid())
+  name               String               @unique
+  email              String               @unique
+  contact            String               @unique
+  isActive           Boolean              @default(true)
+  isDeleted          Boolean              @default(false)
   address            String?
-  subscriptionId     String?             @map("subscription_id")
-  subscription       Subscription?       @relation(fields: [subscriptionId], references: [id])
-  createdAt          DateTime            @default(now()) @map("created_at")
+  subscriptionId     String?              @map("subscription_id")
+  subscription       Subscription?        @relation(fields: [subscriptionId], references: [id])
+  createdAt          DateTime             @default(now()) @map("created_at")
   createdBy          String?
   updatedBy          String?
-  updatedAt          DateTime            @updatedAt @map("updated_at")
+  updatedAt          DateTime             @updatedAt @map("updated_at")
   users              User[]
   subRoles           SubRole[]
-  logo               Json?               @map("logo")
+  logo               Json?                @map("logo")
   subRolePermissions SubRolePermission[]
   logEntries         LogEntry[]
   classes            Class[]
@@ -74,113 +25,53 @@ model School {
   classSubjects      ClassSubject[]
   admissions         Admission[]
   sessions           Session[]
+  currentSessionId   String?              @map("current_session_id") // Track current session
+  currentSession     Session?             @relation("SchoolCurrentSession", fields: [currentSessionId], references: [id])
+  currentTermId      String?              @map("current_term_id") // Track current term
+  currentTerm        Term?                @relation("SchoolCurrentTerm", fields: [currentTermId], references: [id])
+  SessionClassArm    SessionClassArm[]
+  SchoolSubscription SchoolSubscription[]
 
   @@map("schools")
 }
 
-// Staff model for staff-specific data
-model Staff {
-  id             String    @id @default(uuid())
-  userId         String    @unique @map("user_id")
-  user           User      @relation("UserToStaff", fields: [userId], references: [id])
-  staffId        String?   @unique @map("staff_id")
-  department     String?
-  position       String?
-  hireDate       DateTime? @map("hire_date")
-  qualifications String?
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
-  createdBy      String?   @map("created_by")
-  updatedBy      String?   @map("updated_by")
-
-  @@map("staff")
-}
-
-// Student model for student-specific data
-model Student {
-  id            String           @id @default(uuid())
-  userId        String           @unique @map("user_id")
-  user          User             @relation("UserToStudent", fields: [userId], references: [id])
-  studentId     String?          @unique @map("student_id")
-  classId       String?          @map("class_id")
-  class         Class?           @relation(fields: [classId], references: [id])
-  classArmId    String?          @map("class_arm_id")
-  classArm      ClassArm?        @relation(fields: [classArmId], references: [id])
-  admissionDate DateTime?        @map("admission_date")
-  dateOfBirth   DateTime?        @map("date_of_birth")
-  parentId      String?          @map("parent_id")
-  parent        Parent?          @relation(fields: [parentId], references: [id])
-  subjects      StudentSubject[]
-  admission     Admission?       @relation("StudentToAdmission")
-  isAdmitted    Boolean          @default(false)
-  createdAt     DateTime         @default(now()) @map("created_at")
-  updatedAt     DateTime         @updatedAt @map("updated_at")
-  createdBy     String?          @map("created_by")
-  updatedBy     String?          @map("updated_by")
-
-  @@map("students")
-}
-
-// Parent model for parent-specific data
-model Parent {
-  id           String    @id @default(uuid())
-  userId       String    @unique @map("user_id")
-  user         User      @relation("UserToParent", fields: [userId], references: [id])
-  occupation   String?
-  address      String?
-  relationship String?
-  students     Student[]
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
-  createdBy    String?   @map("created_by")
-  updatedBy    String?   @map("updated_by")
-
-  @@map("parents")
-}
-
-// Class model
-model Class {
+model Session {
   id              String            @id @default(uuid())
-  name            String
+  name            String // e.g., 2024/2025
   schoolId        String            @map("school_id")
   school          School            @relation(fields: [schoolId], references: [id])
-  classArms       ClassClassArm[]
-  classSubjects   ClassSubject[]
-  students        Student[]
-  presentAdmissions  Admission[]    @relation("AdmissionToPresentClass")
-  applyingAdmissions Admission[]    @relation("AdmissionToClassApplyingFor")
-  assignedAdmissions Admission[]    @relation("AdmissionToAssignedClass")
+  terms           Term[] // One-to-many relationship with terms
+  admissions      Admission[]
+  classArms       SessionClassArm[]
   isDeleted       Boolean           @default(false)
   createdAt       DateTime          @default(now()) @map("created_at")
   updatedAt       DateTime          @updatedAt @map("updated_at")
   createdBy       String?           @map("created_by")
   updatedBy       String?           @map("updated_by")
+  schools         School[]          @relation("SchoolCurrentSession") // Link to School for current session
 
   @@unique([name, schoolId])
-  @@map("classes")
+  @@map("sessions")
 }
 
-// ClassArm model
-model ClassArm {
-  id            String            @id @default(uuid())
-  name          String
-  schoolId      String            @map("school_id")
-  school        School            @relation(fields: [schoolId], references: [id])
-  classes       ClassClassArm[]
-  sessions      SessionClassArm[]
-  students      Student[]
-  admissions    Admission[]
-  isDeleted     Boolean           @default(false)
-  createdAt     DateTime          @default(now()) @map("created_at")
-  updatedAt     DateTime          @updatedAt @map("updated_at")
-  createdBy     String?           @map("created_by")
-  updatedBy     String?           @map("updated_by")
+model Term {
+  id           String    @id @default(uuid())
+  name         String // e.g., First Term, Second Term, Third Term
+  startDate    DateTime  @map("start_date")
+  endDate      DateTime  @map("end_date")
+  sessionId    String    @map("session_id")
+  session      Session   @relation(fields: [sessionId], references: [id])
+  isDeleted    Boolean   @default(false)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  createdBy    String?   @map("created_by")
+  updatedBy    String?   @map("updated_by")
+  schools      School[]  @relation("SchoolCurrentTerm") // Link to School for current term
 
-  @@unique([name, schoolId])
-  @@map("class_arms")
+  @@unique([name, sessionId]) // Ensure term names are unique within a session
+  @@map("terms")
 }
 
-// Admission model for admission form data
 model Admission {
   id                  String    @id @default(uuid())
   sessionId           String    @map("session_id")
@@ -228,230 +119,4 @@ model Admission {
   updatedBy           String?   @map("updated_by")
 
   @@map("admissions")
-}
-
-// Session model for academic sessions
-model Session {
-  id              String            @id @default(uuid())
-  name            String
-  schoolId        String            @map("school_id")
-  school          School            @relation(fields: [schoolId], references: [id])
-  firstTermStart  DateTime?         @map("first_term_start")
-  firstTermEnd    DateTime?         @map("first_term_end")
-  secondTermStart DateTime?         @map("second_term_start")
-  secondTermEnd   DateTime?         @map("second_term_end")
-  thirdTermStart  DateTime?         @map("third_term_start")
-  thirdTermEnd    DateTime?         @map("third_term_end")
-  isActive        Boolean           @default(false)
-  isDeleted       Boolean           @default(false)
-  classArms       SessionClassArm[]
-  admissions      Admission[]
-  createdAt       DateTime          @default(now()) @map("created_at")
-  updatedAt       DateTime          @updatedAt @map("updated_at")
-  createdBy       String?           @map("created_by")
-  updatedBy       String?           @map("updated_by")
-
-  @@unique([name, schoolId])
-  @@map("sessions")
-}
-
-// SessionClassArm junction table for many-to-many Session ↔ ClassArm
-model SessionClassArm {
-  id         String   @id @default(uuid())
-  sessionId  String   @map("session_id")
-  classArmId String   @map("class_arm_id")
-  schoolId   String   @map("school_id")
-  session    Session  @relation(fields: [sessionId], references: [id])
-  classArm   ClassArm @relation(fields: [classArmId], references: [id])
-  school     School   @relation(fields: [schoolId], references: [id])
-  isDeleted  Boolean  @default(false)
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
-  createdBy  String?  @map("created_by")
-  updatedBy  String?  @map("updated_by")
-
-  @@unique([sessionId, classArmId, schoolId])
-  @@map("session_class_arms")
-}
-
-// ClassClassArm junction table for many-to-many Class ↔ ClassArm
-model ClassClassArm {
-  id         String   @id @default(uuid())
-  classId    String   @map("class_id")
-  classArmId String   @map("class_arm_id")
-  schoolId   String   @map("school_id")
-  isDeleted  Boolean  @default(false)
-  class      Class    @relation(fields: [classId], references: [id])
-  classArm   ClassArm @relation(fields: [classArmId], references: [id])
-  school     School   @relation(fields: [schoolId], references: [id])
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
-  createdBy  String?  @map("created_by")
-  updatedBy  String?  @map("updated_by")
-
-  @@unique([classId, classArmId, schoolId])
-  @@map("class_class_arms")
-}
-
-// Subject model for subjects offered in classes
-model Subject {
-  id              String           @id @default(uuid())
-  name            String
-  schoolId        String           @map("school_id")
-  isDeleted       Boolean          @default(false)
-  school          School           @relation(fields: [schoolId], references: [id])
-  classSubjects   ClassSubject[]
-  studentSubjects StudentSubject[]
-  createdAt       DateTime         @default(now()) @map("created_at")
-  updatedAt       DateTime         @updatedAt @map("updated_at")
-  createdBy       String?          @map("created_by")
-  updatedBy       String?          @map("updated_by")
-
-  @@unique([name, schoolId])
-  @@map("subjects")
-}
-
-// ClassSubject junction table for many-to-many Class ↔ Subject
-model ClassSubject {
-  id        String   @id @default(uuid())
-  classId   String   @map("class_id")
-  subjectId String   @map("subject_id")
-  schoolId  String   @map("school_id")
-  class     Class    @relation(fields: [classId], references: [id])
-  subject   Subject  @relation(fields: [subjectId], references: [id])
-  school    School   @relation(fields: [schoolId], references: [id])
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  createdBy String?  @map("created_by")
-  updatedBy String?  @map("updated_by")
-
-  @@unique([classId, subjectId, schoolId])
-  @@map("class_subjects")
-}
-
-// StudentSubject junction table for many-to-many Student ↔ Subject
-model StudentSubject {
-  id        String   @id @default(uuid())
-  studentId String   @map("student_id")
-  subjectId String   @map("subject_id")
-  schoolId  String   @map("school_id")
-  student   Student  @relation(fields: [studentId], references: [id])
-  subject   Subject  @relation(fields: [subjectId], references: [id])
-  school    School   @relation(fields: [schoolId], references: [id])
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  createdBy String?  @map("created_by")
-  updatedBy String?  @map("updated_by")
-
-  @@unique([studentId, subjectId, schoolId])
-  @@map("student_subjects")
-}
-
-// Permission model
-model Permission {
-  id                 String              @id @default(uuid())
-  name               String              @unique
-  description        String
-  isDeleted          Boolean             @default(false)
-  scope              PermissionScope     @default(school)
-  subRolePermissions SubRolePermission[]
-  createdAt          DateTime            @default(now()) @map("created_at")
-  updatedAt          DateTime            @updatedAt @map("updated_at")
-  createdBy          String?             @map("created_by")
-  updatedBy          String?             @map("updated_by")
-
-  @@map("permissions")
-}
-
-// SubRole model for global and school-specific subroles
-model SubRole {
-  id          String              @id @default(uuid())
-  name        String
-  schoolId    String?             @map("school_id")
-  school      School?             @relation(fields: [schoolId], references: [id])
-  description String?
-  isGlobal    Boolean             @default(false)
-  permissions SubRolePermission[]
-  users       User[]
-  isDeleted   Boolean             @default(false)
-  scope       PermissionScope     @default(school)
-  createdAt   DateTime            @default(now()) @map("created_at")
-  updatedAt   DateTime            @updatedAt @map("updated_at")
-  createdBy   String?             @map("created_by")
-  updatedBy   String?             @map("updated_by")
-
-  @@unique([name, schoolId])
-  @@map("sub_roles")
-}
-
-// SubRolePermission junction table for many-to-many SubRole ↔ Permission
-model SubRolePermission {
-  id           String     @id @default(uuid())
-  subRoleId    String     @map("sub_role_id")
-  permissionId String     @map("permission_id")
-  schoolId     String?    @map("school_id")
-  school       School?    @relation(fields: [schoolId], references: [id])
-  subRole      SubRole    @relation(fields: [subRoleId], references: [id])
-  permission   Permission @relation(fields: [permissionId], references: [id])
-  createdAt    DateTime   @default(now()) @map("created_at")
-  updatedAt    DateTime   @updatedAt @map("updated_at")
-  createdBy    String?    @map("created_by")
-  updatedBy    String?    @map("updated_by")
-
-  @@unique([subRoleId, permissionId, schoolId], name: "subRole_perm_school_unique")
-  @@map("sub_role_permissions")
-}
-
-// Subscription model for school plans
-model Subscription {
-  id           String   @id @default(uuid())
-  name         String   @unique
-  studentLimit Int?     @map("student_limit")
-  duration     Int
-  schools      School[]
-  isDeleted    Boolean  @default(false)
-  isActive     Boolean  @default(true)
-  features     Json?
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-  createdBy    String?  @map("created_by")
-  updatedBy    String?  @map("updated_by")
-
-  @@map("subscriptions")
-}
-
-// LogEntry model for system activity logs
-model LogEntry {
-  id        String   @id @default(uuid())
-  action    String
-  target    String?
-  targetId  String?
-  isDeleted Boolean  @default(false)
-  userId    String?  @map("user_id") @db.VarChar(191)
-  schoolId  String?  @map("school_id") @db.VarChar(191)
-  meta      Json?
-  timestamp DateTime @default(now())
-  ipAddress String?  @map("ip_address")
-  device    String?
-  location  String?
-  user      User?    @relation(fields: [userId], references: [id])
-  school    School?  @relation(fields: [schoolId], references: [id])
-
-  @@map("log_entries")
-}
-
-// Enums
-enum Gender {
-  male
-  female
-}
-
-enum Role {
-  admin
-  superAdmin
-}
-
-enum PermissionScope {
-  platform
-  school
 }

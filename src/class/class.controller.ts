@@ -16,6 +16,7 @@ import { ClassesService } from './class.service';
 import { AssignClassArmsDto } from './dto/assign.class.dto';
 import { Request as RequestExpress } from 'express';
 import { AuthenticatedUser } from '@/types/express';
+import { Category } from '@prisma/client';
 
 @Controller('classes')
 export class ClassesController {
@@ -24,15 +25,29 @@ export class ClassesController {
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('configuration:manage')
   @Post()
-  async create(@Body() createClassDto: { name: string }, @Request() req) {
-    return this.classesService.create(createClassDto, req.user);
+  async create(
+    @Body() createClassDto: { name: string; category: Category },
+    @Request() req,
+  ) {
+    return this.classesService.create(createClassDto, req);
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('configuration:read')
   @Get()
   async findAll(@Request() req) {
-    return this.classesService.findAll(req.user.schoolId);
+    return this.classesService.findAll(req);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Post('/assign/arms')
+  @Permissions('configuration:manage')
+  async assignClassArms(
+    @Body() assignClassArmsDto: AssignClassArmsDto,
+    @Request() req: RequestExpress,
+  ) {
+    // Extract the assignments array from the DTO
+    return this.classesService.assignArms(assignClassArmsDto.assignments, req);
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -47,7 +62,7 @@ export class ClassesController {
   @Patch(':id')
   async update(
     @Param('id') id: string,
-    @Body() updateClassDto: { name?: string },
+    @Body() updateClassDto: { name?: string; category?: Category },
     @Request() req: RequestExpress,
   ) {
     const user = req.user as AuthenticatedUser;
@@ -60,17 +75,5 @@ export class ClassesController {
   @Delete(':id')
   async delete(@Param('id') id: string, @Request() req) {
     return this.classesService.delete(id, req.user);
-  }
-
-  @Post()
-  @Permissions('configuration:manage')
-  async assignClassArms(
-    @Body() assignClassArmsDto: AssignClassArmsDto,
-    @Request() req: RequestExpress,
-    // @GetUser() user: { id: string; schoolId: string },
-  ) {
-    const user = req.user as AuthenticatedUser;
-
-    return this.classesService.assignClassArms(assignClassArmsDto, user);
   }
 }

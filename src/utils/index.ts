@@ -20,7 +20,7 @@ export const generateUniqueUsername = async (base: string): Promise<string> => {
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '')
     .slice(0, 10);
-  let username = `admin_${cleanBase}`;
+  let username = `${cleanBase}`;
   const getRandomNumber = () => Math.floor(Math.random() * 900) + 100;
   username = `${username}${getRandomNumber()}`;
   let attempts = 0;
