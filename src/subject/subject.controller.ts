@@ -13,29 +13,33 @@ import {
 import { SubjectService } from './subject.service';
 import { PermissionsGuard } from '@/auth/guards/permissions.guard';
 import { Permissions } from '@/auth/decorators/permissions.decorator';
-@Controller('subjects')
+
+@Controller('subject')
 export class SubjectsController {
   constructor(private readonly subjectsService: SubjectService) {}
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('configuration:manage')
   @Post()
-  async create(@Body() createSubjectDto: { name: string }, @Request() req) {
-    return this.subjectsService.create(createSubjectDto, req.user);
+  async create(
+    @Body() createSubjectDto: { name: string; code: string },
+    @Request() req,
+  ) {
+    return this.subjectsService.create(createSubjectDto, req);
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('configuration:read')
   @Get()
   async findAll(@Request() req) {
-    return this.subjectsService.findAll(req.user.schoolId);
+    return this.subjectsService.findAll(req);
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('configuration:read')
   @Get(':id')
   async findOne(@Param('id') id: string, @Request() req) {
-    return this.subjectsService.findOne(id, req.user.schoolId);
+    return this.subjectsService.findOne(id, req);
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -43,16 +47,16 @@ export class SubjectsController {
   @Patch(':id')
   async update(
     @Param('id') id: string,
-    @Body() updateSubjectDto: { name?: string },
+    @Body() updateSubjectDto: { name?: string; code?: string },
     @Request() req,
   ) {
-    return this.subjectsService.update(id, updateSubjectDto, req.user);
+    return this.subjectsService.update(id, updateSubjectDto, req);
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('configuration:manage')
-  @Delete(':id')
+  @Delete('/subject/:id')
   async delete(@Param('id') id: string, @Request() req) {
-    return this.subjectsService.delete(id, req.user);
+    return this.subjectsService.delete(id, req);
   }
 }

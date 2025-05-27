@@ -50,34 +50,40 @@ model User {
 
 // School model
 model School {
-  id                 String              @id @default(uuid())
-  name               String              @unique
-  email              String              @unique
-  contact            String              @unique
-  isActive           Boolean             @default(true)
-  isDeleted          Boolean             @default(false)
-  address            String?
-  subscriptionId     String?             @map("subscription_id")
-  subscription       Subscription?       @relation(fields: [subscriptionId], references: [id])
-  createdAt          DateTime            @default(now()) @map("created_at")
-  createdBy          String?
-  updatedBy          String?
-  updatedAt          DateTime            @updatedAt @map("updated_at")
-  users              User[]
-  subRoles           SubRole[]
-  logo               Json?               @map("logo")
-  subRolePermissions SubRolePermission[]
-  logEntries         LogEntry[]
-  classes            Class[] // Links to classes
-  classArms          ClassArm[] // Links to class arms
-  subjects           Subject[] // Links to subjects
-  classClassArms     ClassClassArm[] // Links to class-arm mappings
-  studentSubjects    StudentSubject[] // Links to student-subject mappings
-  classSubjects      ClassSubject[]
-  admissions         Admission[] // New: Links to admissions
-  sessions           Session[] // New: Links to sessions
+  id                   String                 @id @default(uuid())
+  name                 String                 @unique
+  email                String                 @unique
+  contact              String                 @unique
+  isActive             Boolean                @default(true)
+  isDeleted            Boolean                @default(false)
+  address              String?
+  subscriptionId       String?                @map("subscription_id")
+  subscription         Subscription?          @relation(fields: [subscriptionId], references: [id])
+  createdAt            DateTime               @default(now()) @map("created_at")
+  createdBy            String?
+  updatedBy            String?
+  updatedAt            DateTime               @updatedAt @map("updated_at")
+  users                User[]
+  subRoles             SubRole[]
+  logo                 Json?                  @map("logo")
+  subRolePermissions   SubRolePermission[]
+  logEntries           LogEntry[]
+  classes              Class[] // Links to classes
+  classArms            ClassArm[] // Links to class arms
+  subjects             Subject[] // Links to subjects
+  classClassArms       ClassClassArm[] // Links to class-arm mappings
+  studentSubjects      StudentSubject[] // Links to student-subject mappings
+  classSubjects        ClassSubject[]
+  admissions           Admission[] // New: Links to admissions
+  sessions             Session[] // New: Links to sessions
+  currentSessionId     String?                @map("current_session_id") // Track current session
+  currentSession       Session?               @relation("SchoolCurrentSession", fields: [currentSessionId], references: [id])
+  currentTermId        String?                @map("current_term_id") // Track current term
+  currentTerm          Term?                  @relation("SchoolCurrentTerm", fields: [currentTermId], references: [id])
   // students           Student[]           // Links to students
-  SessionClassArm    SessionClassArm[]
+  SessionClassArm      SessionClassArm[]
+  SchoolSubscription   SchoolSubscription[]
+  SessionClassClassArm SessionClassClassArm[]
 
   @@map("schools")
 }
@@ -150,18 +156,21 @@ model Class {
   name          String // e.g., JS1, JS2, SS1
   schoolId      String          @map("school_id")
   school        School          @relation(fields: [schoolId], references: [id])
+  category      Category        @default(junior) // New field with default
   classArms     ClassClassArm[] // Links to class arms via junction table
   classSubjects ClassSubject[] // Links to subjects via explicit junction table
   students      Student[] // Links to students in this class
   isDeleted     Boolean         @default(false)
+  isActive      Boolean         @default(true)
 
-  createdAt          DateTime    @default(now()) @map("created_at")
-  updatedAt          DateTime    @updatedAt @map("updated_at")
-  createdBy          String?     @map("created_by")
-  updatedBy          String?     @map("updated_by")
-  presentAdmissions  Admission[] @relation("AdmissionToPresentClass")
-  applyingAdmissions Admission[] @relation("AdmissionToClassApplyingFor")
-  assignedAdmissions Admission[] @relation("AdmissionToAssignedClass")
+  createdAt          DateTime               @default(now()) @map("created_at")
+  updatedAt          DateTime               @updatedAt @map("updated_at")
+  createdBy          String?                @map("created_by")
+  updatedBy          String?                @map("updated_by")
+  presentAdmissions  Admission[]            @relation("AdmissionToPresentClass")
+  applyingAdmissions Admission[]            @relation("AdmissionToClassApplyingFor")
+  assignedAdmissions Admission[]            @relation("AdmissionToAssignedClass")
+  sessionClassArms   SessionClassClassArm[]
 
   @@unique([name, schoolId]) // Ensure class names are unique per school
   @@map("classes")
@@ -176,13 +185,15 @@ model ClassArm {
   classes   ClassClassArm[] // Links to classes via junction table
   sessions  SessionClassArm[] // New: Links to sessions
   isDeleted Boolean           @default(false)
+  isActive  Boolean           @default(true)
 
-  students  Student[] // Links to students in this class arm
-  createdAt DateTime    @default(now()) @map("created_at")
-  updatedAt DateTime    @updatedAt @map("updated_at")
-  createdBy String?     @map("created_by")
-  updatedBy String?     @map("updated_by")
-  Admission Admission[]
+  students         Student[] // Links to students in this class arm
+  createdAt        DateTime               @default(now()) @map("created_at")
+  updatedAt        DateTime               @updatedAt @map("updated_at")
+  createdBy        String?                @map("created_by")
+  updatedBy        String?                @map("updated_by")
+  Admission        Admission[]
+  sessionClassArms SessionClassClassArm[]
 
   @@unique([name, schoolId]) // Ensure arm names are unique per school
   @@map("class_arms")
@@ -238,27 +249,42 @@ model Admission {
 }
 
 model Session {
-  id              String            @id @default(uuid())
-  name            String // e.g., 2024/2025
-  schoolId        String            @map("school_id")
-  school          School            @relation(fields: [schoolId], references: [id])
-  firstTermStart  DateTime?         @map("first_term_start")
-  firstTermEnd    DateTime?         @map("first_term_end")
-  secondTermStart DateTime?         @map("second_term_start")
-  secondTermEnd   DateTime?         @map("second_term_end")
-  thirdTermStart  DateTime?         @map("third_term_start")
-  thirdTermEnd    DateTime?         @map("third_term_end")
-  isActive        Boolean           @default(false)
-  isDeleted       Boolean           @default(false)
-  classArms       SessionClassArm[] // Optional class arms for this session
-  admissions      Admission[] // Links to admissions
-  createdAt       DateTime          @default(now()) @map("created_at")
-  updatedAt       DateTime          @updatedAt @map("updated_at")
-  createdBy       String?           @map("created_by")
-  updatedBy       String?           @map("updated_by")
+  id                  String                 @id @default(uuid())
+  name                String // e.g., 2024/2025
+  schoolId            String                 @map("school_id")
+  school              School                 @relation(fields: [schoolId], references: [id])
+  terms               Term[] // One-to-many relationship with terms
+  schools             School[]               @relation("SchoolCurrentSession") // Link to School for current session
+  isActive            Boolean                @default(false)
+  isDeleted           Boolean                @default(false)
+  classArms           SessionClassArm[] // Optional class arms for this session
+  admissions          Admission[] // Links to admissions
+  createdAt           DateTime               @default(now()) @map("created_at")
+  updatedAt           DateTime               @updatedAt @map("updated_at")
+  createdBy           String?                @map("created_by")
+  updatedBy           String?                @map("updated_by")
+  classArmAssignments SessionClassClassArm[]
 
   @@unique([name, schoolId])
   @@map("sessions")
+}
+
+model Term {
+  id        String   @id @default(uuid())
+  name      String // e.g., First Term, Second Term, Third Term
+  startDate DateTime @map("start_date")
+  endDate   DateTime @map("end_date")
+  sessionId String   @map("session_id")
+  session   Session  @relation(fields: [sessionId], references: [id])
+  isDeleted Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  createdBy String?  @map("created_by")
+  updatedBy String?  @map("updated_by")
+  schools   School[] @relation("SchoolCurrentTerm") // Link to School for current term
+
+  @@unique([name, sessionId]) // Ensure term names are unique within a session
+  @@map("terms")
 }
 
 model SessionClassArm {
@@ -277,6 +303,26 @@ model SessionClassArm {
 
   @@unique([sessionId, classArmId, schoolId])
   @@map("session_class_arms")
+}
+
+model SessionClassClassArm {
+  id         String   @id @default(uuid())
+  sessionId  String   @map("session_id")
+  classId    String   @map("class_id")
+  classArmId String   @map("class_arm_id")
+  schoolId   String   @map("school_id")
+  session    Session  @relation(fields: [sessionId], references: [id])
+  class      Class    @relation(fields: [classId], references: [id])
+  classArm   ClassArm @relation(fields: [classArmId], references: [id])
+  school     School   @relation(fields: [schoolId], references: [id])
+  isDeleted  Boolean  @default(false)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  createdBy  String?  @map("created_by")
+  updatedBy  String?  @map("updated_by")
+
+  @@unique([sessionId, classId, classArmId, schoolId])
+  @@map("session_class_class_arms")
 }
 
 // ClassClassArm junction table for many-to-many Class ↔ ClassArm relationship
@@ -321,6 +367,7 @@ model ClassSubject {
 model Subject {
   id              String           @id @default(uuid())
   name            String // e.g., Mathematics, English
+  code            String
   schoolId        String           @map("school_id")
   isDeleted       Boolean          @default(false)
   school          School           @relation(fields: [schoolId], references: [id])
@@ -427,9 +474,23 @@ model Subscription {
   updatedAt DateTime @updatedAt @map("updated_at")
   createdBy String?  @map("created_by") // Added
 
-  updatedBy String? @map("updated_by") // Added
+  updatedBy          String?              @map("updated_by") // Added
+  SchoolSubscription SchoolSubscription[]
 
   @@map("subscriptions")
+}
+
+model SchoolSubscription {
+  id        String   @id @default(uuid())
+  schoolId  String   @map("school_id")
+  planId    String   @map("subscription_id")
+  startDate DateTime @map("start_date")
+  endDate   DateTime @map("end_date")
+
+  school       School       @relation(fields: [schoolId], references: [id])
+  subscription Subscription @relation(fields: [planId], references: [id])
+
+  @@map("school_subscriptions")
 }
 
 // LogEntry model for system activity logs
@@ -466,4 +527,9 @@ enum Role {
 enum PermissionScope {
   platform
   school
+}
+
+enum Category {
+  junior
+  senior
 }

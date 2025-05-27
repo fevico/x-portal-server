@@ -15,13 +15,16 @@ import {
   UpdateSubscriptionDto,
 } from './dto/subscription.dto';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guards';
+import { RolesGuard } from '@/auth/guards/roles.guard';
+import { Roles } from '@/auth/decorators/auth.decorator';
 
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('superAdmin')
 @Controller('subscription')
 export class SubscriptionController {
   constructor(private readonly subscriptionService: SubscriptionService) {}
 
   @Post('create')
-  @UseGuards(JwtAuthGuard)
   async createSubscription(@Body() body: any): Promise<any> {
     return this.subscriptionService.createSubscription(body);
   }

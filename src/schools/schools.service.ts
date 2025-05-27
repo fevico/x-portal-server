@@ -54,6 +54,22 @@ export class SchoolsService {
           updatedAt: true,
           subscriptionId: true,
           logo: true,
+          // ← pointer to the Subscription plan
+          subscription: {
+            select: {
+              name: true,
+            },
+          },
+
+          // ← latest assignment record
+          SchoolSubscription: {
+            orderBy: { startDate: 'desc' },
+            take: 1,
+            select: {
+              startDate: true,
+              endDate: true,
+            },
+          },
         },
       }),
       this.prisma.school.count({ where }),
@@ -76,6 +92,21 @@ export class SchoolsService {
         updatedAt: true,
         subscriptionId: true,
         logo: true,
+        subscription: {
+          select: {
+            id: true,
+            name: true,
+            duration: true,
+          },
+        },
+        SchoolSubscription: {
+          orderBy: { startDate: 'desc' },
+          take: 1,
+          select: {
+            startDate: true,
+            endDate: true,
+          },
+        },
       },
     });
     return school;

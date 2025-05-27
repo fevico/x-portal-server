@@ -1,13 +1,16 @@
+import { LoggingService } from '@/log/logging.service';
 import { PrismaService } from '@/prisma/prisma.service';
+import { AuthenticatedUser } from '@/types/express';
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 
 @Injectable()
 export class ClassArmsService {
-  constructor(private prisma: PrismaService) {}
-  async create(
-    createClassArmDto: { name: string },
-    user: { id: string; schoolId: string },
-  ) {
+  constructor(
+    private prisma: PrismaService,
+    private loggingService: LoggingService,
+  ) {}
+  async create(createClassArmDto: { name: string }, req) {
+    const user = req.user as AuthenticatedUser;
     if (!createClassArmDto.name) {
       throw new HttpException(
         'Class arm name is required',
@@ -33,38 +36,50 @@ export class ClassArmsService {
 
     const classArm = await this.prisma.classArm.create({
       data: {
-        name: createClassArmDto.name,
+        name: createClassArmDto.name.toLowerCase(),
         schoolId: user.schoolId,
         createdBy: user.id,
       },
     });
 
     // Log action
+    await this.loggingService.logAction(
+      'create_class_arm',
+      'ClassArm',
+      classArm.id,
+      user.id,
+      user.schoolId,
+      { name: classArm.name },
+      req,
+    );
 
     return classArm;
   }
 
-  async findAll(schoolId: string) {
+  async findAll(req) {
+    const user = req.user as AuthenticatedUser;
+
     return this.prisma.classArm.findMany({
       where: {
-        schoolId,
+        schoolId: user.schoolId,
         isDeleted: false,
       },
       select: {
         id: true,
         name: true,
         createdAt: true,
-        updatedAt: true,
-        createdBy: true,
+        isActive: true,
       },
     });
   }
 
-  async findOne(id: string, schoolId: string) {
+  async findOne(id: string, req) {
+    const user = req.user as AuthenticatedUser;
+
     const classArm = await this.prisma.classArm.findFirst({
       where: {
         id,
-        schoolId,
+        schoolId: user.schoolId,
         isDeleted: false,
       },
       select: {
@@ -83,11 +98,9 @@ export class ClassArmsService {
     return classArm;
   }
 
-  async update(
-    id: string,
-    updateClassArmDto: { name?: string },
-    user: { id: string; schoolId: string },
-  ) {
+  async update(id: string, updateClassArmDto: { name?: string }, req) {
+    const user = req.user as AuthenticatedUser;
+
     const classArm = await this.prisma.classArm.findFirst({
       where: {
         id,
@@ -122,7 +135,7 @@ export class ClassArmsService {
     const updatedClassArm = await this.prisma.classArm.update({
       where: { id },
       data: {
-        name: updateClassArmDto.name ?? classArm.name,
+        name: updateClassArmDto.name ?? classArm.name.toLowerCase(),
         updatedBy: user.id,
         updatedAt: new Date(),
       },
@@ -131,7 +144,9 @@ export class ClassArmsService {
     return updatedClassArm;
   }
 
-  async delete(id: string, user: { id: string; schoolId: string }) {
+  async delete(id: string, req) {
+    const user = req.user as AuthenticatedUser;
+
     const classArm = await this.prisma.classArm.findFirst({
       where: {
         id,
@@ -144,7 +159,7 @@ export class ClassArmsService {
       throw new HttpException('Class arm not found', HttpStatus.NOT_FOUND);
     }
 
-    const deletedClassArm = await this.prisma.classArm.update({
+    await this.prisma.classArm.update({
       where: { id },
       data: {
         isDeleted: true,

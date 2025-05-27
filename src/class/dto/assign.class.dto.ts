@@ -1,10 +1,23 @@
-import { IsString, IsArray, ArrayNotEmpty } from 'class-validator';
+import { IsString, IsArray, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 
-export class AssignClassArmsDto {
+// DTO for a single class-arm assignment
+export class ClassArmAssignmentDto {
   @IsString()
   classId: string;
 
+  @IsString()
+  sessionId: string;
+
   @IsArray()
-  @ArrayNotEmpty()
-  classArmIds: string[];
+  // Removed ArrayNotEmpty to allow empty arrays (e.g., for "No Arms")
+  arms: string[];
+}
+
+// DTO for the entire payload (array of assignments)
+export class AssignClassArmsDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ClassArmAssignmentDto)
+  assignments: ClassArmAssignmentDto[];
 }

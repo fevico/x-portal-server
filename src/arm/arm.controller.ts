@@ -22,21 +22,21 @@ export class ArmController {
   @Permissions('configuration:manage')
   @Post()
   async create(@Body() createClassArmDto: { name: string }, @Request() req) {
-    return this.classArmsService.create(createClassArmDto, req.user);
+    return this.classArmsService.create(createClassArmDto, req);
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('configuration:read')
   @Get()
   async findAll(@Request() req) {
-    return this.classArmsService.findAll(req.user.schoolId);
+    return this.classArmsService.findAll(req);
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('configuration:read')
   @Get(':id')
   async findOne(@Param('id') id: string, @Request() req) {
-    return this.classArmsService.findOne(id, req.user.schoolId);
+    return this.classArmsService.findOne(id, req);
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -47,13 +47,13 @@ export class ArmController {
     @Body() updateClassArmDto: { name?: string },
     @Request() req,
   ) {
-    return this.classArmsService.update(id, updateClassArmDto, req.user);
+    return this.classArmsService.update(id, updateClassArmDto, req);
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('configuration:manage')
   @Delete(':id')
   async delete(@Param('id') id: string, @Request() req) {
-    return this.classArmsService.delete(id, req.user);
+    return this.classArmsService.delete(id, req);
   }
 }

@@ -1,11 +1,10 @@
 import {
   Injectable,
-  ForbiddenException,
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateSessionDto, UpdateSessionDto } from './dto/session.dto';
+import { CreateSessionDto } from './dto/session.dto';
 import { LoggingService } from '@/log/logging.service';
 
 @Injectable()
@@ -16,271 +15,659 @@ export class SessionsService {
   ) {}
 
   async createSession(dto: CreateSessionDto, req: any) {
-    const {
-      name,
-      schoolId,
-      firstTermStart,
-      firstTermEnd,
-      secondTermStart,
-      secondTermEnd,
-      thirdTermStart,
-      thirdTermEnd,
-      isActive,
-    } = dto;
     const requester = req.user;
 
-    // Validate school
-    const school = await this.prisma.school.findUnique({
-      where: { id: schoolId },
-    });
-    if (!school) {
-      throw new NotFoundException('School not found');
-    }
+    try {
+      // Validate school
+      const school = await this.prisma.school.findUnique({
+        where: { id: requester.schoolId },
+      });
+      if (!school) {
+        throw new NotFoundException('School not found');
+      }
 
-    // Validate permissions
-    if (requester.role !== 'superAdmin' && requester.schoolId !== schoolId) {
-      throw new ForbiddenException(
-        'You can only create sessions for your school',
-      );
-    }
-
-    // Check for duplicate session name in school
-    const existingSession = await this.prisma.session.findUnique({
-      where: { name_schoolId: { name, schoolId } },
-    });
-    if (existingSession) {
-      throw new BadRequestException(
-        'Session name already exists for this school',
-      );
-    }
-
-    return await this.prisma.$transaction(async (tx) => {
-      // Create session
-      const session = await tx.session.create({
-        data: {
-          name,
-          schoolId,
-          firstTermStart: firstTermStart ? new Date(firstTermStart) : null,
-          firstTermEnd: firstTermEnd ? new Date(firstTermEnd) : null,
-          secondTermStart: secondTermStart ? new Date(secondTermStart) : null,
-          secondTermEnd: secondTermEnd ? new Date(secondTermEnd) : null,
-          thirdTermStart: thirdTermStart ? new Date(thirdTermStart) : null,
-          thirdTermEnd: thirdTermEnd ? new Date(thirdTermEnd) : null,
-          isActive,
-          createdBy: requester.id,
-        },
-        include: {
-          school: { select: { name: true } },
+      // Validate session doesn't already exist
+      const existingSession = await this.prisma.session.findFirst({
+        where: {
+          name: dto.session,
+          schoolId: requester.schoolId,
+          isDeleted: false,
         },
       });
+      if (existingSession) {
+        throw new BadRequestException('Session already exists for this school');
+      }
 
+      // Validate date ranges
+      const dates = [
+        {
+          start: new Date(dto.firstTermStartDate),
+          end: new Date(dto.firstTermEndDate),
+        },
+        {
+          start: new Date(dto.secondTermStartDate),
+          end: new Date(dto.secondTermEndDate),
+        },
+        {
+          start: new Date(dto.thirdTermStartDate),
+          end: new Date(dto.thirdTermEndDate),
+        },
+      ];
+
+      for (let i = 0; i < dates.length; i++) {
+        if (dates[i].start >= dates[i].end) {
+          throw new BadRequestException(
+            `Term ${i + 1} start date must be before end date`,
+          );
+        }
+        if (i > 0 && dates[i].start <= dates[i - 1].end) {
+          throw new BadRequestException(
+            `Term ${i + 1} start date must be after Term ${i} end date`,
+          );
+        }
+      }
+
+      // Get current date (May 23, 2025)
+      const currentDate = new Date();
+
+      // Create session and terms in a transaction with increased timeout
+      const result = await this.prisma.$transaction(
+        async (tx) => {
+          // Create session
+          const session = await tx.session.create({
+            data: {
+              name: dto.session,
+              schoolId: requester.schoolId,
+              createdBy: requester.id,
+            },
+          });
+
+          // Create terms
+          const terms = await Promise.all([
+            tx.term.create({
+              data: {
+                name: 'First Term',
+                startDate: new Date(dto.firstTermStartDate),
+                endDate: new Date(dto.firstTermEndDate),
+                sessionId: session.id,
+                createdBy: requester.id,
+              },
+            }),
+            tx.term.create({
+              data: {
+                name: 'Second Term',
+                startDate: new Date(dto.secondTermStartDate),
+                endDate: new Date(dto.secondTermEndDate),
+                sessionId: session.id,
+                createdBy: requester.id,
+              },
+            }),
+            tx.term.create({
+              data: {
+                name: 'Third Term',
+                startDate: new Date(dto.thirdTermStartDate),
+                endDate: new Date(dto.thirdTermEndDate),
+                sessionId: session.id,
+                createdBy: requester.id,
+              },
+            }),
+          ]);
+
+          // Determine if this session should be the current session
+          const sessionStart = new Date(dto.firstTermStartDate);
+          const sessionEnd = new Date(dto.thirdTermEndDate);
+          const isSessionActive =
+            currentDate >= sessionStart && currentDate <= sessionEnd;
+
+          let updateSchoolData: any = {};
+          if (isSessionActive) {
+            // Find the active term
+            const activeTerm = terms.find(
+              (term) =>
+                currentDate >= new Date(term.startDate) &&
+                currentDate <= new Date(term.endDate),
+            );
+
+            updateSchoolData = {
+              currentSessionId: session.id,
+              currentTermId: activeTerm?.id || null,
+            };
+          }
+
+          // Update school with current session and term if applicable
+          if (Object.keys(updateSchoolData).length > 0) {
+            await tx.school.update({
+              where: { id: requester.schoolId },
+              data: updateSchoolData,
+            });
+          }
+
+          return { session, terms, isSessionActive };
+        },
+        { timeout: 10000 }, // Increase timeout to 10 seconds
+      );
+
+      // Log action outside the transaction
       await this.loggingService.logAction(
         'create_session',
         'Session',
-        session.id,
+        result.session.id,
         requester.id,
-        schoolId,
-        { name: session.name },
+        requester.schoolId,
+        { name: result.session.name, terms: result.terms.map((t) => t.name) },
         req,
       );
 
-      return session;
-    });
-  }
-
-  async getSession(id: string, req: any) {
-    const requester = req.user;
-
-    // Validate session
-    const session = await this.prisma.session.findUnique({
-      where: { id, isDeleted: false },
-      include: {
-        school: { select: { name: true } },
-        classArms: { include: { classArm: { select: { name: true } } } },
-      },
-    });
-    if (!session) {
-      throw new NotFoundException('Session not found');
-    }
-
-    // Validate permissions
-    if (
-      requester.role !== 'superAdmin' &&
-      requester.schoolId !== session.schoolId
-    ) {
-      throw new ForbiddenException(
-        'You can only access sessions for your school',
-      );
-    }
-
-    return session;
-  }
-
-  async getSessionsBySchool(schoolId: string, req: any) {
-    const requester = req.user;
-
-    // Validate school
-    const school = await this.prisma.school.findUnique({
-      where: { id: schoolId },
-    });
-    if (!school) {
-      throw new NotFoundException('School not found');
-    }
-
-    // Validate permissions
-    if (requester.role !== 'superAdmin' && requester.schoolId !== schoolId) {
-      throw new ForbiddenException(
-        'You can only access sessions for your school',
-      );
-    }
-
-    return this.prisma.session.findMany({
-      where: { schoolId, isDeleted: false },
-      include: {
-        school: { select: { name: true } },
-        classArms: { include: { classArm: { select: { name: true } } } },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-  }
-
-  async updateSession(id: string, dto: UpdateSessionDto, req: any) {
-    const requester = req.user;
-
-    // Validate session
-    const session = await this.prisma.session.findUnique({
-      where: { id, isDeleted: false },
-    });
-    if (!session) {
-      throw new NotFoundException('Session not found');
-    }
-
-    // Validate permissions
-    if (
-      requester.role !== 'superAdmin' &&
-      requester.schoolId !== session.schoolId
-    ) {
-      throw new ForbiddenException(
-        'You can only update sessions for your school',
-      );
-    }
-
-    // Check for duplicate name if provided
-    if (dto.name && dto.name !== session.name) {
-      const existingSession = await this.prisma.session.findUnique({
-        where: {
-          name_schoolId: { name: dto.name, schoolId: session.schoolId },
+      return {
+        statusCode: 201,
+        message: 'Session created successfully',
+        data: {
+          id: result.session.id,
+          name: result.session.name,
+          status: result.isSessionActive ? 'Active' : 'Inactive',
+          terms: result.terms.map((term) => ({
+            id: term.id,
+            name: term.name,
+            startDate: term.startDate.toISOString(),
+            endDate: term.endDate.toISOString(),
+            status:
+              currentDate >= new Date(term.startDate) &&
+              currentDate <= new Date(term.endDate)
+                ? 'Active'
+                : 'Inactive',
+          })),
         },
+      };
+    } catch (error) {
+      console.error('Error creating session:', error);
+      throw new Error(
+        'Failed to create session: ' + (error.message || 'Unknown error'),
+      );
+    }
+  }
+
+  // async getSessionsBySchool(req: any) {
+  //   const requester = req.user;
+
+  //   try {
+  //     // Validate school
+  //     const school = await this.prisma.school.findUnique({
+  //       where: { id: requester.schoolId },
+  //     });
+  //     if (!school) {
+  //       throw new NotFoundException('School not found');
+  //     }
+
+  //     // Fetch sessions with terms
+  //     const sessions = await this.prisma.session.findMany({
+  //       where: { schoolId: requester.schoolId, isDeleted: false },
+  //       include: {
+  //         school: { select: { name: true } },
+  //         terms: {
+  //           where: { isDeleted: false },
+  //           orderBy: { startDate: 'asc' },
+  //         },
+  //         classArms: { include: { classArm: { select: { name: true } } } },
+  //       },
+  //       orderBy: { createdAt: 'desc' },
+  //     });
+
+  //     // Get current date (May 23, 2025)
+  //     const currentDate = new Date();
+
+  //     // Transform the data into the desired format
+  //     const transformedSessions = [];
+  //     for (const session of sessions) {
+  //       const terms = session.terms;
+  //       const sessionStart =
+  //         terms.length > 0 ? new Date(terms[0].startDate) : null;
+  //       const sessionEnd =
+  //         terms.length > 0 ? new Date(terms[terms.length - 1].endDate) : null;
+  //       const isSessionActive =
+  //         sessionStart &&
+  //         sessionEnd &&
+  //         currentDate >= sessionStart &&
+  //         currentDate <= sessionEnd;
+
+  //       // Update school with current session and term if this session is active
+  //       if (isSessionActive && school.currentSessionId !== session.id) {
+  //         const activeTerm = terms.find(
+  //           (term) =>
+  //             currentDate >= new Date(term.startDate) &&
+  //             currentDate <= new Date(term.endDate),
+  //         );
+  //         await this.prisma.school.update({
+  //           where: { id: requester.schoolId },
+  //           data: {
+  //             currentSessionId: session.id,
+  //             currentTermId: activeTerm?.id || null,
+  //           },
+  //         });
+  //       }
+
+  //       transformedSessions.push({
+  //         id: session.id,
+  //         name: session.name,
+  //         status: isSessionActive ? 'Active' : 'Inactive',
+  //         terms: terms.map((term) => ({
+  //           id: term.id,
+  //           name: term.name,
+  //           startDate: term.startDate.toISOString(),
+  //           endDate: term.endDate.toISOString(),
+  //           status:
+  //             currentDate >= new Date(term.startDate) &&
+  //             currentDate <= new Date(term.endDate)
+  //               ? 'Active'
+  //               : 'Inactive',
+  //         })),
+  //       });
+  //     }
+
+  //     return transformedSessions;
+  //   } catch (error) {
+  //     console.error('Error fetching sessions:', error);
+  //     throw new Error(
+  //       'Failed to fetch sessions: ' + (error.message || 'Unknown error'),
+  //     );
+  //   }
+  // }
+  async getSessionsBySchool(req: any) {
+    const requester = req.user;
+
+    try {
+      // Validate school
+      const school = await this.prisma.school.findUnique({
+        where: { id: requester.schoolId },
+      });
+      if (!school) {
+        throw new NotFoundException('School not found');
+      }
+
+      // Fetch sessions with terms and class-arm assignments
+      const sessions = await this.prisma.session.findMany({
+        where: { schoolId: requester.schoolId, isDeleted: false },
+        include: {
+          school: { select: { name: true } },
+          terms: {
+            where: { isDeleted: false },
+            orderBy: { startDate: 'asc' },
+          },
+          classArmAssignments: {
+            include: {
+              class: { select: { id: true, name: true } },
+              classArm: { select: { id: true, name: true } },
+            },
+            where: { isDeleted: false },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      // Get current date (02:16 AM WAT, May 24, 2025)
+      const currentDate = new Date('2025-05-24T02:16:00.000Z');
+
+      // Transform the data into the desired format
+      const transformedSessions = [];
+      for (const session of sessions) {
+        const terms = session.terms;
+        const sessionStart =
+          terms.length > 0 ? new Date(terms[0].startDate) : null;
+        const sessionEnd =
+          terms.length > 0 ? new Date(terms[terms.length - 1].endDate) : null;
+        const isSessionActive =
+          sessionStart &&
+          sessionEnd &&
+          currentDate >= sessionStart &&
+          currentDate <= sessionEnd;
+
+        // Update school with current session and term if this session is active
+        if (isSessionActive && school.currentSessionId !== session.id) {
+          const activeTerm = terms.find(
+            (term) =>
+              currentDate >= new Date(term.startDate) &&
+              currentDate <= new Date(term.endDate),
+          );
+          await this.prisma.school.update({
+            where: { id: requester.schoolId },
+            data: {
+              currentSessionId: session.id,
+              currentTermId: activeTerm?.id || null,
+            },
+          });
+        }
+
+        // Fetch all classes for the school
+        const allClasses = await this.prisma.class.findMany({
+          where: { schoolId: requester.schoolId, isDeleted: false },
+        });
+
+        // Map class-arm assignments for this session
+        const classArmAssignments = session.classArmAssignments.reduce(
+          (acc, assignment) => {
+            const classId = assignment.classId;
+            if (!acc[classId]) acc[classId] = [];
+            acc[classId].push(assignment.classArm.name);
+            return acc;
+          },
+          {} as Record<string, string[]>,
+        );
+
+        transformedSessions.push({
+          id: session.id,
+          name: session.name,
+          status: isSessionActive ? 'Active' : 'Inactive',
+          terms: terms.map((term) => ({
+            id: term.id,
+            name: term.name,
+            startDate: term.startDate.toISOString(),
+            endDate: term.endDate.toISOString(),
+            status:
+              currentDate >= new Date(term.startDate) &&
+              currentDate <= new Date(term.endDate)
+                ? 'Active'
+                : 'Inactive',
+          })),
+          classes: allClasses.map((cls) => ({
+            id: cls.id,
+            name: cls.name,
+            assignedArms: classArmAssignments[cls.id] || [],
+          })),
+        });
+      }
+
+      return transformedSessions;
+    } catch (error) {
+      console.error('Error fetching sessions:', error);
+      throw new Error(
+        'Failed to fetch sessions: ' + (error.message || 'Unknown error'),
+      );
+    }
+  }
+  async updateSession(id: string, dto: CreateSessionDto, req: any) {
+    const requester = req.user;
+
+    try {
+      // Validate school
+      const school = await this.prisma.school.findUnique({
+        where: { id: requester.schoolId },
+        select: { id: true, currentSessionId: true }, // Optimize by selecting only the id
+      });
+      if (!school) {
+        throw new NotFoundException('School not found');
+      }
+
+      // Validate session
+      const session = await this.prisma.session.findUnique({
+        where: { id, schoolId: requester.schoolId, isDeleted: false },
+        select: {
+          id: true,
+          name: true,
+          terms: {
+            where: { isDeleted: false },
+            orderBy: { startDate: 'asc' },
+            select: { id: true, startDate: true, endDate: true }, // Optimize by selecting only necessary fields
+          },
+        },
+      });
+      if (!session) {
+        throw new NotFoundException('Session not found');
+      }
+
+      // Validate session name doesn't conflict with another session
+      const existingSession = await this.prisma.session.findFirst({
+        where: {
+          name: dto.session,
+          schoolId: requester.schoolId,
+          isDeleted: false,
+          NOT: { id },
+        },
+        select: { id: true }, // Optimize by selecting only the id
       });
       if (existingSession) {
         throw new BadRequestException(
           'Session name already exists for this school',
         );
       }
-    }
 
-    return await this.prisma.$transaction(async (tx) => {
-      // Update session
-      const updatedSession = await tx.session.update({
-        where: { id },
-        data: {
-          name: dto.name,
-          firstTermStart: dto.firstTermStart
-            ? new Date(dto.firstTermStart)
-            : undefined,
-          firstTermEnd: dto.firstTermEnd
-            ? new Date(dto.firstTermEnd)
-            : undefined,
-          secondTermStart: dto.secondTermStart
-            ? new Date(dto.secondTermStart)
-            : undefined,
-          secondTermEnd: dto.secondTermEnd
-            ? new Date(dto.secondTermEnd)
-            : undefined,
-          thirdTermStart: dto.thirdTermStart
-            ? new Date(dto.thirdTermStart)
-            : undefined,
-          thirdTermEnd: dto.thirdTermEnd
-            ? new Date(dto.thirdTermEnd)
-            : undefined,
-          isActive: dto.isActive,
-          updatedBy: requester.id,
+      // Validate date ranges
+      const dates = [
+        {
+          start: new Date(dto.firstTermStartDate),
+          end: new Date(dto.firstTermEndDate),
         },
-        include: {
-          school: { select: { name: true } },
-          classArms: { include: { classArm: { select: { name: true } } } },
+        {
+          start: new Date(dto.secondTermStartDate),
+          end: new Date(dto.secondTermEndDate),
         },
-      });
+        {
+          start: new Date(dto.thirdTermStartDate),
+          end: new Date(dto.thirdTermEndDate),
+        },
+      ];
 
-      await this.loggingService.logAction(
-        'update_session',
-        'Session',
-        id,
-        requester.id,
-        session.schoolId,
-        { updatedFields: Object.keys(dto) },
-        req,
+      for (let i = 0; i < dates.length; i++) {
+        if (dates[i].start >= dates[i].end) {
+          throw new BadRequestException(
+            `Term ${i + 1} start date must be before end date`,
+          );
+        }
+        if (i > 0 && dates[i].start <= dates[i - 1].end) {
+          throw new BadRequestException(
+            `Term ${i + 1} start date must be after Term ${i} end date`,
+          );
+        }
+      }
+
+      // Get current date (May 24, 2025, 12:57 AM WAT)
+      const currentDate = new Date();
+
+      // Update session and terms in a transaction with increased timeout
+      await this.prisma.$transaction(
+        async (tx) => {
+          // Update session
+          const updatedSession = await tx.session.update({
+            where: { id },
+            data: {
+              name: dto.session,
+              updatedBy: requester.id,
+            },
+            select: { id: true, name: true }, // Optimize by selecting only necessary fields
+          });
+
+          // Update terms (ensure exactly 3 terms exist)
+          const terms = session.terms;
+          if (terms.length !== 3) {
+            throw new BadRequestException(
+              'Session must have exactly three terms',
+            );
+          }
+
+          const updatedTerms = await Promise.all([
+            tx.term.update({
+              where: { id: terms[0].id },
+              data: {
+                startDate: new Date(dto.firstTermStartDate),
+                endDate: new Date(dto.firstTermEndDate),
+                updatedBy: requester.id,
+              },
+              select: { id: true, name: true, startDate: true, endDate: true }, // Optimize selection
+            }),
+            tx.term.update({
+              where: { id: terms[1].id },
+              data: {
+                startDate: new Date(dto.secondTermStartDate),
+                endDate: new Date(dto.secondTermEndDate),
+                updatedBy: requester.id,
+              },
+              select: { id: true, name: true, startDate: true, endDate: true }, // Optimize selection
+            }),
+            tx.term.update({
+              where: { id: terms[2].id },
+              data: {
+                startDate: new Date(dto.thirdTermStartDate),
+                endDate: new Date(dto.thirdTermEndDate),
+                updatedBy: requester.id,
+              },
+              select: { id: true, name: true, startDate: true, endDate: true }, // Optimize selection
+            }),
+          ]);
+
+          // Determine if this session should be the current session
+          const sessionStart = new Date(dto.firstTermStartDate);
+          const sessionEnd = new Date(dto.thirdTermEndDate);
+          const isSessionActive =
+            currentDate >= sessionStart && currentDate <= sessionEnd;
+
+          let updateSchoolData: any = {};
+          if (isSessionActive) {
+            const activeTerm = updatedTerms.find(
+              (term) =>
+                currentDate >= new Date(term.startDate) &&
+                currentDate <= new Date(term.endDate),
+            );
+            updateSchoolData = {
+              currentSessionId: session.id,
+              currentTermId: activeTerm?.id || null,
+            };
+          } else if (school.currentSessionId === session.id) {
+            // If this session was the current session but is no longer active, clear it
+            updateSchoolData = {
+              currentSessionId: null,
+              currentTermId: null,
+            };
+          }
+
+          if (Object.keys(updateSchoolData).length > 0) {
+            await tx.school.update({
+              where: { id: requester.schoolId },
+              data: updateSchoolData,
+              select: { id: true }, // Optimize by selecting only the id
+            });
+          }
+
+          // Log action
+          await this.loggingService.logAction(
+            'update_session',
+            'Session',
+            updatedSession.id,
+            requester.id,
+            requester.schoolId,
+            { name: session.name, updatedName: dto.session },
+            req,
+          );
+
+          return {
+            statusCode: 200,
+            message: 'Session updated successfully',
+            data: {
+              id: updatedSession.id,
+              name: updatedSession.name,
+              status: isSessionActive ? 'Active' : 'Inactive',
+              terms: updatedTerms.map((term) => ({
+                id: term.id,
+                name: term.name,
+                startDate: term.startDate.toISOString(),
+                endDate: term.endDate.toISOString(),
+                status:
+                  currentDate >= new Date(term.startDate) &&
+                  currentDate <= new Date(term.endDate)
+                    ? 'Active'
+                    : 'Inactive',
+              })),
+            },
+          };
+        },
+        { timeout: 10000 },
+      ); // Increase timeout to 10 seconds
+    } catch (error) {
+      console.error('Error updating session:', error);
+      throw new Error(
+        'Failed to update session: ' + (error.message || 'Unknown error'),
       );
-
-      return updatedSession;
-    });
+    }
   }
-
   async deleteSession(id: string, req: any) {
     const requester = req.user;
 
-    // Validate session
-    const session = await this.prisma.session.findUnique({
-      where: { id, isDeleted: false },
-    });
-    if (!session) {
-      throw new NotFoundException('Session not found');
-    }
+    try {
+      // Validate school
+      const school = await this.prisma.school.findUnique({
+        where: { id: requester.schoolId },
+      });
+      if (!school) {
+        throw new NotFoundException('School not found');
+      }
 
-    // Validate permissions
-    if (
-      requester.role !== 'superAdmin' &&
-      requester.schoolId !== session.schoolId
-    ) {
-      throw new ForbiddenException(
-        'You can only delete sessions for your school',
-      );
-    }
+      // Validate session
+      const session = await this.prisma.session.findUnique({
+        where: { id, schoolId: requester.schoolId, isDeleted: false },
+        include: { terms: { where: { isDeleted: false } } },
+      });
+      if (!session) {
+        throw new NotFoundException('Session not found');
+      }
 
-    // Check for linked admissions
-    const admissions = await this.prisma.admission.count({
-      where: { sessionId: id, isDeleted: false },
-    });
-    if (admissions > 0) {
-      throw new BadRequestException(
-        'Cannot delete session with active admissions',
-      );
-    }
+      // Check for linked admissions
+      const admissions = await this.prisma.admission.count({
+        where: { sessionId: id, isDeleted: false },
+      });
+      if (admissions > 0) {
+        throw new BadRequestException(
+          'Cannot delete session with active admissions',
+        );
+      }
 
-    return await this.prisma.$transaction(async (tx) => {
-      // Soft delete session
-      const deletedSession = await tx.session.update({
-        where: { id },
-        data: {
-          isDeleted: true,
-          updatedBy: requester.id,
-        },
-        include: {
-          school: { select: { name: true } },
-        },
+      // Delete session and terms in a transaction
+      const result = await this.prisma.$transaction(async (tx) => {
+        // Soft delete terms
+        await tx.term.updateMany({
+          where: { sessionId: id },
+          data: {
+            isDeleted: true,
+            updatedBy: requester.id,
+          },
+        });
+
+        // Soft delete session
+        await tx.session.update({
+          where: { id },
+          data: {
+            isDeleted: true,
+            updatedBy: requester.id,
+          },
+        });
+
+        // If this was the current session, clear it
+        if (school.currentSessionId === id) {
+          await tx.school.update({
+            where: { id: requester.schoolId },
+            data: {
+              currentSessionId: null,
+              currentTermId: null,
+            },
+          });
+        }
+
+        // Log action
+        await this.loggingService.logAction(
+          'delete_session',
+          'Session',
+          id,
+          requester.id,
+          requester.schoolId,
+          { name: session.name },
+          req,
+        );
+
+        return { statusCode: 204, message: 'Session deleted successfully' };
       });
 
-      await this.loggingService.logAction(
-        'delete_session',
-        'Session',
-        id,
-        requester.id,
-        session.schoolId,
-        { name: session.name },
-        req,
+      return result;
+    } catch (error) {
+      console.error('Error deleting session:', error);
+      throw new Error(
+        'Failed to delete session: ' + (error.message || 'Unknown error'),
       );
-
-      return deletedSession;
-    });
+    }
   }
 }

@@ -13,6 +13,7 @@ import {
   UpdateSubscriptionDto,
 } from './dto/subscription.dto';
 import * as moment from 'moment';
+import { addMonths } from 'date-fns';
 
 @Injectable()
 export class SubscriptionService {
@@ -23,7 +24,7 @@ export class SubscriptionService {
     try {
       const findName = await this.prisma.subscription.findUnique({
         where: {
-          name: name,
+          name,
         },
       });
       if (findName)
@@ -34,7 +35,7 @@ export class SubscriptionService {
         data: {
           name,
           duration,
-          studentLimit: studentLimit,
+          studentLimit,
         },
       });
       return subscription;
@@ -45,6 +46,16 @@ export class SubscriptionService {
 
   async getAllSubscription(dto: GetSubscriptionsDto) {
     const { search, isActive, page = 1, limit = 10 } = dto;
+
+    const pageNum = Number(page);
+    const limitNum = Number(limit);
+
+    if (isNaN(pageNum) || pageNum < 1) {
+      throw new BadRequestException('Page must be a positive number');
+    }
+    if (isNaN(limitNum) || limitNum < 1) {
+      throw new BadRequestException('Limit must be a positive number');
+    }
 
     const where: any = {};
 
@@ -58,14 +69,14 @@ export class SubscriptionService {
       where.isActive = isActive === 'true';
     }
 
-    const skip = (page - 1) * limit;
+    const skip = (pageNum - 1) * limitNum;
 
     try {
       const [subscriptions, total] = await Promise.all([
         this.prisma.subscription.findMany({
           where,
           skip,
-          take: limit,
+          take: limitNum,
           select: {
             id: true,
             name: true,
@@ -196,28 +207,43 @@ export class SubscriptionService {
     return months;
   }
 
-  async assignSubscriptionToSchool(body: any) {
+  async assignSubscriptionToSchool(body: {
+    schoolId: string;
+    subscriptionId: string;
+  }) {
     const { schoolId, subscriptionId } = body;
-    try {
-      const subscription = await this.prisma.subscription.findUnique({
-        where: { id: subscriptionId },
-      });
-      if (!subscription) throw new NotFoundException('Subscription not found');
-      const school = await this.prisma.school.findUnique({
-        where: { id: schoolId },
-      });
-      if (!school) throw new NotFoundException('School not found');
-      await this.prisma.school.update({
-        where: { id: schoolId },
-        data: { subscriptionId: subscriptionId },
-      });
 
-      return { message: 'Subscription assigned to school successfully' };
-    } catch (error) {
-      console.error('Error assigning subscription to school:', error);
-      throw new InternalServerErrorException(
-        'Failed to assign subscription to school',
-      );
+    // 1) fetch the plan
+    const plan = await this.prisma.subscription.findUnique({
+      where: { id: subscriptionId },
+      select: { duration: true },
+    });
+    if (!plan) {
+      throw new NotFoundException('Subscription plan not found');
     }
+
+    // 2) compute start & end dates
+    const startDate = new Date();
+    const endDate = addMonths(startDate, plan.duration);
+
+    // 3) in one transaction:
+    //    a) optionally update the School.current plan
+    //    b) create the history record
+    await this.prisma.$transaction([
+      this.prisma.school.update({
+        where: { id: schoolId },
+        data: { subscriptionId }, // keep the “current” pointer on School
+      }),
+      this.prisma.schoolSubscription.create({
+        data: {
+          schoolId,
+          planId: subscriptionId,
+          startDate,
+          endDate,
+        },
+      }),
+    ]);
+
+    return { message: 'Subscription assigned successfully' };
   }
 }
