@@ -9,10 +9,9 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuthenticatedUser } from '@/types/express';
 import * as bcrypt from 'bcrypt';
 import { CreateSchoolDto, UpdateSchoolDto } from './dto/school.dto';
-import { generateRandomPassword } from '@/types/utils';
+import { generateRandomPassword, generateUniqueUsername } from '@/utils/';
 import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
 import { Readable } from 'stream';
-import { ConfigService } from '@nestjs/config';
 
 import { LoggingService } from '@/log/logging.service';
 import { Prisma } from '@prisma/client';
@@ -89,29 +88,6 @@ export class SchoolsService {
         throw new ForbiddenException('Only superAdmin can create schools');
       }
 
-      // Generate username for admin user
-      const generateUniqueUsername = async (base: string): Promise<string> => {
-        const cleanBase = base
-          .toLowerCase()
-          .replace(/[^a-z0-9]/g, '')
-          .slice(0, 10);
-        let username = `admin_${cleanBase}`;
-        const getRandomNumber = () => Math.floor(Math.random() * 900) + 100;
-        username = `${username}${getRandomNumber()}`;
-        let attempts = 0;
-        const maxAttempts = 10;
-        while (await this.prisma.user.findUnique({ where: { username } })) {
-          if (attempts >= maxAttempts) {
-            throw new ForbiddenException(
-              'Unable to generate a unique username',
-            );
-          }
-          username = `${cleanBase}${getRandomNumber()}`;
-          attempts++;
-        }
-        return username;
-      };
-
       // Find Admin subrole
       const adminSubRole = await this.prisma.subRole.findFirst({
         where: { name: 'admin', isGlobal: true },
@@ -178,7 +154,7 @@ export class SchoolsService {
         school.id,
         requester.id,
         school.id,
-        { args: dto, result: school },
+        { name: school.name },
         req,
       );
 
@@ -200,137 +176,12 @@ export class SchoolsService {
     }
   }
 
-  // async updateSchool(id: string, dto: UpdateSchoolDto, requester: AuthenticatedUser, file?: Express.Multer.File) {
-  //   if (requester.role !== 'superAdmin') {
-  //     throw new ForbiddenException('Only superAdmin can update schools');
-  //   }
-
-  //   const currentSchool = await this.prisma.school.findUnique({
-  //     where: { id },
-  //     select: { id: true, name: true, email: true, contact: true, logo: true },
-  //   });
-
-  //   if (!currentSchool) {
-  //     return null;
-  //   }
-
-  //   const updateData: Partial<UpdateSchoolDto> & { updatedBy?: string; logo?: any } = {
-  //     updatedBy: requester.id,
-  //   };
-
-  //   // Handle text fields
-  //   if (dto.name && dto.name !== currentSchool.name) {
-  //     updateData.name = dto.name;
-  //   }
-  //   if (dto.email && dto.email !== currentSchool.email) {
-  //     updateData.email = dto.email;
-  //   }
-  //   if (dto.contact && dto.contact !== currentSchool.contact) {
-  //     updateData.contact = dto.contact;
-  //   }
-  //   if (dto.address !== undefined) {
-  //     updateData.address = dto.address;
-  //   }
-
-  //   // Handle logo upload to Cloudinary
-  //   if (file) {
-  //     try {
-  //       // Create a readable stream from the file buffer
-  //       const stream = Readable.from(file.buffer);
-  //       const uploadResult = await new Promise((resolve, reject) => {
-  //         const uploadStream = cloudinary.uploader.upload_stream(
-  //           {
-  //             folder: 'school_logos',
-  //             public_id: `school_${id}_${Date.now()}`,
-  //           },
-  //           (error, result) => {
-  //             if (error) reject(error);
-  //             else resolve(result);
-  //           },
-  //         );
-  //         stream.pipe(uploadStream);
-  //       });
-
-  //       updateData.logo = { url: uploadResult.secure_url };
-  //     } catch (error) {
-  //       throw new InternalServerErrorException('Failed to upload logo to Cloudinary');
-  //     }
-  //   }
-
-  //   // Check for conflicts
-  //   if (updateData.name || updateData.email || updateData.contact) {
-  //     const conflicts = await this.prisma.school.findFirst({
-  //       where: {
-  //         id: { not: id },
-  //         OR: [
-  //           updateData.name ? { name: updateData.name } : undefined,
-  //           updateData.email ? { email: updateData.email } : undefined,
-  //           updateData.contact ? { contact: updateData.contact } : undefined,
-  //         ].filter(Boolean),
-  //       },
-  //       select: { id: true, name: true, email: true, contact: true },
-  //     });
-
-  //     if (conflicts) {
-  //       const messages = [];
-  //       if (updateData.name && conflicts.name === updateData.name) {
-  //         messages.push(`Name "${updateData.name}" is already taken`);
-  //       }
-  //       if (updateData.email && conflicts.email === updateData.email) {
-  //         messages.push(`Email "${updateData.email}" is already taken`);
-  //       }
-  //       if (updateData.contact && conflicts.contact === updateData.contact) {
-  //         messages.push(`Contact "${updateData.contact}" is already taken`);
-  //       }
-  //       throw new ConflictException(messages.join(', '));
-  //     }
-  //   }
-
-  //   // If only updatedBy is present and no other changes, return current school
-  //   if (Object.keys(updateData).length === 1 && !updateData.logo) {
-  //     return this.prisma.school.findUnique({
-  //       where: { id },
-  //       select: {
-  //         id: true,
-  //         name: true,
-  //         email: true,
-  //         contact: true,
-  //         isActive: true,
-  //         address: true,
-  //         createdAt: true,
-  //         updatedAt: true,
-  //         subscriptionId: true,
-  //         logo: true,
-  //       },
-  //     });
-  //   }
-
-  //   try {
-  //     return await this.prisma.school.update({
-  //       where: { id },
-  //       data: updateData,
-  //       select: {
-  //         id: true,
-  //         name: true,
-  //         email: true,
-  //         contact: true,
-  //         isActive: true,
-  //         address: true,
-  //         createdAt: true,
-  //         updatedAt: true,
-  //         subscriptionId: true,
-  //         logo: true,
-  //       },
-  //     });
-  //   } catch (error) {
-  //     if (error.code === 'P2025') {
-  //       return null;
-  //     }
-  //     throw new ForbiddenException('Failed to update school');
-  //   }
-  // }
-
-  async updateSchool(id: string, dto: UpdateSchoolDto, requester: AuthenticatedUser, file?: Express.Multer.File) {
+  async updateSchool(
+    id: string,
+    dto: UpdateSchoolDto,
+    requester: AuthenticatedUser,
+    file?: Express.Multer.File,
+  ) {
     if (requester.role !== 'superAdmin') {
       throw new ForbiddenException('Only superAdmin can update schools');
     }
@@ -344,7 +195,10 @@ export class SchoolsService {
       return null;
     }
 
-    const updateData: Partial<UpdateSchoolDto> & { updatedBy?: string; logo?: any } = {
+    const updateData: Partial<UpdateSchoolDto> & {
+      updatedBy?: string;
+      logo?: any;
+    } = {
       updatedBy: requester.id,
     };
 
@@ -367,23 +221,27 @@ export class SchoolsService {
       try {
         // Create a readable stream from the file buffer
         const stream = Readable.from(file.buffer);
-        const uploadResult: UploadApiResponse = await new Promise((resolve, reject) => {
-          const uploadStream = cloudinary.uploader.upload_stream(
-            {
-              folder: 'school_logos',
-              public_id: `school_${id}_${Date.now()}`,
-            },
-            (error, result) => {
-              if (error) reject(error);
-              else resolve(result as UploadApiResponse);
-            },
-          );
-          stream.pipe(uploadStream);
-        });
+        const uploadResult: UploadApiResponse = await new Promise(
+          (resolve, reject) => {
+            const uploadStream = cloudinary.uploader.upload_stream(
+              {
+                folder: 'school_logos',
+                public_id: `school_${id}_${Date.now()}`,
+              },
+              (error, result) => {
+                if (error) reject(error);
+                else resolve(result as UploadApiResponse);
+              },
+            );
+            stream.pipe(uploadStream);
+          },
+        );
 
         updateData.logo = { url: uploadResult.secure_url };
       } catch (error) {
-        throw new InternalServerErrorException('Failed to upload logo to Cloudinary');
+        throw new InternalServerErrorException(
+          'Failed to upload logo to Cloudinary',
+        );
       }
     }
 
@@ -509,10 +367,10 @@ export class SchoolsService {
     }
   }
 
-  async  getSchoolClassStatistics(schoolId) {
+  async getSchoolClassStatistics(schoolId) {
     // Define the class names to filter
     const classNames = ['JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3'];
-  
+
     // Fetch the statistics
     const classStats = await this.prisma.class.findMany({
       where: {
@@ -540,7 +398,8 @@ export class SchoolsService {
             user: {
               isDeleted: false,
               subRole: {
-                name: 'Student',                 isGlobal: true,
+                name: 'Student',
+                isGlobal: true,
               },
             },
           },
@@ -555,18 +414,18 @@ export class SchoolsService {
         },
       },
     });
-  
+
     // Process the data to format the statistics
     const result = classStats.map((classItem) => {
       const totalClassArms = classItem.classArms.length;
       const totalStudents = classItem.students.length;
       const totalMale = classItem.students.filter(
-        (student) => student.user.gender === 'male'
+        (student) => student.user.gender === 'male',
       ).length;
       const totalFemale = classItem.students.filter(
-        (student) => student.user.gender === 'female'
+        (student) => student.user.gender === 'female',
       ).length;
-  
+
       return {
         className: classItem.name,
         totalClassArms,
@@ -575,8 +434,7 @@ export class SchoolsService {
         totalFemale,
       };
     });
-  
+
     return result;
   }
-
 }

@@ -1,203 +1,293 @@
-import { IsString, IsOptional, IsEmail, IsDateString, IsEnum, IsBoolean } from 'class-validator';
+import {
+  IsString,
+  IsEmail,
+  IsOptional,
+  IsDateString,
+  IsEnum,
+  ValidateNested,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 import { Gender } from '@prisma/client';
 
+export class StudentDto {
+  @IsString()
+  firstname: string;
+
+  @IsString()
+  lastname: string;
+
+  @IsEnum(['male', 'female'])
+  @IsOptional()
+  gender?: Gender;
+
+  @IsString()
+  @IsOptional()
+  homeAddress?: string;
+
+  @IsString()
+  @IsOptional()
+  contact?: string;
+
+  @IsEmail()
+  @IsOptional()
+  email?: string;
+
+  @IsDateString()
+  @IsOptional()
+  dateOfBirth?: string;
+
+  @IsString()
+  @IsOptional()
+  religion?: string;
+
+  @IsString()
+  @IsOptional()
+  nationality?: string;
+
+  @IsString()
+  @IsOptional()
+  stateOfOrigin?: string;
+
+  @IsString()
+  @IsOptional()
+  lga?: string;
+}
+
+export class ParentDto {
+  @IsString()
+  lastname: string;
+
+  @IsString()
+  firstname: string;
+
+  @IsString()
+  @IsOptional()
+  othername?: string;
+
+  @IsString()
+  @IsOptional()
+  address?: string;
+
+  @IsString()
+  @IsOptional()
+  contact?: string;
+
+  @IsEmail()
+  @IsOptional()
+  email?: string;
+
+  @IsString()
+  @IsOptional()
+  relationship?: string;
+}
+
+export class FormerSchoolDto {
+  @IsString()
+  @IsOptional()
+  name?: string;
+
+  @IsString()
+  @IsOptional()
+  address?: string;
+
+  @IsString()
+  @IsOptional()
+  contact?: string;
+}
+
+export class OtherInfoDto {
+  @IsString()
+  @IsOptional()
+  healthProblems?: string;
+
+  @IsString()
+  @IsOptional()
+  howHeardAboutUs?: string;
+}
+
 export class CreateAdmissionDto {
-    @IsString()
-    schoolId: string;
-  
-    @IsString()
-    @IsOptional()
-    presentClassId?: string;
-  
-    @IsString()
-    classApplyingId: string;
-  
-    @IsString()
-    surname: string;
-  
-    @IsString()
-    firstName: string;
-  
-    @IsString()
-    address: string;
-  
-    @IsEnum(Gender)
-    gender: Gender;
-  
-    @IsString()
-    phone: string;
-  
-    @IsEmail()
-    email: string;
-  
-    @IsDateString()
-    dateOfBirth: string;
-  
-    @IsString()
-    religion: string;
-  
-    @IsString()
-    nationality: string;
-  
-    @IsString()
-    stateOfOrigin: string;
-  
-    @IsString()
-    localGovernment: string;
-  
-    // Guardian fields
-    @IsString()
-    guardianSurname: string;
-  
-    @IsString()
-    @IsOptional()
-    guardianMiddleName?: string;
-  
-    @IsString()
-    guardianFirstName: string;
-  
-    @IsEmail()
-    guardianEmail: string;
-  
-    @IsString()
-    @IsOptional()
-    guardianPhone?: string;
-  
-    @IsString()
-    @IsOptional()
-    guardianAddress?: string;
-  
-    @IsString()
-    @IsOptional()
-    guardianRelationship?: string;
-  
-    // OtherInfo fields
-    @IsString()
-    healthProblem: string;
-  
-    @IsString()
-    hearAboutUs: string;
-  
-    // SchoolInformation fields
-    @IsString()
-    previousSchoolName: string;
-  
-    @IsString()
-    previousSchoolAddress: string;
-  
-    @IsString()
-    previousSchoolContact: string;
-  }
-  
-  export class UpdateAdmissionDto {
-    @IsString()
-    @IsOptional()
-    presentClassId?: string;
-  
-    @IsString()
-    @IsOptional()
-    classApplyingId?: string;
-  
-    @IsString()
-    @IsOptional()
-    surname?: string;
-  
-    @IsString()
-    @IsOptional()
-    firstName?: string;
-  
-    @IsString()
-    @IsOptional()
-    address?: string;
-  
-    @IsEnum(Gender)
-    @IsOptional()
-    gender?: Gender;
-  
-    @IsString()
-    @IsOptional()
-    phone?: string;
-  
-    @IsEmail()
-    @IsOptional()
-    email?: string;
-  
-    @IsDateString()
-    @IsOptional()
-    dateOfBirth?: string;
-  
-    @IsString()
-    @IsOptional()
-    religion?: string;
-  
-    @IsString()
-    @IsOptional()
-    nationality?: string;
-  
-    @IsString()
-    @IsOptional()
-    stateOfOrigin?: string;
-  
-    @IsString()
-    @IsOptional()
-    localGovernment?: string;
-  
-    @IsBoolean()
-    @IsOptional()
-    isDeleted?: boolean;
-  
-    @IsBoolean()
-    @IsOptional()
-    isAccepted?: boolean;
-  
-    // Guardian fields
-    @IsString()
-    @IsOptional()
-    guardianSurname?: string;
-  
-    @IsString()
-    @IsOptional()
-    guardianMiddleName?: string;
-  
-    @IsString()
-    @IsOptional()
-    guardianFirstName?: string;
-  
-    @IsEmail()
-    @IsOptional()
-    guardianEmail?: string;
-  
-    @IsString()
-    @IsOptional()
-    guardianPhone?: string;
-  
-    @IsString()
-    @IsOptional()
-    guardianAddress?: string;
-  
-    @IsString()
-    @IsOptional()
-    guardianRelationship?: string;
-  
-    // OtherInfo fields
-    @IsString()
-    @IsOptional()
-    healthProblem?: string;
-  
-    @IsString()
-    @IsOptional()
-    hearAboutUs?: string;
-  
-    // SchoolInformation fields
-    @IsString()
-    @IsOptional()
-    previousSchoolName?: string;
-  
-    @IsString()
-    @IsOptional()
-    previousSchoolAddress?: string;
-  
-    @IsString()
-    @IsOptional()
-    previousSchoolContact?: string;
-  }
+  @IsString()
+  sessionId: string;
+
+  @IsString()
+  schoolId: string;
+
+  @IsString()
+  @IsOptional()
+  presentClassId?: string;
+
+  @IsString()
+  classApplyingForId: string;
+
+  @ValidateNested()
+  @Type(() => StudentDto)
+  student: StudentDto;
+
+  @ValidateNested()
+  @Type(() => ParentDto)
+  parent: ParentDto;
+
+  @ValidateNested()
+  @Type(() => FormerSchoolDto)
+  formerSchool: FormerSchoolDto;
+
+  @ValidateNested()
+  @Type(() => OtherInfoDto)
+  otherInfo: OtherInfoDto;
+}
+
+export class UpdateStudentDto {
+  @IsString()
+  @IsOptional()
+  firstname?: string;
+
+  @IsString()
+  @IsOptional()
+  lastname?: string;
+
+  @IsEnum(['male', 'female'])
+  @IsOptional()
+  gender?: Gender;
+
+  @IsString()
+  @IsOptional()
+  homeAddress?: string;
+
+  @IsString()
+  @IsOptional()
+  contact?: string;
+
+  @IsEmail()
+  @IsOptional()
+  email?: string;
+
+  @IsDateString()
+  @IsOptional()
+  dateOfBirth?: string;
+
+  @IsString()
+  @IsOptional()
+  religion?: string;
+
+  @IsString()
+  @IsOptional()
+  nationality?: string;
+
+  @IsString()
+  @IsOptional()
+  stateOfOrigin?: string;
+
+  @IsString()
+  @IsOptional()
+  lga?: string;
+}
+
+export class UpdateParentDto {
+  @IsString()
+  @IsOptional()
+  lastname?: string;
+
+  @IsString()
+  @IsOptional()
+  firstname?: string;
+
+  @IsString()
+  @IsOptional()
+  othername?: string;
+
+  @IsString()
+  @IsOptional()
+  address?: string;
+
+  @IsString()
+  @IsOptional()
+  contact?: string;
+
+  @IsEmail()
+  @IsOptional()
+  email?: string;
+
+  @IsString()
+  @IsOptional()
+  relationship?: string;
+}
+
+export class UpdateFormerSchoolDto {
+  @IsString()
+  @IsOptional()
+  name?: string;
+
+  @IsString()
+  @IsOptional()
+  address?: string;
+
+  @IsString()
+  @IsOptional()
+  contact?: string;
+}
+
+export class UpdateOtherInfoDto {
+  @IsString()
+  @IsOptional()
+  healthProblems?: string;
+
+  @IsString()
+  @IsOptional()
+  howHeardAboutUs?: string;
+}
+
+export class UpdateAdmissionDto {
+  @IsString()
+  @IsOptional()
+  sessionId?: string;
+
+  @IsString()
+  @IsOptional()
+  presentClassId?: string;
+
+  @IsString()
+  @IsOptional()
+  classApplyingForId?: string;
+
+  @IsString()
+  @IsOptional()
+  classId?: string;
+
+  @IsString()
+  @IsOptional()
+  classArmId?: string;
+
+  @ValidateNested()
+  @Type(() => UpdateStudentDto)
+  @IsOptional()
+  student?: UpdateStudentDto;
+
+  @ValidateNested()
+  @Type(() => UpdateParentDto)
+  @IsOptional()
+  parent?: UpdateParentDto;
+
+  @ValidateNested()
+  @Type(() => UpdateFormerSchoolDto)
+  @IsOptional()
+  formerSchool?: UpdateFormerSchoolDto;
+
+  @ValidateNested()
+  @Type(() => UpdateOtherInfoDto)
+  @IsOptional()
+  otherInfo?: UpdateOtherInfoDto;
+}
+
+export class AcceptAdmissionDto {
+  @IsString()
+  classId: string;
+
+  @IsString()
+  classArmId: string;
+}
+
+export class RejectAdmissionDto {
+  @IsString()
+  @IsOptional()
+  rejectionReason?: string;
+}

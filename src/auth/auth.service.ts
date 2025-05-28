@@ -13,7 +13,7 @@ export class AuthService {
     private loggingService: LoggingService,
   ) {}
 
-  async login(loginDto: LoginDto) {
+  async login(loginDto: LoginDto, req) {
     const { email, username, password } = loginDto;
     const identifier = email || username; // Use provided email or username
     const user = await this.usersService.findByUsernameOrEmail(identifier);
@@ -34,6 +34,7 @@ export class AuthService {
       user.id,
       user.schoolId,
       { email },
+      req,
     );
 
     const payload = {

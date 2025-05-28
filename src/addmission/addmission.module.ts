@@ -1,9 +1,13 @@
 import { Module } from '@nestjs/common';
-import { AddmissionController } from './addmission.controller';
-import { AddmissionService } from './addmission.service';
+import { AdmissionsController } from './addmission.controller';
+import { AdmissionsService } from './addmission.service';
+import { HttpModule } from '@nestjs/axios';
+import { PrismaModule } from '@/prisma/prisma.module';
+import { LoggingService } from '@/log/logging.service';
 
 @Module({
-  controllers: [AddmissionController],
-  providers: [AddmissionService]
+  imports: [PrismaModule, HttpModule],
+  controllers: [AdmissionsController],
+  providers: [AdmissionsService, LoggingService],
 })
-export class AddmissionModule {}
+export class AdmissionsModule {}

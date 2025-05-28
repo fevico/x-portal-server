@@ -144,7 +144,7 @@ export class SubjectService {
       throw new HttpException('Subject not found', HttpStatus.NOT_FOUND);
     }
 
-    const deletedSubject = await this.prisma.subject.update({
+    await this.prisma.subject.update({
       where: { id },
       data: {
         isDeleted: true,

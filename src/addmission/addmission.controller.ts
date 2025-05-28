@@ -1,35 +1,76 @@
-import { Body, Controller, Param, Patch, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
-import { AddmissionService } from './addmission.service';
-import { CreateAdmissionDto, UpdateAdmissionDto } from './dto/addmission.dto';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { Admission } from '@prisma/client';
+import {
+  Controller,
+  Post,
+  Patch,
+  Get,
+  Body,
+  Param,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
+import { AdmissionsService } from './addmission.service';
+import { PermissionsGuard } from '@/auth/guards/permissions.guard';
+import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guards';
+import { Permissions } from '@/auth/decorators/permissions.decorator';
+import {
+  AcceptAdmissionDto,
+  CreateAdmissionDto,
+  RejectAdmissionDto,
+  UpdateAdmissionDto,
+} from './dto/addmission.dto';
 
-@Controller('addmission')
-export class AddmissionController {
-    constructor(private admissionService: AddmissionService) {}
+@Controller('admissions')
+export class AdmissionsController {
+  constructor(private readonly admissionsService: AdmissionsService) {}
 
-    @Post()
-    @UseInterceptors(FileInterceptor('file'))
-    async createAdmission(
-      @Body() dto: CreateAdmissionDto,
-      @UploadedFile() file?: Express.Multer.File,
-    ): Promise<Admission> {
-      return this.admissionService.createAdmission(dto, file);
-    }
-  
-    @Patch(':id')
-    @UseInterceptors(FileInterceptor('file'))
-    async updateAdmission(
-      @Param('id') id: string,
-      @Body() dto: UpdateAdmissionDto,
-      @UploadedFile() file?: Express.Multer.File,
-    ): Promise<Admission> {
-      return this.admissionService.updateAdmission(id, dto, file);
-    }
-  
-    @Patch(':id/accept')
-    async acceptAdmission(@Param('id') id: string): Promise<Admission> {
-      return this.admissionService.acceptAdmission(id);
-    }
-  
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('admissions:create')
+  @Post()
+  async createAdmission(
+    @Body() createAdmissionDto: CreateAdmissionDto,
+    @Request() req,
+  ) {
+    return this.admissionsService.createAdmission(createAdmissionDto, req);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('admissions:update')
+  @Patch(':id/reject')
+  async rejectAdmission(
+    @Param('id') id: string,
+    @Body() rejectAdmissionDto: RejectAdmissionDto,
+    @Request() req,
+  ) {
+    return this.admissionsService.rejectAdmission(id, rejectAdmissionDto, req);
+  }
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('sub-role:write')
+  @Patch(':id/accept')
+  async acceptAdmission(
+    @Param('id') id: string,
+    @Body() acceptAdmissionDto: AcceptAdmissionDto,
+    @Request() req,
+  ) {
+    return this.admissionsService.acceptAdmission(id, acceptAdmissionDto, req);
+  }
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('admissions:update')
+  @Patch(':id')
+  async updateAdmission(
+    @Param('id') id: string,
+    @Body() updateAdmissionDto: UpdateAdmissionDto,
+    @Request() req,
+  ) {
+    return this.admissionsService.updateAdmission(id, updateAdmissionDto, req);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('admissions:read')
+  @Get('parent/:parentId/students')
+  async getStudentsByParentId(
+    @Param('parentId') parentId: string,
+    @Request() req,
+  ) {
+    return this.admissionsService.getStudentsByParentId(parentId, req);
+  }
 }

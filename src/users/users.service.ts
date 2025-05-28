@@ -11,7 +11,7 @@ import { Prisma, SubRole, User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { GetUsersQueryDto, UpdateUserDto } from './dto/user.dtos';
 import { AuthenticatedUser } from '@/types/express';
-import { generateRandomPassword } from '@/types/utils';
+import { generateRandomPassword, generateUniqueUsername } from '@/utils/';
 
 @Injectable()
 export class UsersService {
@@ -79,27 +79,6 @@ export class UsersService {
     } catch (error) {
       throw new ForbiddenException('Failed to retrieve user');
     }
-  }
-
-  private async generateUniqueUsername(
-    firstname: string,
-    lastname: string,
-  ): Promise<string> {
-    // Normalize firstname and lastname: lowercase, remove spaces, and special characters
-    const cleanFirstname = firstname.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const firstInitial = cleanFirstname.charAt(0);
-    const cleanLastname = lastname.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const baseUsername = `${firstInitial}_${cleanLastname}`;
-    let username = baseUsername;
-    let counter = 1;
-
-    // Check if username exists and append number if necessary
-    while (await this.prisma.user.findUnique({ where: { username } })) {
-      username = `${baseUsername}${counter}`;
-      counter++;
-    }
-
-    return username;
   }
 
   async create(
@@ -178,10 +157,7 @@ export class UsersService {
     // Restrict requester to their own school unless they are superAdmin
 
     // Generate unique username
-    const username = await this.generateUniqueUsername(
-      data.firstname,
-      data.lastname,
-    );
+    const username = await generateUniqueUsername(data.firstname);
 
     // Hash password
     let hashedPassword = '';
@@ -207,11 +183,12 @@ export class UsersService {
       password: hashedPassword,
       plainPassword,
       role: data.role || 'admin',
-      school: requester.schoolId
-        ? { connect: { id: requester.schoolId } }
-        : undefined,
+      school:
+        requester && requester.schoolId
+          ? { connect: { id: requester.schoolId } }
+          : undefined,
       subRole: data.subRoleId ? { connect: { id: data.subRoleId } } : undefined,
-      createdBy: requester.id,
+      createdBy: requester && requester.id,
     };
 
     try {
