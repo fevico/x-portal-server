@@ -1,7 +1,17 @@
 npx ts-node prisma/seed/seed-perm-subroles2.ts - to run seed
 mysql -h mysql-6ce44ed-netojaycee-eadc.i.aivencloud.com -P 11674 -u avnadmin -pAVNS_QR2jkFmdKhngDzcYFwL defaultdb
 
-{
+{$ mysql -h mysql-6ce44ed-netojaycee-eadc.i.aivencloud.com -P 11674 -u avnadmin -pAVNS_QR2jkFmdKhngDzcYFwL defaultdb
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ALTER TABLE admissions
+DROP COLUMN isAccepted,
+DROP COLUMN otherInfoId,
+DROP COLUMN schoolInformationId;
+DESCRIBE admissions;
+SELECT * FROM _prisma_migrations WHERE migration_name = '20250522111812_latest_admission';
+DELETE FROM _prisma_migrations WHERE migration_name = '20250522111812_latest_admission';
+exit
+
     "school": {
         "id": "92801adb-19ac-4c8e-a265-77c9c70f5583",
         "name": "Riverside High School 2",
