@@ -13,12 +13,14 @@ import {
   UpdateAdmissionDto,
 } from './dto/addmission.dto';
 import { generateRandomPassword, generateUniqueUsername } from '@/utils';
+import { v2 as cloudinary } from 'cloudinary';
+import { AuthenticatedUser } from '@/types/express';
 
 @Injectable()
 export class AdmissionsService {
   constructor(private prisma: PrismaService) {}
 
-  async createAdmission(dto: CreateAdmissionDto, req: any) {
+  async createAdmission(dto: CreateAdmissionDto, req: any, image?: Express.Multer.File) {
     const {
       student,
       parent,
@@ -30,7 +32,7 @@ export class AdmissionsService {
       classApplyingForId,
     } = dto;
     const requester = req.user;
-
+  
     // Validate session and school
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },
@@ -38,7 +40,7 @@ export class AdmissionsService {
     if (!session || session.schoolId !== schoolId) {
       throw new ForbiddenException('Invalid session or school');
     }
-
+  
     // Find subroles
     const studentSubRole = await this.prisma.subRole.findFirst({
       where: { name: 'student', isGlobal: true },
@@ -49,119 +51,359 @@ export class AdmissionsService {
     if (!studentSubRole || !parentSubRole) {
       throw new ForbiddenException('Student or Parent subrole not found');
     }
-
-    // Generate passwords
+  
+    // Generate usernames and passwords
+    const studentUsername = await generateUniqueUsername(student.firstname);
+    const parentUsername = await generateUniqueUsername(parent.firstname);
     const studentPassword = await generateRandomPassword();
     const parentPassword = await generateRandomPassword();
     const studentHashedPassword = await bcrypt.hash(studentPassword, 10);
     const parentHashedPassword = await bcrypt.hash(parentPassword, 10);
-
-    return await this.prisma.$transaction(async (tx) => {
-      // Create student user
-      const studentUser = await tx.user.create({
-        data: {
-          firstname: student.firstname,
-          lastname: student.lastname,
-          username: await generateUniqueUsername(student.firstname),
-          email: student.email,
-          phone: student.contact,
-          gender: student.gender,
-          religion: student.religion,
-          nationality: student.nationality,
-          stateOfOrigin: student.stateOfOrigin,
-          lga: student.lga,
-          password: studentHashedPassword,
-          plainPassword: studentPassword,
-          role: 'admin',
-          subRoleId: studentSubRole.id,
-          schoolId,
-          createdBy: requester?.id,
-        },
+  
+    // Upload image to Cloudinary
+    let imageUrl: string | undefined;
+    let publicId: string | undefined;
+    if (image) {
+      const uploadResult = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder: 'admissions', transformation: { width: 800, height: 800, crop: 'limit' } },
+          (error, result) => {
+            if (error) return reject(error);
+            resolve(result);
+          },
+        );
+        stream.end(image.buffer);
       });
-
-      // Create parent user
-      const parentUser = await tx.user.create({
-        data: {
-          firstname: parent.firstname,
-          lastname: parent.lastname,
-          othername: parent.othername,
-          username: await generateUniqueUsername(parent.firstname),
-          email: parent.email,
-          phone: parent.contact,
-          password: parentHashedPassword,
-          plainPassword: parentPassword,
-          role: 'admin',
-          subRoleId: parentSubRole.id,
-          schoolId,
-          createdBy: requester?.id,
-        },
-      });
-
-      // Create student
-      const studentRecord = await tx.student.create({
-        data: {
-          userId: studentUser.id,
-          studentId: `STU-${Math.floor(Math.random() * 1000000)
-            .toString()
-            .padStart(6, '0')}`,
-          dateOfBirth: student.dateOfBirth,
-          isAdmitted: false,
-          createdBy: requester?.id,
-        },
-      });
-
-      // Create parent
-      const parentRecord = await tx.parent.create({
-        data: {
-          userId: parentUser.id,
-          address: parent.address,
-          relationship: parent.relationship,
-          createdBy: requester?.id,
-        },
-      });
-
-      // Create admission
-      const admission = await tx.admission.create({
-        data: {
-          sessionId,
-          schoolId,
-          studentId: studentRecord.id,
-          parentId: parentRecord.id,
-          presentClassId,
-          classApplyingForId,
-          homeAddress: student.homeAddress,
-          contact: student.contact,
-          email: student.email,
-          dateOfBirth: student.dateOfBirth,
-          religion: student.religion,
-          nationality: student.nationality,
-          stateOfOrigin: student.stateOfOrigin,
-          lga: student.lga,
-          parentLastname: parent.lastname,
-          parentFirstname: parent.firstname,
-          parentOthername: parent.othername,
-          parentAddress: parent.address,
-          parentContact: parent.contact,
-          parentEmail: parent.email,
-          parentRelationship: parent.relationship,
-          formerSchoolName: formerSchool.name,
-          formerSchoolAddress: formerSchool.address,
-          formerSchoolContact: formerSchool.contact,
-          healthProblems: otherInfo.healthProblems,
-          howHeardAboutUs: otherInfo.howHeardAboutUs,
-          createdBy: requester?.id,
-        },
-      });
-
-      // Update student with parent link
-      await tx.student.update({
-        where: { id: studentRecord.id },
-        data: { parentId: parentRecord.id },
-      });
-
-      return { admission, studentPassword, parentPassword };
+      imageUrl = (uploadResult as any).secure_url;
+      publicId = (uploadResult as any).public_id;
+    }
+  
+    // Create users outside the transaction
+    const studentUser = await this.prisma.user.create({
+      data: {
+        firstname: student.firstname,
+        lastname: student.lastname,
+        username: studentUsername,
+        email: student.email,
+        phone: student.contact,
+        gender: student.gender,
+        religion: student.religion,
+        nationality: student.nationality,
+        stateOfOrigin: student.stateOfOrigin,
+        lga: student.lga,
+        password: studentHashedPassword,
+        plainPassword: studentPassword,
+        role: 'admin',
+        subRoleId: studentSubRole.id,
+        schoolId,
+        createdBy: requester?.id,
+      },
     });
+  
+    const parentUser = await this.prisma.user.create({
+      data: {
+        firstname: parent.firstname,
+        lastname: parent.lastname,
+        othername: parent.othername,
+        username: parentUsername,
+        email: parent.email,
+        phone: parent.contact,
+        password: parentHashedPassword,
+        plainPassword: parentPassword,
+        role: 'admin',
+        subRoleId: parentSubRole.id,
+        schoolId,
+        createdBy: requester?.id,
+      },
+    });
+  
+    try {
+      return await this.prisma.$transaction(
+        async (tx) => {
+          // Create student
+          const studentRecord = await tx.student.create({
+            data: {
+              userId: studentUser.id,
+              studentId: `STU-${Math.floor(Math.random() * 1000000)
+                .toString()
+                .padStart(6, '0')}`,
+              dateOfBirth: student.dateOfBirth,
+              isAdmitted: false,
+              createdBy: requester?.id,
+            },
+          });
+  
+          // Create parent
+          const parentRecord = await tx.parent.create({
+            data: {
+              userId: parentUser.id,
+              address: parent.address,
+              relationship: parent.relationship,
+              createdBy: requester?.id,
+            },
+          });
+  
+          // Create admission with image URL
+          const admission = await tx.admission.create({
+            data: {
+              sessionId,
+              schoolId,
+              studentId: studentRecord.id,
+              parentId: parentRecord.id,
+              presentClassId,
+              classApplyingForId,
+              homeAddress: student.homeAddress,
+              contact: student.contact,
+              email: student.email,
+              dateOfBirth: student.dateOfBirth,
+              religion: student.religion,
+              nationality: student.nationality,
+              stateOfOrigin: student.stateOfOrigin,
+              lga: student.lga,
+              parentLastname: parent.lastname,
+              parentFirstname: parent.firstname,
+              parentOthername: parent.othername,
+              parentAddress: parent.address,
+              parentContact: parent.contact,
+              parentEmail: parent.email,
+              parentRelationship: parent.relationship,
+              formerSchoolName: formerSchool.name,
+              formerSchoolAddress: formerSchool.address,
+              formerSchoolContact: formerSchool.contact,
+              healthProblems: otherInfo.healthProblems,
+              howHeardAboutUs: otherInfo.howHeardAboutUs,
+              // imageUrl,
+              createdBy: requester?.id,
+            },
+          });
+  
+          // Update student with parent link
+          await tx.student.update({
+            where: { id: studentRecord.id },
+            data: { parentId: parentRecord.id },
+          });
+  
+          return { admission, studentPassword, parentPassword };
+        },
+        { timeout: 30000 }
+      );
+    } catch (error) {
+      // Clean up users if transaction fails
+      await this.prisma.user.deleteMany({
+        where: { id: { in: [studentUser.id, parentUser.id] } },
+      });
+      if (publicId) {
+        await cloudinary.uploader.destroy(publicId);
+      }
+      throw error;
+    }
   }
+
+  // async createAdmission(dto: CreateAdmissionDto, req: any, image?: Express.Multer.File) {
+  //   const {
+  //     student,
+  //     parent,
+  //     formerSchool,
+  //     otherInfo,
+  //     sessionId,
+  //     schoolId,
+  //     presentClassId,
+  //     classApplyingForId,
+  //   } = dto;
+  //   const requester = req.user;
+  
+  //   // Validate session and school
+  //   console.time('validateSession');
+  //   const session = await this.prisma.session.findUnique({
+  //     where: { id: sessionId },
+  //   });
+  //   if (!session || session.schoolId !== schoolId) {
+  //     throw new ForbiddenException('Invalid session or school');
+  //   }
+  //   console.timeEnd('validateSession');
+  
+  //   // Find subroles
+  //   console.time('findSubRoles');
+  //   const studentSubRole = await this.prisma.subRole.findFirst({
+  //     where: { name: 'student', isGlobal: true },
+  //   });
+  //   const parentSubRole = await this.prisma.subRole.findFirst({
+  //     where: { name: 'parent', isGlobal: true },
+  //   });
+  //   if (!studentSubRole || !parentSubRole) {
+  //     throw new ForbiddenException('Student or Parent subrole not found');
+  //   }
+  //   console.timeEnd('findSubRoles');
+  
+  //   // Generate usernames and passwords outside the transaction
+  //   console.time('generateStudentUsername');
+  //   const studentUsername = await generateUniqueUsername(student.firstname);
+  //   console.timeEnd('generateStudentUsername');
+  
+  //   console.time('generateParentUsername');
+  //   const parentUsername = await generateUniqueUsername(parent.firstname);
+  //   console.timeEnd('generateParentUsername');
+  
+  //   console.time('generatePasswords');
+  //   const studentPassword = await generateRandomPassword();
+  //   const parentPassword = await generateRandomPassword();
+  //   const studentHashedPassword = await bcrypt.hash(studentPassword, 10);
+  //   const parentHashedPassword = await bcrypt.hash(parentPassword, 10);
+  //   console.timeEnd('generatePasswords');
+  
+  //   // Upload image to Cloudinary if provided
+  //   let imageUrl: string | undefined;
+  //   let publicId: string | undefined;
+  //   if (image) {
+  //     console.time('cloudinaryUpload');
+  //     try {
+  //       const uploadResult = await new Promise((resolve, reject) => {
+  //         const stream = cloudinary.uploader.upload_stream(
+  //           { folder: 'admissions' },
+  //           (error, result) => {
+  //             if (error) return reject(error);
+  //             resolve(result);
+  //           },
+  //         );
+  //         stream.end(image.buffer);
+  //       });
+  //       imageUrl = (uploadResult as any).secure_url;
+  //       publicId = (uploadResult as any).public_id;
+  //     } catch (error) {
+  //       throw new BadRequestException('Failed to upload image to Cloudinary');
+  //     }
+  //     console.timeEnd('cloudinaryUpload');
+  //   }
+  
+  //   try {
+  //     return await this.prisma.$transaction(
+  //       async (tx) => {
+  //         // Create student user
+  //         console.time('createStudentUser');
+  //         const studentUser = await tx.user.create({
+  //           data: {
+  //             firstname: student.firstname,
+  //             lastname: student.lastname,
+  //             username: studentUsername,
+  //             email: student.email,
+  //             phone: student.contact,
+  //             gender: student.gender,
+  //             religion: student.religion,
+  //             nationality: student.nationality,
+  //             stateOfOrigin: student.stateOfOrigin,
+  //             lga: student.lga,
+  //             password: studentHashedPassword,
+  //             plainPassword: studentPassword,
+  //             role: 'admin',
+  //             subRoleId: studentSubRole.id,
+  //             schoolId,
+  //             createdBy: requester?.id,
+  //           },
+  //         });
+  //         console.timeEnd('createStudentUser');
+  
+  //         // Create parent user
+  //         console.time('createParentUser');
+  //         const parentUser = await tx.user.create({
+  //           data: {
+  //             firstname: parent.firstname,
+  //             lastname: parent.lastname,
+  //             othername: parent.othername,
+  //             username: parentUsername,
+  //             email: parent.email,
+  //             phone: parent.contact,
+  //             password: parentHashedPassword,
+  //             plainPassword: parentPassword,
+  //             role: 'admin',
+  //             subRoleId: parentSubRole.id,
+  //             schoolId,
+  //             createdBy: requester?.id,
+  //           },
+  //         });
+  //         console.timeEnd('createParentUser');
+  
+  //         // Create student
+  //         console.time('createStudent');
+  //         const studentRecord = await tx.student.create({
+  //           data: {
+  //             userId: studentUser.id,
+  //             studentId: `STU-${Math.floor(Math.random() * 1000000)
+  //               .toString()
+  //               .padStart(6, '0')}`,
+  //             dateOfBirth: student.dateOfBirth,
+  //             isAdmitted: false,
+  //             createdBy: requester?.id,
+  //           },
+  //         });
+  //         console.timeEnd('createStudent');
+  
+  //         // Create parent
+  //         console.time('createParent');
+  //         const parentRecord = await tx.parent.create({
+  //           data: {
+  //             userId: parentUser.id,
+  //             address: parent.address,
+  //             relationship: parent.relationship,
+  //             createdBy: requester?.id,
+  //           },
+  //         });
+  //         console.timeEnd('createParent');
+  
+  //         // Create admission with image URL
+  //         console.time('createAdmission');
+  //         const admission = await tx.admission.create({
+  //           data: {
+  //             sessionId,
+  //             schoolId,
+  //             studentId: studentRecord.id,
+  //             parentId: parentRecord.id,
+  //             presentClassId,
+  //             classApplyingForId,
+  //             homeAddress: student.homeAddress,
+  //             contact: student.contact,
+  //             email: student.email,
+  //             dateOfBirth: student.dateOfBirth,
+  //             religion: student.religion,
+  //             nationality: student.nationality,
+  //             stateOfOrigin: student.stateOfOrigin,
+  //             lga: student.lga,
+  //             parentLastname: parent.lastname,
+  //             parentFirstname: parent.firstname,
+  //             parentOthername: parent.othername,
+  //             parentAddress: parent.address,
+  //             parentContact: parent.contact,
+  //             parentEmail: parent.email,
+  //             parentRelationship: parent.relationship,
+  //             formerSchoolName: formerSchool.name,
+  //             formerSchoolAddress: formerSchool.address,
+  //             formerSchoolContact: formerSchool.contact,
+  //             healthProblems: otherInfo.healthProblems,
+  //             howHeardAboutUs: otherInfo.howHeardAboutUs,
+  //             // imageUrl,
+  //             createdBy: requester?.id,
+  //           },
+  //         });
+  //         console.timeEnd('createAdmission');
+  
+  //         // Update student with parent link
+  //         console.time('updateStudent');
+  //         await tx.student.update({
+  //           where: { id: studentRecord.id },
+  //           data: { parentId: parentRecord.id },
+  //         });
+  //         console.timeEnd('updateStudent');
+  
+  //         return { admission, studentPassword, parentPassword };
+  //       },
+  //       { timeout: 30000 }
+  //     );
+  //   } catch (error) {
+  //     if (publicId) {
+  //       await cloudinary.uploader.destroy(publicId);
+  //     }
+  //     throw error;
+  //   }
+  // }
 
   async rejectAdmission(id: string, dto: RejectAdmissionDto, req: any) {
     const { rejectionReason } = dto;
@@ -574,5 +816,21 @@ export class AdmissionsService {
         isAdmitted: student.admission?.isAdmitted,
       })),
     };
+  }
+
+  async getAdmissionDetails(id: string, user: AuthenticatedUser){
+    const schoolId = user.schoolId;
+    const admission = await this.prisma.admission.findUnique({
+      where: { id, isDeleted: false },
+      include:{school: { select: { name: true } },
+      session: { select: { name: true } },
+    } });
+    if(!admission) {
+      throw new NotFoundException('Admission data not found');
+    }
+    if( user.role !== 'admin' && admission.schoolId !== schoolId) {
+      throw new ForbiddenException('You can only access admissions for your school');
+    }
+    return admission;      
   }
 }

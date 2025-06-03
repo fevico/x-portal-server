@@ -1,13 +1,12 @@
 import { PrismaService } from '@/prisma/prisma.service';
+import { AuthenticatedUser } from '@/types/express';
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 
 @Injectable()
 export class SubjectService {
   constructor(private prisma: PrismaService) {}
-  async create(
-    createSubjectDto: { name: string },
-    user: { id: string; schoolId: string },
-  ) {
+  async create(createSubjectDto: { name: string; code: string }, req) {
+    const user = req.user as AuthenticatedUser;
     if (!createSubjectDto.name) {
       throw new HttpException(
         'Subject name is required',
@@ -34,6 +33,7 @@ export class SubjectService {
     const subject = await this.prisma.subject.create({
       data: {
         name: createSubjectDto.name,
+        code: createSubjectDto.code,
         schoolId: user.schoolId,
         createdBy: user.id,
       },
@@ -44,15 +44,17 @@ export class SubjectService {
     return subject;
   }
 
-  async findAll(schoolId: string) {
+  async findAll(req) {
+    const user = req.user as AuthenticatedUser;
     return this.prisma.subject.findMany({
       where: {
-        schoolId,
+        schoolId: user.schoolId,
         isDeleted: false,
       },
       select: {
         id: true,
         name: true,
+        code: true,
         createdAt: true,
         updatedAt: true,
         createdBy: true,
@@ -60,16 +62,18 @@ export class SubjectService {
     });
   }
 
-  async findOne(id: string, schoolId: string) {
+  async findOne(id: string, req) {
+    const user = req.user as AuthenticatedUser;
     const subject = await this.prisma.subject.findFirst({
       where: {
         id,
-        schoolId,
+        schoolId: user.schoolId,
         isDeleted: false,
       },
       select: {
         id: true,
         name: true,
+        code: true,
         createdAt: true,
         updatedAt: true,
         createdBy: true,
@@ -85,9 +89,10 @@ export class SubjectService {
 
   async update(
     id: string,
-    updateSubjectDto: { name?: string },
-    user: { id: string; schoolId: string },
+    updateSubjectDto: { name?: string; code?: string },
+    req,
   ) {
+    const user = req.user as AuthenticatedUser;
     const subject = await this.prisma.subject.findFirst({
       where: {
         id,
@@ -123,6 +128,7 @@ export class SubjectService {
       where: { id },
       data: {
         name: updateSubjectDto.name ?? subject.name,
+        code: updateSubjectDto.code ?? subject.code,
         updatedBy: user.id,
         updatedAt: new Date(),
       },
@@ -131,7 +137,8 @@ export class SubjectService {
     return updatedSubject;
   }
 
-  async delete(id: string, user: { id: string; schoolId: string }) {
+  async delete(id: string, req) {
+    const user = req.user as AuthenticatedUser;
     const subject = await this.prisma.subject.findFirst({
       where: {
         id,
