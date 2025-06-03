@@ -1,5 +1,5 @@
 npx ts-node prisma/seed/seed-perm-subroles2.ts - to run seed
-
+mysql -h mysql-6ce44ed-netojaycee-eadc.i.aivencloud.com -P 11674 -u avnadmin -pAVNS_QR2jkFmdKhngDzcYFwL defaultdb
 
 {
     "school": {

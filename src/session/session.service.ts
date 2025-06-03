@@ -294,7 +294,7 @@ export class SessionsService {
           },
           classArmAssignments: {
             include: {
-              class: { select: { id: true, name: true } },
+              class: { select: { id: true, name: true, category: true } },
               classArm: { select: { id: true, name: true } },
             },
             where: { isDeleted: false },
@@ -370,6 +370,7 @@ export class SessionsService {
           classes: allClasses.map((cls) => ({
             id: cls.id,
             name: cls.name,
+            category: cls.category,
             assignedArms: classArmAssignments[cls.id] || [],
           })),
         });
