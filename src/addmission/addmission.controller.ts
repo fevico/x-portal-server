@@ -7,6 +7,8 @@ import {
   Param,
   Request,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
 import { AdmissionsService } from './addmission.service';
 import { PermissionsGuard } from '@/auth/guards/permissions.guard';
@@ -18,24 +20,38 @@ import {
   RejectAdmissionDto,
   UpdateAdmissionDto,
 } from './dto/addmission.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Request as RequestExpress } from 'express';
+import { AuthenticatedUser } from '@/types/express';
+
 
 @Controller('admissions')
 export class AdmissionsController {
   constructor(private readonly admissionsService: AdmissionsService) {}
 
+ 
+  // @Post() 
+  // async createAdmission( 
+  //   @Body() createAdmissionDto: CreateAdmissionDto,  
+  //   @Request() req,
+  // ) {
+  //   return this.admissionsService.createAdmission(createAdmissionDto, req);
+  // }
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('admissions:create')
   @Post()
+  @UseInterceptors(FileInterceptor('image')) // 'image' is the field name in the form-data
   async createAdmission(
     @Body() createAdmissionDto: CreateAdmissionDto,
     @Request() req,
+    @UploadedFile() image?: Express.Multer.File,
   ) {
-    return this.admissionsService.createAdmission(createAdmissionDto, req);
-  }
-
+    return this.admissionsService.createAdmission(createAdmissionDto, req, image);   
+  }    
+    
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('admissions:update')
-  @Patch(':id/reject')
+  @Patch(':id/reject') 
   async rejectAdmission(
     @Param('id') id: string,
     @Body() rejectAdmissionDto: RejectAdmissionDto,
@@ -53,6 +69,7 @@ export class AdmissionsController {
   ) {
     return this.admissionsService.acceptAdmission(id, acceptAdmissionDto, req);
   }
+
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('admissions:update')
   @Patch(':id')
@@ -72,5 +89,15 @@ export class AdmissionsController {
     @Request() req,
   ) {
     return this.admissionsService.getStudentsByParentId(parentId, req);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Get("admission-details/:id")
+  async getAdmissionDetails(
+    @Param('id') id: string,
+    @Request() req: RequestExpress,
+  ) {
+        const user = req.user as AuthenticatedUser;
+    return this.admissionsService.getAdmissionDetails(id, user);
   }
 }

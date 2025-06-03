@@ -13,7 +13,11 @@ import {
   UpdateSubscriptionDto,
 } from './dto/subscription.dto';
 import * as moment from 'moment';
-import { addMonths } from 'date-fns';
+import { addMonths } from 'date-fns';        
+import { AuthenticatedUser } from '@/types/express';
+import * as https from 'https';
+import * as crypto from 'crypto';
+
 
 @Injectable()
 export class SubscriptionService {
@@ -23,7 +27,7 @@ export class SubscriptionService {
     const { name, duration, studentLimit } = body;
     try {
       const findName = await this.prisma.subscription.findUnique({
-        where: {
+        where: { 
           name,
         },
       });
@@ -207,43 +211,136 @@ export class SubscriptionService {
     return months;
   }
 
-  async assignSubscriptionToSchool(body: {
-    schoolId: string;
-    subscriptionId: string;
-  }) {
-    const { schoolId, subscriptionId } = body;
+  async assignSubscriptionToSchool(body: any, user: AuthenticatedUser, req: any, res: any) {
+    const { subscriptionId, first_name, last_name, email, metadata } = body;
+    const schoolId = user.schoolId;   
 
-    // 1) fetch the plan
-    const plan = await this.prisma.subscription.findUnique({
+    const subscription = await this.prisma.subscription.findUnique({
       where: { id: subscriptionId },
-      select: { duration: true },
     });
-    if (!plan) {
-      throw new NotFoundException('Subscription plan not found');
+
+    if (!subscription) {
+      throw new NotFoundException('Subscription not found');
     }
 
-    // 2) compute start & end dates
-    const startDate = new Date();
-    const endDate = addMonths(startDate, plan.duration);
+    const school = await this.prisma.school.findUnique({
+      where: { id: schoolId },
+    });
 
-    // 3) in one transaction:
-    //    a) optionally update the School.current plan
-    //    b) create the history record
-    await this.prisma.$transaction([
-      this.prisma.school.update({
-        where: { id: schoolId },
-        data: { subscriptionId }, // keep the “current” pointer on School
-      }),
-      this.prisma.schoolSubscription.create({
-        data: {
-          schoolId,
-          planId: subscriptionId,
-          startDate,
-          endDate,
-        },
-      }),
-    ]);
+    if (!school) {
+      throw new NotFoundException('School not found');
+    }
 
-    return { message: 'Subscription assigned successfully' };
+    // const amount = subscription.price * 100; // Convert to kobo
+
+    const params = JSON.stringify({
+      first_name,
+      last_name,
+      // amount,
+      email,
+      metadata,
+      // callback_url: 'http://localhost:3000/order-recieved',
+      callback_url: `${req.headers.origin}/order-recieved`,   
+    });
+
+    const options = {
+      hostname: 'api.paystack.co',
+      port: 443,
+      path: '/transaction/initialize',
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`, // Ensure your Paystack secret key is properly set in the .env file
+        'Content-Type': 'application/json',
+      },
+    };
+
+    const reqPaystack = https.request(options, async (respaystack) => {
+      let data = '';
+
+      respaystack.on('data', (chunk) => {
+        data += chunk;
+      });
+
+      respaystack.on('end', async () => {
+        try {
+          const parsedData = JSON.parse(data);
+
+          if (parsedData.status) {
+            // Update all orders with the same payment reference
+            // await Promise.all(
+            //   orders.map((order) => {
+            //     order.paymentReference = parsedData.data.reference;
+            //     return order.save();
+            //   }),
+            // );
+
+            return res.json({
+              message: 'Payment initialized successfully',
+              // orderIds: orders.map((order) => order._id),
+              data: parsedData.data,
+            });
+          } else {
+            console.error('Payment initialization failed:', parsedData.message);
+            return res.status(400).json({
+              message: 'Failed to initialize payment',
+              error: parsedData.message,
+            });
+          }
+        } catch (error) {
+          console.error(
+            'Error processing payment initialization response:',
+            error,
+          );
+          return res
+            .status(500)
+            .json({
+              message: 'Error processing payment initialization response',
+            });
+        }
+      });
+    });
+
+    reqPaystack.on('error', (error) => {
+      console.error('Error with Paystack request:', error);
+      return res.status(500).json({ message: 'Internal Server Error', error });
+    });
+
+    reqPaystack.write(params);
+    reqPaystack.end();
   }
+
+//   return { message: 'Subscription assigned successfully' };
+// }
+
+    // // 1) fetch the plan      
+    // const plan = await this.prisma.subscription.findUnique({ 
+    //   where: { id: subscriptionId },
+    //   select: { duration: true },
+    // });
+    // if (!plan) {
+    //   throw new NotFoundException('Subscription plan not found');
+    // }
+
+    // // 2) compute start & end dates
+    // const startDate = new Date();
+    // const endDate = addMonths(startDate, plan.duration);
+
+    // // 3) in one transaction:
+    // //    a) optionally update the School.current plan
+    // //    b) create the history record
+    // await this.prisma.$transaction([
+    //   this.prisma.school.update({
+    //     where: { id: schoolId },
+    //     data: { subscriptionId }, // keep the “current” pointer on School
+    //   }),
+    //   this.prisma.schoolSubscription.create({
+    //     data: {
+    //       schoolId,
+    //       planId: subscriptionId,
+    //       startDate,
+    //       endDate,
+    //     },
+    //   }),
+    // ]);
+
 }

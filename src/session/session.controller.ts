@@ -15,12 +15,15 @@ import { SessionsService } from './session.service';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guards';
 // import { Permissions } from '@/auth/decorators/permissions.decorator';
 import { CreateSessionDto } from './dto/session.dto';
+import { PermissionsGuard } from '@/auth/guards/permissions.guard';
 
 @UseGuards(JwtAuthGuard)
 @Controller('sessions')
 export class SessionsController {
   constructor(private readonly sessionsService: SessionsService) {}
 
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  // @Permissions('sub-role:write')
   @Post()
   async createSession(
     @Body() createSessionDto: CreateSessionDto,

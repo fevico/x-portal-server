@@ -134,7 +134,7 @@ export class CreateAdmissionDto {
   @ValidateNested()
   @Type(() => OtherInfoDto)
   otherInfo: OtherInfoDto;
-}
+}           
 
 export class UpdateStudentDto {
   @IsString()

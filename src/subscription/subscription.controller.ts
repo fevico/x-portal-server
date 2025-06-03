@@ -8,6 +8,9 @@ import {
   Post,
   Query,
   UseGuards,
+  Request,
+  Res,
+  Req,
 } from '@nestjs/common';
 import { SubscriptionService } from './subscription.service';
 import {
@@ -17,6 +20,8 @@ import {
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guards';
 import { RolesGuard } from '@/auth/guards/roles.guard';
 import { Roles } from '@/auth/decorators/auth.decorator';
+import { Request as RequestExpress } from 'express';
+import { AuthenticatedUser } from '@/types/express';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('superAdmin')
@@ -31,10 +36,11 @@ export class SubscriptionController {
 
   @Post('assign-subscription-to-school')
   @UseGuards(JwtAuthGuard)
-  async assignSubscriptionToSchool(@Body() body: any) {
-    return this.subscriptionService.assignSubscriptionToSchool(body);
+  async assignSubscriptionToSchool(@Body() body: any, @Request() req: RequestExpress, @Res() res: Response, @Req() request: Request) {
+        const user = req.user as AuthenticatedUser;
+    return this.subscriptionService.assignSubscriptionToSchool(body, user, request, res);  
   }
-
+          
   @Get('fetch')
   @UseGuards(JwtAuthGuard)
   async getAllSubscriptions(@Query() query: GetSubscriptionsDto) {
