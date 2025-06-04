@@ -289,22 +289,28 @@ export class SessionsService {
         include: {
           school: { select: { name: true } },
           terms: {
-            where: { isDeleted: false },
-            orderBy: { startDate: 'asc' },
+        where: { isDeleted: false },
+        orderBy: { startDate: 'asc' },
           },
           classArmAssignments: {
-            include: {
-              class: { select: { id: true, name: true, category: true } },
-              classArm: { select: { id: true, name: true } },
+        include: {
+          class: {
+            select: {
+          id: true,
+          name: true,
+          classCategory: { select: { id: true, name: true } }, // Include classCategory name
             },
-            where: { isDeleted: false },
+          },
+          classArm: { select: { id: true, name: true } },
+        },
+        where: { isDeleted: false },
           },
         },
         orderBy: { createdAt: 'desc' },
       });
 
       // Get current date (02:16 AM WAT, May 24, 2025)
-      const currentDate = new Date('2025-05-24T02:16:00.000Z');
+      const currentDate = new Date();
 
       // Transform the data into the desired format
       const transformedSessions = [];
@@ -339,6 +345,7 @@ export class SessionsService {
         // Fetch all classes for the school
         const allClasses = await this.prisma.class.findMany({
           where: { schoolId: requester.schoolId, isDeleted: false },
+          include: { classCategory: { select: { name: true } } },
         });
 
         // Map class-arm assignments for this session
@@ -370,7 +377,7 @@ export class SessionsService {
           classes: allClasses.map((cls) => ({
             id: cls.id,
             name: cls.name,
-            category: cls.category,
+            category: cls.classCategory?.name,
             assignedArms: classArmAssignments[cls.id] || [],
           })),
         });

@@ -16,7 +16,7 @@ import { ClassesService } from './class.service';
 import { AssignClassArmsDto } from './dto/assign.class.dto';
 import { Request as RequestExpress } from 'express';
 import { AuthenticatedUser } from '@/types/express';
-import { Category } from '@prisma/client';
+import { ClassCategory } from '@prisma/client';
 
 @Controller('classes')
 export class ClassesController {
@@ -26,7 +26,7 @@ export class ClassesController {
   @Permissions('configuration:manage')
   @Post()
   async create(
-    @Body() createClassDto: { name: string; category: Category },
+    @Body() createClassDto: { name: string; category: ClassCategory },
     @Request() req,
   ) {
     return this.classesService.create(createClassDto, req);
@@ -62,7 +62,7 @@ export class ClassesController {
   @Patch(':id')
   async update(
     @Param('id') id: string,
-    @Body() updateClassDto: { name?: string; category?: Category },
+    @Body() updateClassDto: { name?: string; category?: ClassCategory },
     @Request() req: RequestExpress,
   ) {
     const user = req.user as AuthenticatedUser;

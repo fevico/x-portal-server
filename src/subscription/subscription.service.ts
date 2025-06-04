@@ -231,12 +231,12 @@ export class SubscriptionService {
       throw new NotFoundException('School not found');
     }
 
-    // const amount = subscription.price * 100; // Convert to kobo
+    const amount = subscription.amount * 100; // Convert to kobo
 
     const params = JSON.stringify({
       first_name,
       last_name,
-      // amount,
+      amount,
       email,
       metadata,
       // callback_url: 'http://localhost:3000/order-recieved',
@@ -342,5 +342,112 @@ export class SubscriptionService {
     //     },
     //   }),
     // ]);
+
+    // async webhook(req: any, res: any) {
+    //   try {
+    //     const payload = req.body;
+    //     const paystackSignature = req.headers['x-paystack-signature'];
+    
+    //     if (!paystackSignature) {
+    //       return res.status(400).json({ message: 'Missing signature' });
+    //     }
+    
+    //     const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
+    //     const hash = crypto
+    //       .createHmac('sha512', PAYSTACK_SECRET_KEY)
+    //       .update(JSON.stringify(payload))
+    //       .digest('hex');
+    
+    //       console.log(hash)
+    //     if (hash !== paystackSignature) {
+    //       return res.status(400).json({ message: 'Invalid signature' });
+    //     }
+    
+    //     const event = payload;
+    //     const data = event.data;
+    
+    //     if (event.event === 'charge.success') {
+    //       // Find all orders with the same paymentReference
+    //       // const orders = await this.orderModel.find({
+    //       //   paymentReference: data.reference,
+    //       // });
+    
+    //       if (!orders.length) {
+    //         return res.status(404).json({ message: 'Orders not found' });
+    //       }
+    
+    //       const productIds = [];
+    //       // const sellerTransactions = {}; // Group transactions by sellerId
+    //       // const sellerTransactions = new Map<ObjectId, SellerTransaction>();
+    
+    //       for (const order of orders) {
+    //         order.paidAt = new Date();
+    //         order.paymentStatus = 'paid';
+    //         await order.save();
+    
+    //         if (order.product) {
+    //           productIds.push(order.product);
+    //         }
+    
+    //         // Group transactions by sellerId
+    //         const sellerId = order.sellerId.toString();
+  
+    //         if (!sellerTransactions[sellerId]) {
+    //           sellerTransactions[sellerId] = {
+    //             amount: 0,
+    //             transactions: [],
+    //           };
+    //         }
+    
+    //         const totalPrice = order.totalPrice;
+    //         const eightyPercent = totalPrice * 0.8;
+    //         const twentyPercent = totalPrice * 0.2;
+  
+    //         sellerTransactions[sellerId].amount += eightyPercent;
+    //         sellerTransactions[sellerId].transactions.push({
+    //           amount: totalPrice,
+    //           totalAmount: totalPrice, // Adjust if needed
+    //           date: new Date(),
+    //           type: "credit"
+    //         });
+    //       }
+    
+    //       // Add the products to the user's purchasedProducts field
+    //       await this.userModel.findByIdAndUpdate(
+    //         orders[0].buyerId,
+    //         { $addToSet: { products: { $each: productIds } } },
+    //         { new: true },
+    //       );
+    
+    //       // Update or create wallets for sellers
+    //       for (const [sellerId, transactionData] of Object.entries(sellerTransactions)) {
+    //         let wallet = await this.walletModel.findOne({ owner: sellerId });
+    
+    //         if (!wallet) {
+    //           // Create a new wallet if none exists
+    //           wallet = new this.walletModel({
+    //             owner: sellerId,
+    //             balance: 0,
+    //             transactions: [],
+    //           });
+    //         }
+    
+    //         // Update wallet balance and add transactions
+    //         wallet.balance += transactionData.amount;
+    //         wallet.transactions.push(...transactionData.transactions);
+    
+    //         await wallet.save();
+    //       }
+    
+    //       return res.status(200).json({ message: 'Payment processed successfully' });
+    //     } else if (event.event === 'charge.failed') {
+    //       console.error('Payment failed:', data);
+    //       return res.status(400).json({ message: 'Payment failed' });
+    //     }
+    //   } catch (err) {
+    //     console.error('Error processing webhook:', err);
+    //     return res.status(500).json({ message: 'Server error' });
+    //   }
+    // }
 
 }

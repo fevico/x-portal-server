@@ -6,7 +6,7 @@ import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class PingService {
-  private readonly logger = new Logger(PingService.name);
+  private readonly logger = new Logger(PingService.name);  
 
   constructor(private readonly http: HttpService) {}    
 

@@ -15,6 +15,7 @@ import {
 import { generateRandomPassword, generateUniqueUsername } from '@/utils';
 import { v2 as cloudinary } from 'cloudinary';
 import { AuthenticatedUser } from '@/types/express';
+import { AdmissionStatus } from '@prisma/client';
 
 @Injectable()
 export class AdmissionsService {
@@ -124,11 +125,9 @@ export class AdmissionsService {
           const studentRecord = await tx.student.create({
             data: {
               userId: studentUser.id,
-              studentId: `STU-${Math.floor(Math.random() * 1000000)
-                .toString()
-                .padStart(6, '0')}`,
+              studentRegNo: student.studentRegNo,
               dateOfBirth: student.dateOfBirth,
-              isAdmitted: false,
+              admissionStatus: AdmissionStatus.pending,
               createdBy: requester?.id,
             },
           });
@@ -172,7 +171,7 @@ export class AdmissionsService {
               formerSchoolContact: formerSchool.contact,
               healthProblems: otherInfo.healthProblems,
               howHeardAboutUs: otherInfo.howHeardAboutUs,
-              // imageUrl,
+              imageUrl,
               createdBy: requester?.id,
             },
           });
@@ -182,6 +181,7 @@ export class AdmissionsService {
             where: { id: studentRecord.id },
             data: { parentId: parentRecord.id },
           });
+
   
           return { admission, studentPassword, parentPassword };
         },
@@ -327,11 +327,11 @@ export class AdmissionsService {
   //         const studentRecord = await tx.student.create({
   //           data: {
   //             userId: studentUser.id,
-  //             studentId: `STU-${Math.floor(Math.random() * 1000000)
+  //             studentRegNo: `STU-${Math.floor(Math.random() * 1000000)
   //               .toString()
   //               .padStart(6, '0')}`,
   //             dateOfBirth: student.dateOfBirth,
-  //             isAdmitted: false,
+  //             admissionStatus: false,
   //             createdBy: requester?.id,
   //           },
   //         });
@@ -355,7 +355,7 @@ export class AdmissionsService {
   //           data: {
   //             sessionId,
   //             schoolId,
-  //             studentId: studentRecord.id,
+  //             studentRegNo: studentRecord.id,
   //             parentId: parentRecord.id,
   //             presentClassId,
   //             classApplyingForId,
@@ -433,7 +433,7 @@ export class AdmissionsService {
       const updatedAdmission = await tx.admission.update({
         where: { id },
         data: {
-          isAdmitted: false,
+          admissionStatus: AdmissionStatus.rejected,
           rejectionReason,
           updatedBy: requester.id,
           classId: null,
@@ -456,7 +456,7 @@ export class AdmissionsService {
       await tx.student.update({
         where: { id: admission.studentId },
         data: {
-          isAdmitted: false,
+          admissionStatus: AdmissionStatus.rejected,
           classId: null,
           classArmId: null,
           admissionDate: null,
@@ -521,10 +521,11 @@ export class AdmissionsService {
     }
 
     // Validate class-class arm compatibility
-    const classClassArm = await this.prisma.classClassArm.findFirst({
-      where: {
+    const classClassArm = await this.prisma.sessionClassClassArm.findFirst({
+      where: { 
         classId,
         classArmId,
+        sessionId: admission.sessionId,
         schoolId: admission.schoolId,
         isDeleted: false,
       },
@@ -538,9 +539,10 @@ export class AdmissionsService {
       const updatedAdmission = await tx.admission.update({
         where: { id },
         data: {
-          isAdmitted: true,
+          admissionStatus: AdmissionStatus.accepted,
           classId,
           classArmId,
+          admissionDate: new Date(),
           rejectionReason: null,
           updatedBy: requester.id,
         },
@@ -561,7 +563,7 @@ export class AdmissionsService {
       await tx.student.update({
         where: { id: admission.studentId },
         data: {
-          isAdmitted: true,
+          admissionStatus: AdmissionStatus.accepted,
           classId,
           classArmId,
           admissionDate: new Date(),
@@ -778,7 +780,7 @@ export class AdmissionsService {
             user: { select: { firstname: true, lastname: true, email: true } },
             class: { select: { name: true } },
             classArm: { select: { name: true } },
-            admission: { select: { isAdmitted: true } },
+            admission: { select: { admissionStatus: true } },
           },
         },
       },
@@ -807,13 +809,13 @@ export class AdmissionsService {
       },
       students: parent.students.map((student) => ({
         id: student.id,
-        studentId: student.studentId,
+        studentRegNo: student.studentRegNo,
         firstname: student.user.firstname,
         lastname: student.user.lastname,
         email: student.user.email,
         class: student.class?.name,
         classArm: student.classArm?.name,
-        isAdmitted: student.admission?.isAdmitted,
+        admissionStatus: student.admission?.admissionStatus,
       })),
     };
   }

@@ -50,22 +50,24 @@ model User {
 
 // School model
 model School {
-  id                    String                   @id @default(uuid())
-  name                  String                   @unique
-  email                 String                   @unique
-  contact               String                   @unique
-  isActive              Boolean                  @default(true)
-  isDeleted             Boolean                  @default(false)
+  id                    String                 @id @default(uuid())
+  name                  String                 @unique
+  email                 String                 @unique
+  contact               String                 @unique
+  isActive              Boolean                @default(true)
+  isDeleted             Boolean                @default(false)
   address               String?
-  subscriptionId        String?                  @map("subscription_id")
-  subscription          Subscription?            @relation(fields: [subscriptionId], references: [id])
-  createdAt             DateTime                 @default(now()) @map("created_at")
+  subscriptionId        String?                @map("subscription_id")
+  subscription          Subscription?          @relation(fields: [subscriptionId], references: [id])
+  subscriptionExpiresAt DateTime?              @map("subscription_expires_at")
+  subscriptionStatus    Boolean?             @default(false) @map("subscription_status")
+  createdAt             DateTime               @default(now()) @map("created_at")
   createdBy             String?
   updatedBy             String?
-  updatedAt             DateTime                 @updatedAt @map("updated_at")
+  updatedAt             DateTime               @updatedAt @map("updated_at")
   users                 User[]
   subRoles              SubRole[]
-  logo                  Json?                    @map("logo")
+  logo                  Json?                  @map("logo")
   subRolePermissions    SubRolePermission[]
   logEntries            LogEntry[]
   classes               Class[] // Links to classes
@@ -76,18 +78,18 @@ model School {
   ClassClassArmSubjects ClassClassArmSubject[]
   admissions            Admission[] // New: Links to admissions
   sessions              Session[] // New: Links to sessions
-  currentSessionId      String?                  @map("current_session_id") // Track current session
-  currentSession        Session?                 @relation("SchoolCurrentSession", fields: [currentSessionId], references: [id])
-  currentTermId         String?                  @map("current_term_id") // Track current term
-  currentTerm           Term?                    @relation("SchoolCurrentTerm", fields: [currentTermId], references: [id])
- 
+  currentSessionId      String?                @map("current_session_id") // Track current session
+  currentSession        Session?               @relation("SchoolCurrentSession", fields: [currentSessionId], references: [id])
+  currentTermId         String?                @map("current_term_id") // Track current term
+  currentTerm           Term?                  @relation("SchoolCurrentTerm", fields: [currentTermId], references: [id])
+
   // students           Student[]           // Links to students
-  SessionClassArm       SessionClassArm[]
-  SchoolSubscription    SchoolSubscription[]
-  SessionClassClassArm  SessionClassClassArm[]
+  SessionClassArm      SessionClassArm[]
+  SessionClassClassArm SessionClassClassArm[]
   // ClassSubject          ClassSubject[]
-  attendanceRecords     Attendance[]             @relation
-  classAssignments      StudentClassAssignment[] @relation // Add th
+  attendanceRecords    Attendance[]             @relation
+  classAssignments     StudentClassAssignment[] @relation // Add th
+  SubscriptionPayment  SubscriptionPayment[]
 
   @@map("schools")
 }
@@ -97,7 +99,7 @@ model Staff {
   id             String    @id @default(uuid())
   userId         String    @unique @map("user_id")
   user           User      @relation("UserToStaff", fields: [userId], references: [id])
-  staffRegNo     String?                  @unique @map("staff_reg_no") // School-assigned staff ID
+  staffRegNo     String?   @unique @map("staff_reg_no") // School-assigned staff ID
   department     String? // e.g., Mathematics, Administration
   position       String? // e.g., Teacher, Head of Department
   hireDate       DateTime? @map("hire_date")
@@ -134,7 +136,6 @@ model Student {
   updatedBy         String?                  @map("updated_by")
   attendanceRecords Attendance[]             @relation // Add this
   classAssignments  StudentClassAssignment[] @relation // Add this if using StudentClassAssignment
- 
 
   @@map("students")
 }
@@ -495,24 +496,13 @@ model Subscription {
   updatedAt DateTime @updatedAt @map("updated_at")
   createdBy String?  @map("created_by") // Added
 
-  updatedBy          String?              @map("updated_by") // Added
-  SchoolSubscription SchoolSubscription[]
+  updatedBy           String?               @map("updated_by") // Added
+  SubscriptionPayment SubscriptionPayment[]
 
   @@map("subscriptions")
 }
 
-model SchoolSubscription {
-  id        String   @id @default(uuid())
-  schoolId  String   @map("school_id")
-  planId    String   @map("subscription_id")
-  startDate DateTime @map("start_date")
-  endDate   DateTime @map("end_date")
 
-  school       School       @relation(fields: [schoolId], references: [id])
-  subscription Subscription @relation(fields: [planId], references: [id])
-
-  @@map("school_subscriptions")
-}
 
 model Attendance {
   id         String           @id @default(uuid())
@@ -589,10 +579,32 @@ model LogEntry {
   @@map("log_entries")
 }
 
+model SubscriptionPayment {
+  id             String       @id @default(uuid())
+  schoolId       String       @map("school_id")
+  subscriptionId String       @map("subscription_id")
+  school         School       @relation(fields: [schoolId], references: [id])
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
+  amount         Float        @map("amount")
+  reference      String      @map("reference")
+  paymentMethod  String?      @map("payment_method")
+  paymentStatus  PaymentStatus    @default(pending)
+  paymentDate    DateTime?    @map("payment_date")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  createdBy      String?      @map("created_by")
+}
+
 // Enums
 enum Gender {
   male
   female
+}
+
+enum PaymentStatus {
+  pending
+  success
+  failed
 }
 
 enum Role {

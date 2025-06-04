@@ -402,6 +402,13 @@ export class SchoolsService {
     // Define the class names to filter
     const classNames = ['JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3'];
 
+    const classArms = await this.prisma.classArm.findMany({
+      where: {schoolId: schoolId},
+      select: {
+        id: true,
+        name: true,
+      }
+  })
     // Fetch the statistics
     const classStats = await this.prisma.class.findMany({
       where: {
@@ -415,14 +422,6 @@ export class SchoolsService {
         id: true,
         name: true,
         // Count class arms associated with this class
-        classArms: {
-          where: {
-            isDeleted: false,
-          },
-          select: {
-            id: true,
-          },
-        },
         // Aggregate student data
         students: {
           where: {
@@ -448,7 +447,7 @@ export class SchoolsService {
 
     // Process the data to format the statistics
     const result = classStats.map((classItem) => {
-      const totalClassArms = classItem.classArms.length;
+      // const totalClassArms = classItem.length;
       const totalStudents = classItem.students.length;
       const totalMale = classItem.students.filter(
         (student) => student.user.gender === 'male',
@@ -456,6 +455,8 @@ export class SchoolsService {
       const totalFemale = classItem.students.filter(
         (student) => student.user.gender === 'female',
       ).length;
+
+      const totalClassArms = classArms.filter((classArm) => classArm.name === classItem.name).length;
 
       return {
         className: classItem.name,

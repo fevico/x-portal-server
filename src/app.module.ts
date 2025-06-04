@@ -21,6 +21,7 @@ import { SubjectModule } from './subject/subject.module';
 // import { ResultsModule } from './results/results.module';
 import { SessionModule } from './session/session.module';
 import { AdmissionsModule } from './addmission/addmission.module';
+import { AttendanceModule } from './attendance/attendance.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { AdmissionsModule } from './addmission/addmission.module';
     SubjectModule,
     SessionModule,
     AdmissionsModule,
+    AttendanceModule,
     // ResultsModule,
   ],
   controllers: [AppController],

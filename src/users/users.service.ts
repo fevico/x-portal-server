@@ -93,10 +93,10 @@ export class UsersService {
       role?: 'admin' | 'superAdmin';
       classId?: string;
       subRoleId?: string;
-      staffId?: string;
+      staffRegNo?: string;
       department?: string;
       position?: string;
-      studentId?: string;
+      studentRegNo?: string;
       classArmId?: string;
       parentId?: string;
       occupation?: string;
@@ -204,7 +204,7 @@ export class UsersService {
             await tx.staff.create({
               data: {
                 user: { connect: { id: createdUser.id } },
-                staffId: data.staffId,
+                staffRegNo: data.staffRegNo,
                 department: data.department,
                 position: data.position,
                 createdBy: requester.id,
@@ -214,7 +214,7 @@ export class UsersService {
             await tx.student.create({
               data: {
                 user: { connect: { id: createdUser.id } },
-                studentId: data.studentId,
+                studentRegNo: data.studentRegNo,
                 class: data.classId
                   ? { connect: { id: data.classId } }
                   : undefined,
@@ -363,7 +363,7 @@ export class UsersService {
             await tx.staff.upsert({
               where: { userId: id },
               update: {
-                staffId: data.staffId,
+                staffRegNo: data.staffRegNo,
                 department: data.department,
                 position: data.position,
                 updatedBy: requester.id,
@@ -371,7 +371,7 @@ export class UsersService {
               create: {
                 // id: uuidv4(),
                 userId: id,
-                staffId: data.staffId,
+                staffRegNo: data.staffRegNo,
                 department: data.department,
                 position: data.position,
                 createdBy: requester.id,
@@ -381,7 +381,7 @@ export class UsersService {
             await tx.student.upsert({
               where: { userId: id },
               update: {
-                studentId: data.studentId,
+                studentRegNo: data.studentRegNo,
                 class: data.classId
                   ? { connect: { id: data.classId } }
                   : undefined,
@@ -396,7 +396,7 @@ export class UsersService {
               create: {
                 // id: uuidv4(),
                 user: { connect: { id } },
-                studentId: data.studentId,
+                studentRegNo: data.studentRegNo,
                 class: data.classId
                   ? { connect: { id: data.classId } }
                   : undefined,

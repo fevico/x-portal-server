@@ -51,6 +51,10 @@ export class StudentDto {
   @IsString()
   @IsOptional()
   lga?: string;
+
+  @IsString()
+  @IsOptional()
+  studentRegNo?: string;
 }
 
 export class ParentDto {
@@ -79,6 +83,7 @@ export class ParentDto {
   @IsString()
   @IsOptional()
   relationship?: string;
+  
 }
 
 export class FormerSchoolDto {

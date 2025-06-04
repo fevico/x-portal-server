@@ -38,7 +38,7 @@ export class UpdateUserDto {
   // Fields for Staff, Student, Parent
   @IsString()
   @IsOptional()
-  staffId?: string;
+  staffRegNo?: string;
 
   @IsString()
   @IsOptional()
@@ -50,7 +50,7 @@ export class UpdateUserDto {
 
   @IsString()
   @IsOptional()
-  studentId?: string;
+  studentRegNo?: string;
 
   @IsString()
   @IsOptional()
