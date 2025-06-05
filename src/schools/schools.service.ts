@@ -53,21 +53,14 @@ export class SchoolsService {
           createdAt: true,
           updatedAt: true,
           subscriptionId: true,
+          subscriptionExpiresAt: true,
+          subscriptionStatus: true,
           logo: true,
           // ← pointer to the Subscription plan
           subscription: {
             select: {
               name: true,
-            },
-          },
-
-          // ← latest assignment record
-          SchoolSubscription: {
-            orderBy: { startDate: 'desc' },
-            take: 1,
-            select: {
-              startDate: true,
-              endDate: true,
+              id: true,
             },
           },
         },
@@ -91,22 +84,16 @@ export class SchoolsService {
         createdAt: true,
         updatedAt: true,
         subscriptionId: true,
+        subscriptionStatus: true,
+        subscriptionExpiresAt: true,
         logo: true,
         subscription: {
           select: {
             id: true,
-            name: true,
+            name: true,          
             duration: true,
           },
-        },
-        SchoolSubscription: {
-          orderBy: { startDate: 'desc' },
-          take: 1,
-          select: {
-            startDate: true,
-            endDate: true,
-          },
-        },
+        }
       },
     });
     return school;

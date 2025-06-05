@@ -586,7 +586,7 @@ model SubscriptionPayment {
   school         School       @relation(fields: [schoolId], references: [id])
   subscription   Subscription @relation(fields: [subscriptionId], references: [id])
   amount         Float        @map("amount")
-  reference      String      @map("reference")
+  reference      String?      @map("reference")
   paymentMethod  String?      @map("payment_method")
   paymentStatus  PaymentStatus    @default(pending)
   paymentDate    DateTime?    @map("payment_date")
