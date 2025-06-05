@@ -12,17 +12,49 @@ import {
   GetSubscriptionsDto,
   UpdateSubscriptionDto,
 } from './dto/subscription.dto';
+import { Logger } from '@nestjs/common';
 import * as moment from 'moment';
-import { addMonths } from 'date-fns';        
 import { AuthenticatedUser } from '@/types/express';
 import * as https from 'https';
 import * as crypto from 'crypto';
-
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class SubscriptionService {
+  private readonly logger = new Logger(SubscriptionService.name);
   constructor(private prisma: PrismaService) {}
 
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, { name: 'checkExpiredSubscriptions', timeZone: 'Africa/Lagos' })
+  async handleExpiredSubscriptions() {
+    this.logger.log('Running expired subscription check...');
+
+    const currentDate = new Date();
+    const expiredSchools = await this.prisma.school.findMany({
+      where: {
+        subscriptionStatus: true,
+        subscriptionExpiresAt: {
+          lt: currentDate, // Less than current date
+        },
+      },
+    });
+
+    if (expiredSchools.length === 0) {
+      this.logger.log('No expired subscriptions found.');
+      return;
+    }
+
+    for (const school of expiredSchools) {
+      await this.prisma.school.update({
+        where: { id: school.id },
+        data: {
+          subscriptionStatus: false,
+        },
+      });
+      this.logger.log(`Deactivated subscription for school ID: ${school.id}`);
+    }
+
+    this.logger.log(`Processed ${expiredSchools.length} expired subscriptions.`);
+  }
   async createSubscription(body: any) {
     const { name, duration, studentLimit } = body;
     try {
@@ -312,40 +344,6 @@ export class SubscriptionService {
     reqPaystack.end();
   }
 
-//   return { message: 'Subscription assigned successfully' };
-// }
-
-    // // 1) fetch the plan      
-    // const plan = await this.prisma.subscription.findUnique({ 
-    //   where: { id: subscriptionId },
-    //   select: { duration: true },
-    // });
-    // if (!plan) {
-    //   throw new NotFoundException('Subscription plan not found');
-    // }
-
-    // // 2) compute start & end dates
-    // const startDate = new Date();
-    // const endDate = addMonths(startDate, plan.duration);
-
-    // // 3) in one transaction:
-    // //    a) optionally update the School.current plan
-    // //    b) create the history record
-    // await this.prisma.$transaction([
-    //   this.prisma.school.update({
-    //     where: { id: schoolId },
-    //     data: { subscriptionId }, // keep the “current” pointer on School
-    //   }),
-    //   this.prisma.schoolSubscription.create({
-    //     data: {
-    //       schoolId,
-    //       planId: subscriptionId,
-    //       startDate,
-    //       endDate,
-    //     },
-    //   }),
-    // ]);
-
     async webhook(req: any, res: any) {
       try {
         const payload = req.body;
@@ -357,7 +355,7 @@ export class SubscriptionService {
     
         const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
         const hash = crypto
-          .createHmac('sha512', PAYSTACK_SECRET_KEY)
+          .createHmac('sha512', PAYSTACK_SECRET_KEY)  
           .update(JSON.stringify(payload))
           .digest('hex');
     
@@ -373,29 +371,50 @@ export class SubscriptionService {
           // Find all orders with the same paymentReference
           const paymentReference = await this.prisma.subscriptionPayment.findFirst({
             where:{reference: data.reference},
+            include:{subscription: true, school: true},
           });
     
           if (!paymentReference) {
             return res.status(404).json({ message: 'Payment data not found!' });
           }
-          const orders = await this.prisma.subscriptionPayment.findMany({
-            where: {
-              reference: paymentReference.reference,
-              paymentStatus: 'pending',
-            },
-            include: {
-              subscription: true, // Include product details if needed
+
+          // Update the payment status to 'paid'
+          const updatedPayment = await this.prisma.subscriptionPayment.update({
+            where: { id: paymentReference.id },
+            data: {
+              paymentStatus: 'success',
+              paymentDate: new Date(),
             },
           });
-    
-    
+
+// Custom function to calculate expiry date
+const calculateExpiryDate = (duration: number) => {
+  const currentDate = new Date();
+  currentDate.setMonth(currentDate.getMonth() + duration);
+  return currentDate;
+};
+
+          // update school subscription details
+          const schoolSubscription = await this.prisma.school.update({
+            where: { id: paymentReference.schoolId },
+            data: {
+              // schoolId: paymentReference.schoolId,
+              subscriptionId: paymentReference.subscriptionId,
+              subscriptionStatus: true,
+              subscriptionExpiresAt: calculateExpiryDate(paymentReference.subscription.duration),
+            },
+          });
+          console.log('Payment processed successfully:', updatedPayment);
+          return res.status(200).json({
+            message: 'Payment processed successfully',
+            data: {
+              payment: updatedPayment,
+              schoolSubscription,
+            },
+          });
+  
           }
-    
-        //   return res.status(200).json({ message: 'Payment processed successfully' });
-        // } else if (event.event === 'charge.failed') {
-        //   console.error('Payment failed:', data);
-        //   return res.status(400).json({ message: 'Payment failed' });
-        // }
+
       } catch (err) {
         console.error('Error processing webhook:', err);
         return res.status(500).json({ message: 'Server error' });

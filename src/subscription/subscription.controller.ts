@@ -41,10 +41,10 @@ export class SubscriptionController {
     return this.subscriptionService.assignSubscriptionToSchool(body, user, request, res);  
   }
 
-  // @Post("webhook")
-  // async webhook(@Body() body: any, @Res() res: any, @Req() req: any) {
-  //   return this.subscriptionService.webhook(req, res);
-  // }
+  @Post("webhook")
+  async webhook(@Body() body: any, @Res() res: any, @Req() req: any) {
+    return this.subscriptionService.webhook(req, res);
+  }
           
   @Get('fetch')
   @UseGuards(JwtAuthGuard)

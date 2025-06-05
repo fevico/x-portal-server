@@ -76,4 +76,17 @@ export class ClassesController {
   async delete(@Param('id') id: string, @Request() req) {
     return this.classesService.delete(id, req.user);
   }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Post("create-class-category")
+  async createClassCategory(
+    @Body() body: any,
+    @Request() req: RequestExpress,
+  ) {
+    const user = req.user as AuthenticatedUser;
+    if (!user.schoolId) {
+      throw new Error('User must be associated with a school');
+    }
+    return this.classesService.createClassCategory(body, user);
+  }
 }

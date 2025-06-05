@@ -331,4 +331,57 @@ export class ClassesService {
   //     },
   //   });
   // }
+
+  async createClassCategory(body: any, user: AuthenticatedUser) {
+    const {name} = body
+    const schoolId = user.schoolId;
+
+    try {
+      const existingCategory = await this.prisma.classCategory.findFirst({
+        where: {
+          name,
+          isDeleted: false,
+          schoolId, // Ensure the category is unique per school
+        },
+        include:{Class: true}
+      });
+  
+      if (existingCategory) {
+        throw new BadRequestException('Class category already exists');
+      }
+  
+      const classCategory = await this.prisma.classCategory.create({
+        data: {
+          name: body.name,
+          createdBy: user.id,
+          school: { connect: { id: schoolId } },
+        },
+      });
+  
+      return classCategory;
+  
+    } catch (error) {
+      throw new HttpException('Failed to create class category', HttpStatus.INTERNAL_SERVER_ERROR);
+      
+    }
+}
+
+  async getClassCategoryById(id: string) {
+    try {
+      const classCategory = await this.prisma.classCategory.findUnique({
+        where: { id },
+        include: { Class: true },
+      });
+  
+      if (!classCategory) {
+        throw new NotFoundException('Class category not found');
+      }
+  
+      return classCategory;
+  
+    } catch (error) {
+      throw new HttpException('Failed to fetch class category', HttpStatus.INTERNAL_SERVER_ERROR);
+      
+    }
+  }
 }
