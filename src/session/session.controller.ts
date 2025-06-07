@@ -39,7 +39,7 @@ export class SessionsController {
     return result;
   }
 
-  @Get("session-class-class-arm/:sessionId")
+  @Get("fetch-class-class-arm/:sessionId")
   @UseGuards(JwtAuthGuard)
   async getSessionClassArm(@Param('sessionId') sessionId: string, @Request() req: RequestExpress) {
     const user = req.user as AuthenticatedUser;

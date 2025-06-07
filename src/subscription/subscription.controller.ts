@@ -36,9 +36,19 @@ export class SubscriptionController {
 
   @Post('assign-subscription-to-school')
   @UseGuards(JwtAuthGuard)
-  async assignSubscriptionToSchool(@Body() body: any, @Request() req: RequestExpress, @Res() res: Response, @Req() request: Request) {
-        const user = req.user as AuthenticatedUser;
-    return this.subscriptionService.assignSubscriptionToSchool(body, user, request, res);  
+  async assignSubscriptionToSchool(
+    @Body() body: any,
+    @Request() req: RequestExpress,
+    @Res() res: Response,
+    @Req() request: Request,
+  ) {
+    const user = req.user as AuthenticatedUser;
+    return this.subscriptionService.assignSubscriptionToSchool(
+      body,
+      user,
+      request,
+      res,
+    );
   }
 
   @Post("webhook")
