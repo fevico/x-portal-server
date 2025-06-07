@@ -40,5 +40,5 @@ export class CommunicationController {
             throw new NotFoundException('Event not found');
         }
         return this.communicationService.updateEvent(eventId, updateEvent, user);
-    }
+    }  
 }
