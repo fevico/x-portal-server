@@ -53,14 +53,14 @@ export class UsersService {
   async findById(
     id: string,
   ): Promise<
-    | (User & { permissions: string[]; school?: { id: string; name: string } })
+    | (User & { permissions: string[]; school?:  string  })
     | null
   > {
     try {
       const user = await this.prisma.user.findUnique({
         where: { id },
         include: {
-          school: { select: { id: true, name: true } },
+          school: { select: { id: true, name: true, currentSessionId: true, currentSession: { select: { id: true, name: true } }, currentTermId: true, currentTerm: { select: { id: true, name: true } } } },
           subRole: {
             include: {
               permissions: {
@@ -112,11 +112,15 @@ export class UsersService {
 
         // School information
         schoolId: user.schoolId || '',
-        schoolName: user.school?.name || '',
+        school: user.school?.name || '',
+        currentSessionId: user.school?.currentSessionId || '',
+        currentSession: user.school?.currentSession?.name || '',
+        currentTermId: user.school?.currentTermId || '',
+        currentTerm: user.school?.currentTerm?.name || '',
 
         // SubRole information
         subRoleId: user.subRoleId || '',
-        subRoleName: user.subRole?.name || '',
+        subRole: user.subRole?.name || '',
 
         // Student-specific fields (if user is a student)
         isStudent: !!user.student,
@@ -125,15 +129,24 @@ export class UsersService {
         dateOfBirth: user.student?.dateOfBirth || null,
         admissionStatus: user.student?.admissionStatus || null,
         classId: user.student?.classId || '',
-        className: user.student?.class?.name || '',
+        class: user.student?.class?.name || '',
         classArmId: user.student?.classArmId || '',
-        classArmName: user.student?.classArm?.name || '',
+        classArm: user.student?.classArm?.name || '',
 
         // Parent information for students
         parentId: user.student?.parentId || '',
-        parentName: user.student?.parent
-          ? `${user.student.parent.user?.firstname || ''} ${user.student.parent.user?.lastname || ''}`.trim()
-          : '',
+          parent: {
+          firstname: user.student?.parent?.user?.firstname || '',
+          lastname: user.student?.parent?.user?.lastname || '',
+          othername: user.student?.parent?.user?.othername || '',
+          email: user.student?.parent?.user?.email || '',
+          contact: user.student?.parent?.user?.phone || '',
+          relationship: user.student?.parent?.relationship || '',
+          occupation: user.student?.parent?.occupation || '',
+          address: user.student?.parent?.address || ''
+          
+
+          },
 
         // Staff-specific fields (if user is staff)
         isStaff: !!user.staff,
@@ -726,7 +739,12 @@ export class UsersService {
             staff: true,
             parent: true,
             subRole: true,
-            school: true,
+            school: {
+              include: {
+                currentSession: true,
+                currentTerm: true
+              }
+            },
           },
         }),
         this.prisma.user.count({ where }),
@@ -757,6 +775,10 @@ export class UsersService {
           // School information
           schoolId: user.schoolId || '',
           schoolName: user.school?.name || '',
+          currentSessionId: user.school?.currentSessionId || '',
+          currentSessionName: user.school?.currentSession?.name || '',
+          currentTermId: user.school?.currentTermId || '',  
+          currentTermName: user.school?.currentTerm?.name || '',
 
           // SubRole information
           subRoleId: user.subRoleId || '',

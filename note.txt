@@ -41,3 +41,5 @@ use decorators route wise for create update and delete app wise...for logs
 
 get sessions by school
 cron job to check active session and active term and then set status in session and term model
+
+to add student ;limit teh session to only superadmin
