@@ -27,4 +27,17 @@ exit
     "adminPassword": "ug9E*Y"
 }
 
-use decorators route wise for cread udate and delte app wise...for logs
+admissions permissions
+
+use decorators route wise for create update and delete app wise...for logs
+
+// {
+// //   "email": "superadmin@superadmin.com",
+// //   "password":"superadmin@superadmin.com"
+// "email": "admin@oceanparkhigh.edu",
+// "password": "A^l(cL"
+// }
+
+
+get sessions by school
+cron job to check active session and active term and then set status in session and term model

@@ -90,10 +90,10 @@ export class SchoolsService {
         subscription: {
           select: {
             id: true,
-            name: true,          
+            name: true,
             duration: true,
           },
-        }
+        },
       },
     });
     return school;
@@ -390,12 +390,12 @@ export class SchoolsService {
     const classNames = ['JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3'];
 
     const classArms = await this.prisma.classArm.findMany({
-      where: {schoolId: schoolId},
+      where: { schoolId: schoolId },
       select: {
         id: true,
         name: true,
-      }
-  })
+      },
+    });
     // Fetch the statistics
     const classStats = await this.prisma.class.findMany({
       where: {
@@ -443,7 +443,9 @@ export class SchoolsService {
         (student) => student.user.gender === 'female',
       ).length;
 
-      const totalClassArms = classArms.filter((classArm) => classArm.name === classItem.name).length;
+      const totalClassArms = classArms.filter(
+        (classArm) => classArm.name === classItem.name,
+      ).length;
 
       return {
         className: classItem.name,

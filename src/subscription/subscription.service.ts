@@ -13,11 +13,10 @@ import {
   UpdateSubscriptionDto,
 } from './dto/subscription.dto';
 import * as moment from 'moment';
-import { addMonths } from 'date-fns';        
+import { addMonths } from 'date-fns';
 import { AuthenticatedUser } from '@/types/express';
 import * as https from 'https';
 import * as crypto from 'crypto';
-
 
 @Injectable()
 export class SubscriptionService {
@@ -27,7 +26,7 @@ export class SubscriptionService {
     const { name, duration, studentLimit } = body;
     try {
       const findName = await this.prisma.subscription.findUnique({
-        where: { 
+        where: {
           name,
         },
       });
@@ -211,13 +210,18 @@ export class SubscriptionService {
     return months;
   }
 
-  async assignSubscriptionToSchool(body: any, user: AuthenticatedUser, req: any, res: any) {
+  async assignSubscriptionToSchool(
+    body: any,
+    user: AuthenticatedUser,
+    req: any,
+    res: any,
+  ) {
     const { subscriptionId, email, metadata } = body;
-    const schoolId = user.schoolId;   
+    const schoolId = user.schoolId;
 
     const subscription = await this.prisma.subscription.findUnique({
       where: { id: subscriptionId },
-    }); 
+    });
 
     if (!subscription) {
       throw new NotFoundException('Subscription not found');
@@ -233,9 +237,11 @@ export class SubscriptionService {
 
     const amount = subscription.amount * 100; // Convert to kobo
 
-    const newSubscriptionPayment = await this.prisma.subscriptionPayment.create({
-      data: { subscriptionId, schoolId, amount },
-    });
+    const newSubscriptionPayment = await this.prisma.subscriptionPayment.create(
+      {
+        data: { subscriptionId, schoolId, amount },
+      },
+    );
 
     const params = JSON.stringify({
       subscription: subscriptionId,
@@ -244,7 +250,7 @@ export class SubscriptionService {
       email,
       metadata,
       // callback_url: 'http://localhost:3000/order-recieved',
-      callback_url: `${req.headers.origin}/order-recieved`,   
+      callback_url: `${req.headers.origin}/order-recieved`,
     });
 
     const options = {
@@ -268,13 +274,13 @@ export class SubscriptionService {
       respaystack.on('end', async () => {
         try {
           const parsedData = JSON.parse(data);
-          console.log("data", data) 
+          console.log('data', data);
 
           if (parsedData.status) {
             // Update the subscription payment with the reference from Paystack
             await this.prisma.subscriptionPayment.update({
-              where: { id: newSubscriptionPayment.id }, 
-              data:{reference: parsedData.data.reference},
+              where: { id: newSubscriptionPayment.id },
+              data: { reference: parsedData.data.reference },
             });
 
             return res.json({
@@ -294,11 +300,9 @@ export class SubscriptionService {
             'Error processing payment initialization response:',
             error,
           );
-          return res
-            .status(500)
-            .json({
-              message: 'Error processing payment initialization response',
-            });
+          return res.status(500).json({
+            message: 'Error processing payment initialization response',
+          });
         }
       });
     });
@@ -312,94 +316,92 @@ export class SubscriptionService {
     reqPaystack.end();
   }
 
-//   return { message: 'Subscription assigned successfully' };
-// }
+  //   return { message: 'Subscription assigned successfully' };
+  // }
 
-    // // 1) fetch the plan      
-    // const plan = await this.prisma.subscription.findUnique({ 
-    //   where: { id: subscriptionId },
-    //   select: { duration: true },
-    // });
-    // if (!plan) {
-    //   throw new NotFoundException('Subscription plan not found');
-    // }
+  // // 1) fetch the plan
+  // const plan = await this.prisma.subscription.findUnique({
+  //   where: { id: subscriptionId },
+  //   select: { duration: true },
+  // });
+  // if (!plan) {
+  //   throw new NotFoundException('Subscription plan not found');
+  // }
 
-    // // 2) compute start & end dates
-    // const startDate = new Date();
-    // const endDate = addMonths(startDate, plan.duration);
+  // // 2) compute start & end dates
+  // const startDate = new Date();
+  // const endDate = addMonths(startDate, plan.duration);
 
-    // // 3) in one transaction:
-    // //    a) optionally update the School.current plan
-    // //    b) create the history record
-    // await this.prisma.$transaction([
-    //   this.prisma.school.update({
-    //     where: { id: schoolId },
-    //     data: { subscriptionId }, // keep the “current” pointer on School
-    //   }),
-    //   this.prisma.schoolSubscription.create({
-    //     data: {
-    //       schoolId,
-    //       planId: subscriptionId,
-    //       startDate,
-    //       endDate,
-    //     },
-    //   }),
-    // ]);
+  // // 3) in one transaction:
+  // //    a) optionally update the School.current plan
+  // //    b) create the history record
+  // await this.prisma.$transaction([
+  //   this.prisma.school.update({
+  //     where: { id: schoolId },
+  //     data: { subscriptionId }, // keep the “current” pointer on School
+  //   }),
+  //   this.prisma.schoolSubscription.create({
+  //     data: {
+  //       schoolId,
+  //       planId: subscriptionId,
+  //       startDate,
+  //       endDate,
+  //     },
+  //   }),
+  // ]);
 
-    async webhook(req: any, res: any) {
-      try {
-        const payload = req.body;
-        const paystackSignature = req.headers['x-paystack-signature'];
-    
-        if (!paystackSignature) {
-          return res.status(400).json({ message: 'Missing signature' });
-        }
-    
-        const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
-        const hash = crypto
-          .createHmac('sha512', PAYSTACK_SECRET_KEY)
-          .update(JSON.stringify(payload))
-          .digest('hex');
-    
-          console.log(hash)
-        if (hash !== paystackSignature) {
-          return res.status(400).json({ message: 'Invalid signature' });
-        }
-    
-        const event = payload;
-        const data = event.data;
-    
-        if (event.event === 'charge.success') {
-          // Find all orders with the same paymentReference
-          const paymentReference = await this.prisma.subscriptionPayment.findFirst({
-            where:{reference: data.reference},
-          });
-    
-          if (!paymentReference) {
-            return res.status(404).json({ message: 'Payment data not found!' });
-          }
-          const orders = await this.prisma.subscriptionPayment.findMany({
-            where: {
-              reference: paymentReference.reference,
-              paymentStatus: 'pending',
-            },
-            include: {
-              subscription: true, // Include product details if needed
-            },
-          });
-    
-    
-          }
-    
-        //   return res.status(200).json({ message: 'Payment processed successfully' });
-        // } else if (event.event === 'charge.failed') {
-        //   console.error('Payment failed:', data);
-        //   return res.status(400).json({ message: 'Payment failed' });
-        // }
-      } catch (err) {
-        console.error('Error processing webhook:', err);
-        return res.status(500).json({ message: 'Server error' });
+  async webhook(req: any, res: any) {
+    try {
+      const payload = req.body;
+      const paystackSignature = req.headers['x-paystack-signature'];
+
+      if (!paystackSignature) {
+        return res.status(400).json({ message: 'Missing signature' });
       }
-    }
 
+      const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
+      const hash = crypto
+        .createHmac('sha512', PAYSTACK_SECRET_KEY)
+        .update(JSON.stringify(payload))
+        .digest('hex');
+
+      console.log(hash);
+      if (hash !== paystackSignature) {
+        return res.status(400).json({ message: 'Invalid signature' });
+      }
+
+      const event = payload;
+      const data = event.data;
+
+      if (event.event === 'charge.success') {
+        // Find all orders with the same paymentReference
+        const paymentReference =
+          await this.prisma.subscriptionPayment.findFirst({
+            where: { reference: data.reference },
+          });
+
+        if (!paymentReference) {
+          return res.status(404).json({ message: 'Payment data not found!' });
+        }
+        const orders = await this.prisma.subscriptionPayment.findMany({
+          where: {
+            reference: paymentReference.reference,
+            paymentStatus: 'pending',
+          },
+          include: {
+            subscription: true, // Include product details if needed
+          },
+        });
+      }
+
+      //   return res.status(200).json({ message: 'Payment processed successfully' });
+      // } else if (event.event === 'charge.failed') {
+      //   console.error('Payment failed:', data);
+      //   return res.status(400).json({ message: 'Payment failed' });
+      // }
+    } catch (err) {
+      console.error('Error processing webhook:', err);
+      return res.status(500).json({ message: 'Server error' });
+    }
+  }
 }

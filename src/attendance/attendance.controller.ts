@@ -1,14 +1,18 @@
 import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { AttendanceService } from './attendance.service';
-import { AssignStudentToClassDto, GetStudentAttendanceDto, MarkStudentAttendanceDto, StudentPromotionDto } from './dto/attendance.dto';
+import {
+  AssignStudentToClassDto,
+  GetStudentAttendanceDto,
+  MarkStudentAttendanceDto,
+  StudentPromotionDto,
+} from './dto/attendance.dto';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guards';
 
 @Controller('attendance')
 export class AttendanceController {
+  constructor(private attendanceService: AttendanceService) {}
 
-    constructor(private attendanceService: AttendanceService){}
-
-    @Get('students')
+  @Get('students')
   @UseGuards(JwtAuthGuard)
   async getStudentAttendance(@Query() query: GetStudentAttendanceDto) {
     return this.attendanceService.getStudentAttendance(query);

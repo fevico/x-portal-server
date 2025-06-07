@@ -83,7 +83,6 @@ export class ParentDto {
   @IsString()
   @IsOptional()
   relationship?: string;
-  
 }
 
 export class FormerSchoolDto {
@@ -115,14 +114,15 @@ export class CreateAdmissionDto {
   sessionId: string;
 
   @IsString()
-  schoolId: string;
-
-  @IsString()
   @IsOptional()
   presentClassId?: string;
 
   @IsString()
   classApplyingForId: string;
+
+  @IsString()
+  @IsOptional()
+  imageBase64?: string;
 
   @ValidateNested()
   @Type(() => StudentDto)
@@ -139,7 +139,7 @@ export class CreateAdmissionDto {
   @ValidateNested()
   @Type(() => OtherInfoDto)
   otherInfo: OtherInfoDto;
-}           
+}
 
 export class UpdateStudentDto {
   @IsString()
@@ -292,6 +292,24 @@ export class AcceptAdmissionDto {
 }
 
 export class RejectAdmissionDto {
+  @IsString()
+  @IsOptional()
+  rejectionReason?: string;
+}
+
+export class UpdateAdmissionStatusDto {
+  @IsString()
+  @IsEnum(['accepted', 'rejected'])
+  status: string;
+
+  @IsString()
+  @IsOptional()
+  classId?: string;
+
+  @IsString()
+  @IsOptional()
+  classArmId?: string;
+
   @IsString()
   @IsOptional()
   rejectionReason?: string;

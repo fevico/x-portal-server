@@ -289,21 +289,21 @@ export class SessionsService {
         include: {
           school: { select: { name: true } },
           terms: {
-        where: { isDeleted: false },
-        orderBy: { startDate: 'asc' },
+            where: { isDeleted: false },
+            orderBy: { endDate: 'desc' },
           },
           classArmAssignments: {
-        include: {
-          class: {
-            select: {
-          id: true,
-          name: true,
-          classCategory: { select: { id: true, name: true } }, // Include classCategory name
+            include: {
+              class: {
+                select: {
+                  id: true,
+                  name: true,
+                  classCategory: { select: { id: true, name: true } }, // Include classCategory name
+                },
+              },
+              classArm: { select: { id: true, name: true } },
             },
-          },
-          classArm: { select: { id: true, name: true } },
-        },
-        where: { isDeleted: false },
+            where: { isDeleted: false },
           },
         },
         orderBy: { createdAt: 'desc' },

@@ -79,7 +79,6 @@ export class ClassesService {
   // +                  classCategory: { select: { name: true } },
   // +                },
   // +              },
-  
 
   async findAll(req) {
     try {
