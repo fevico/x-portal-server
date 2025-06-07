@@ -61,6 +61,7 @@ export class AdmissionsController {
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('admission:create')
+  @Permissions('admission:create')
   @Post()
   @UseInterceptors(FileInterceptor('image')) // 'image' is the field name in the form-data
   async createAdmission(
@@ -116,5 +117,11 @@ export class AdmissionsController {
   ) {
     const user = req.user as AuthenticatedUser;
     return this.admissionsService.getAdmissionDetails(id, user);
+  }
+
+  async sessionDetails(){
+    // This method is not implemented in the original code snippet.     
+    // You can implement it based on your requirements.
+    throw new Error('Method not implemented.');
   }
 }

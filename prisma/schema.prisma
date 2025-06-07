@@ -73,6 +73,8 @@ model School {
   classes               Class[] // Links to classes
   classArms             ClassArm[] // Links to class arms
   subjects              Subject[] // Links to subjects
+  invoices             Invoice[] // New: Links to invoices
+  communication        Communication[]
   // classClassArms       ClassClassArm[] // Links to class-arm mappings
   studentSubjects       StudentSubject[] // Links to student-subject mappings
   ClassClassArmSubjects ClassClassArmSubject[]
@@ -86,6 +88,7 @@ model School {
   // students           Student[]           // Links to students
   SessionClassArm      SessionClassArm[]
   SessionClassClassArm SessionClassClassArm[]
+  classCategories      ClassCategory[] // New: Links to class categories
   // ClassSubject          ClassSubject[]
   attendanceRecords    Attendance[]             @relation
   classAssignments     StudentClassAssignment[] @relation // Add th
@@ -136,6 +139,7 @@ model Student {
   updatedBy         String?                  @map("updated_by")
   attendanceRecords Attendance[]             @relation // Add this
   classAssignments  StudentClassAssignment[] @relation // Add this if using StudentClassAssignment
+  invoices          Invoice[]                // New: Links to invoices
 
   @@map("students")
 }
@@ -178,6 +182,7 @@ model Class {
   presentAdmissions    Admission[]              @relation("AdmissionToPresentClass")
   applyingAdmissions   Admission[]              @relation("AdmissionToClassApplyingFor")
   assignedAdmissions   Admission[]              @relation("AdmissionToAssignedClass")
+  invoices             Invoice[]                // New: Links to invoices
   sessionClassArms     SessionClassClassArm[]
   ClassClassArmSubject ClassClassArmSubject[]
   attendanceRecords    Attendance[]             @relation
@@ -195,6 +200,8 @@ model ClassCategory {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   createdBy String?  @map("created_by") // Added
+  schoolId String @map("school_id")
+  school   School @relation(fields: [schoolId], references: [id])
 
   updatedBy String? @map("updated_by") // Added
   Class     Class[]
@@ -222,6 +229,7 @@ model ClassArm {
   sessionClassArms     SessionClassClassArm[]
   ClassClassArmSubject ClassClassArmSubject[]
   attendanceRecords    Attendance[]             @relation
+  invoices             Invoice[]                // New: Links to invoices
   classAssignments     StudentClassAssignment[] @relation
 
   @@unique([name, schoolId]) // Ensure arm names are unique per school
@@ -359,6 +367,7 @@ model SessionClassClassArm {
 
   @@unique([sessionId, classId, classArmId, schoolId])
   @@map("session_class_class_arms")
+  // @@index([sessionId, schoolId])
 }
 
 // Subject model for subjects offered in classes
@@ -481,7 +490,7 @@ model SubRolePermission {
 }
 
 // Subscription model for school plans
-model Subscription {
+model Subscription { 
   id           String   @id @default(uuid())
   name         String   @unique
   amount       Int?     @map("amount") // Subscription cost in Naira
@@ -595,6 +604,46 @@ model SubscriptionPayment {
   createdBy      String?      @map("created_by")
 }
 
+ model Invoice {
+  id          String   @id @default(uuid())
+  schoolId    String   @map("school_id")
+  school      School   @relation(fields: [schoolId], references: [id])
+  studentId   String?  @map("student_id")
+  student     Student? @relation(fields: [studentId], references: [id])
+  classId     String?  @map("class_id")
+  class       Class?   @relation(fields: [classId], references: [id])
+  classArmId  String?  @map("class_arm_id")
+  classArm    ClassArm? @relation(fields: [classArmId], references: [id])
+  amount      Float    @map("amount")
+  title       String   @map("title")
+  description String  @map("description")
+  reference   String  @map("reference")
+  outstanding  Float?    @map("outstanding") // Amount still owed
+  discount    Float?   @map("discount") // Optional discount on the invoice
+  dueDate     DateTime? @map("due_date")
+  paid        Float?   @map("paid") // Amount paid so far
+  status      InvoiceStatus @default(submitted)           
+  paymentReceipt String?  @map("payment_receipt")
+  issuedDate  DateTime @map("issued_date")    
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime? @updatedAt @map("updated_at")
+  createdBy   String?  @map("created_by")
+  @@map("invoices")
+}
+
+model Communication {
+  id          String   @id @default(uuid())
+  name        String
+  startDate   DateTime @map("start_date")
+  endDate     DateTime @map("end_date")
+  eventColor  String @map("event_color")
+  eventDescription String @map("event_description")
+  schoolId    String   @map("school_id")
+  school      School   @relation(fields: [schoolId], references: [id])
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+}
+
 // Enums
 enum Gender {
   male
@@ -605,6 +654,13 @@ enum PaymentStatus {
   pending
   success
   failed
+}
+
+enum InvoiceStatus {
+  submitted
+  paid
+  overdue
+  cancelled
 }
 
 enum Role {

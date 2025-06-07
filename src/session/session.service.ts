@@ -2,10 +2,12 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  HttpException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSessionDto } from './dto/session.dto';
 import { LoggingService } from '@/log/logging.service';
+import { AuthenticatedUser } from '@/types/express';
 
 @Injectable()
 export class SessionsService {
@@ -676,6 +678,53 @@ export class SessionsService {
       throw new Error(
         'Failed to delete session: ' + (error.message || 'Unknown error'),
       );
+    }  
+  }    
+
+  async getSessionClassArm(sessionId: string, user: AuthenticatedUser) {
+    try {
+      const schoolId = user.schoolId;
+      const sessionData = await this.prisma.sessionClassClassArm.findMany({
+        where: { sessionId, schoolId },
+        include: { class: true, classArm: true },
+      });
+
+      if (!sessionData || sessionData.length === 0) {
+        throw new NotFoundException('Session not found or no data available');
+      }
+
+      // Transform data into the desired format
+      const formattedData = {
+        classes: this.groupClassArmsByClass(sessionData),
+      };
+
+      return formattedData;
+    } catch (error) {
+      throw new HttpException(`Error fetching session with ID ${sessionId}: ${error.message}`, 500);
     }
+  }
+
+  private groupClassArmsByClass(sessionData: any[]): { value: string; label: string; classArms: { value: string; label: string }[] }[] {
+    const classMap = new Map<string, { value: string; label: string; classArms: { value: string; label: string }[] }>();
+
+    sessionData.forEach(item => {
+      const classId = item.classId;
+      const className = item.class.name;
+
+      if (!classMap.has(classId)) {
+        classMap.set(classId, {
+          value: classId,
+          label: className,
+          classArms: [],
+        });
+      }
+
+      classMap.get(classId)?.classArms.push({
+        value: item.classArmId,
+        label: item.classArm.name,
+      });
+    });
+
+    return Array.from(classMap.values());
   }
 }

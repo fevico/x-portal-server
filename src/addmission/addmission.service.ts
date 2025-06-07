@@ -316,7 +316,7 @@ export class AdmissionsService {
       }
       throw error;
     }
-  }
+  } 
 
   // async createAdmission(dto: CreateAdmissionDto, req: any, image?: Express.Multer.File) {
   //   const {

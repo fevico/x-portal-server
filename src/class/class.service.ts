@@ -330,4 +330,133 @@ export class ClassesService {
   //     },
   //   });
   // }
+
+  async createClassCategory(body: any, user: AuthenticatedUser) {
+    const {name} = body
+    const schoolId = user.schoolId;
+
+    try {
+      const existingCategory = await this.prisma.classCategory.findFirst({
+        where: {
+          name,
+          isDeleted: false,
+          schoolId, // Ensure the category is unique per school
+        },
+        include:{Class: true}
+      });
+  
+      if (existingCategory) {
+        throw new BadRequestException('Class category already exists');
+      }
+  
+      const classCategory = await this.prisma.classCategory.create({
+        data: {
+          name: body.name,
+          createdBy: user.id,
+          school: { connect: { id: schoolId } },
+        },
+      });
+  
+      return classCategory;
+  
+    } catch (error) {
+      throw new HttpException('Failed to create class category', HttpStatus.INTERNAL_SERVER_ERROR);
+      
+    }
+}
+
+  async getAllClassCategories(user: AuthenticatedUser) {
+    const schoolId = user.schoolId
+    try {
+      const classCategories = await this.prisma.classCategory.findMany({
+        where: {
+          schoolId,
+          isDeleted: false,
+        },
+        include: { Class: true },
+      });
+  
+      return classCategories;
+        
+    } catch (error) {
+      throw new HttpException('Failed to fetch class categories', HttpStatus.INTERNAL_SERVER_ERROR);
+      
+    }
+  }
+
+  async getClassCategoryById(id: string, user: AuthenticatedUser) {
+    try {
+      const classCategory = await this.prisma.classCategory.findUnique({
+        where: { id },
+        include: { Class: true },
+      });
+  
+      if (!classCategory) {
+        throw new NotFoundException('Class category not found');
+      }
+  
+      return classCategory;
+        
+    } catch (error) {
+      throw new HttpException('Failed to fetch class category', HttpStatus.INTERNAL_SERVER_ERROR);
+      
+    }
+  } 
+
+  async updateClassCategory(id: string, body: any, user: AuthenticatedUser) {
+    const { name } = body;
+    const schoolId = user.schoolId;
+    try {
+      const schoolCategory = await this.prisma.classCategory.findFirst({
+        where: {
+          id,
+          schoolId,
+          isDeleted: false,
+        },
+      })
+      if (!schoolCategory) {
+        throw new NotFoundException(`Class category not found for this school ${id}`);
+      }
+
+      const updatedCategory = await this.prisma.classCategory.update({
+        where: { id },
+        data: {
+          name,
+          updatedBy: user.id,
+        },
+      })
+      return updatedCategory;
+    } catch (error) {
+      throw new HttpException('Failed to update class category', HttpStatus.INTERNAL_SERVER_ERROR)
+    }
+  }
+
+  async deleteClassCategory(id: string, user: AuthenticatedUser) {
+    const schoolId = user.schoolId;
+    try {
+      const classCategory = await this.prisma.classCategory.findFirst({
+        where: {
+          id,
+          schoolId,
+          isDeleted: false,
+        },
+      });
+
+      if (!classCategory) {
+        throw new NotFoundException('Class category not found');
+      }
+
+      await this.prisma.classCategory.update({
+        where: { id },
+        data: {
+          isDeleted: true,
+          updatedBy: user.id,
+        },
+      });
+
+      return { message: 'Class category deleted successfully' };
+    } catch (error) {
+      throw new HttpException('Failed to delete class category', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
 }
