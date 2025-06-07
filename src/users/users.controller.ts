@@ -53,6 +53,16 @@ export class UsersController {
     return user;
   }
 
+  // @UseGuards(JwtAuthGuard)
+  // @Get('id/:id')
+  // async findById(@Param('id') id: string) {
+  //   const user = await this.usersService.findById(id);
+  //   if (!user) {
+  //     throw new NotFoundException('User not found');
+  //   }
+  //   return user;
+  // }
+
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('user:update')
   @Patch(':id')
