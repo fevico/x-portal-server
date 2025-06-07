@@ -6,9 +6,9 @@ import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class PingService {
-  private readonly logger = new Logger(PingService.name);  
+  private readonly logger = new Logger(PingService.name);
 
-  constructor(private readonly http: HttpService) {}    
+  constructor(private readonly http: HttpService) {}
 
   /**
    * Runs every 14th minute (i.e. at minute 0, 14, 28, 42, 56 of each hour)

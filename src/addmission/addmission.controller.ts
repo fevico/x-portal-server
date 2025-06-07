@@ -5,6 +5,7 @@ import {
   Get,
   Body,
   Param,
+  Query,
   Request,
   UseGuards,
   UseInterceptors,
@@ -15,29 +16,51 @@ import { PermissionsGuard } from '@/auth/guards/permissions.guard';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guards';
 import { Permissions } from '@/auth/decorators/permissions.decorator';
 import {
-  AcceptAdmissionDto,
   CreateAdmissionDto,
-  RejectAdmissionDto,
   UpdateAdmissionDto,
+  UpdateAdmissionStatusDto,
 } from './dto/addmission.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Request as RequestExpress } from 'express';
 import { AuthenticatedUser } from '@/types/express';
 
-
 @Controller('admissions')
 export class AdmissionsController {
-  constructor(private readonly admissionsService: AdmissionsService) {}
+  constructor(private readonly admissionsService: AdmissionsService) { }
 
- 
-  // @Post() 
-  // async createAdmission( 
-  //   @Body() createAdmissionDto: CreateAdmissionDto,  
+  // @Post()
+  // async createAdmission(
+  //   @Body() createAdmissionDto: CreateAdmissionDto,
   //   @Request() req,
   // ) {
   //   return this.admissionsService.createAdmission(createAdmissionDto, req);
+
   // }
+  // endpoint for getting all admissions with page limit q for search and status for filtering admissionStatus of admission if not status retur all
+
   @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('admissions:read')
+  @Get()
+  async getAllAdmissions(
+    @Request() req: RequestExpress,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+    @Query('q') q: string = '',
+    @Query('status') status: string = '',
+  ) {
+    const user = req.user as AuthenticatedUser;
+    return this.admissionsService.getAllAdmissions(
+      user,
+      parseInt(page, 10),
+      parseInt(limit, 10),
+      q,
+      status,
+    );
+  }
+
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('admission:create')
   @Permissions('admission:create')
   @Post()
   @UseInterceptors(FileInterceptor('image')) // 'image' is the field name in the form-data
@@ -46,28 +69,23 @@ export class AdmissionsController {
     @Request() req,
     @UploadedFile() image?: Express.Multer.File,
   ) {
-    return this.admissionsService.createAdmission(createAdmissionDto, req, image);   
-  }    
-    
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Permissions('admissions:update')
-  @Patch(':id/reject') 
-  async rejectAdmission(
-    @Param('id') id: string,
-    @Body() rejectAdmissionDto: RejectAdmissionDto,
-    @Request() req,
-  ) {
-    return this.admissionsService.rejectAdmission(id, rejectAdmissionDto, req);
+    return this.admissionsService.createAdmission(
+      createAdmissionDto,
+      req,
+      image,
+    );
   }
+
+
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('sub-role:write')
-  @Patch(':id/accept')
+  @Patch(':id/status')
   async acceptAdmission(
     @Param('id') id: string,
-    @Body() acceptAdmissionDto: AcceptAdmissionDto,
+    @Body() updateAdmissionStatusDto: UpdateAdmissionStatusDto,
     @Request() req,
   ) {
-    return this.admissionsService.acceptAdmission(id, acceptAdmissionDto, req);
+    return this.admissionsService.updateAdmissionStatus(id, updateAdmissionStatusDto, req);
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -92,12 +110,12 @@ export class AdmissionsController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Get("admission-details/:id")
+  @Get('detail/:id')
   async getAdmissionDetails(
     @Param('id') id: string,
     @Request() req: RequestExpress,
   ) {
-        const user = req.user as AuthenticatedUser;
+    const user = req.user as AuthenticatedUser;
     return this.admissionsService.getAdmissionDetails(id, user);
   }
 

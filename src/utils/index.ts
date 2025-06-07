@@ -2,6 +2,8 @@ import { ForbiddenException } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { PrismaClient } from '@prisma/client';
 
+export * from './cloudinary';
+
 export function generateRandomPassword(length: number = 6): string {
   const chars =
     'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()';

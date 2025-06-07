@@ -59,7 +59,7 @@ export class SubscriptionService {
     const { name, duration, studentLimit } = body;
     try {
       const findName = await this.prisma.subscription.findUnique({
-        where: { 
+        where: {
           name,
         },
       });
@@ -243,13 +243,18 @@ export class SubscriptionService {
     return months;
   }
 
-  async assignSubscriptionToSchool(body: any, user: AuthenticatedUser, req: any, res: any) {
+  async assignSubscriptionToSchool(
+    body: any,
+    user: AuthenticatedUser,
+    req: any,
+    res: any,
+  ) {
     const { subscriptionId, email, metadata } = body;
-    const schoolId = user.schoolId;   
+    const schoolId = user.schoolId;
 
     const subscription = await this.prisma.subscription.findUnique({
       where: { id: subscriptionId },
-    }); 
+    });
 
     if (!subscription) {
       throw new NotFoundException('Subscription not found');
@@ -265,9 +270,11 @@ export class SubscriptionService {
 
     const amount = subscription.amount * 100; // Convert to kobo
 
-    const newSubscriptionPayment = await this.prisma.subscriptionPayment.create({
-      data: { subscriptionId, schoolId, amount },
-    });
+    const newSubscriptionPayment = await this.prisma.subscriptionPayment.create(
+      {
+        data: { subscriptionId, schoolId, amount },
+      },
+    );
 
     const params = JSON.stringify({
       subscription: subscriptionId,
@@ -276,7 +283,7 @@ export class SubscriptionService {
       email,
       metadata,
       // callback_url: 'http://localhost:3000/order-recieved',
-      callback_url: `${req.headers.origin}/order-recieved`,   
+      callback_url: `${req.headers.origin}/order-recieved`,
     });
 
     const options = {
@@ -300,13 +307,13 @@ export class SubscriptionService {
       respaystack.on('end', async () => {
         try {
           const parsedData = JSON.parse(data);
-          console.log("data", data) 
+          console.log('data', data);
 
           if (parsedData.status) {
             // Update the subscription payment with the reference from Paystack
             await this.prisma.subscriptionPayment.update({
-              where: { id: newSubscriptionPayment.id }, 
-              data:{reference: parsedData.data.reference},
+              where: { id: newSubscriptionPayment.id },
+              data: { reference: parsedData.data.reference },
             });
 
             return res.json({
@@ -326,11 +333,9 @@ export class SubscriptionService {
             'Error processing payment initialization response:',
             error,
           );
-          return res
-            .status(500)
-            .json({
-              message: 'Error processing payment initialization response',
-            });
+          return res.status(500).json({
+            message: 'Error processing payment initialization response',
+          });
         }
       });
     });

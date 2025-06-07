@@ -291,21 +291,21 @@ export class SessionsService {
         include: {
           school: { select: { name: true } },
           terms: {
-        where: { isDeleted: false },
-        orderBy: { startDate: 'asc' },
+            where: { isDeleted: false },
+            orderBy: { endDate: 'desc' },
           },
           classArmAssignments: {
-        include: {
-          class: {
-            select: {
-          id: true,
-          name: true,
-          classCategory: { select: { id: true, name: true } }, // Include classCategory name
+            include: {
+              class: {
+                select: {
+                  id: true,
+                  name: true,
+                  classCategory: { select: { id: true, name: true } }, // Include classCategory name
+                },
+              },
+              classArm: { select: { id: true, name: true } },
             },
-          },
-          classArm: { select: { id: true, name: true } },
-        },
-        where: { isDeleted: false },
+            where: { isDeleted: false },
           },
         },
         orderBy: { createdAt: 'desc' },
@@ -704,8 +704,8 @@ export class SessionsService {
     }
   }
 
-  private groupClassArmsByClass(sessionData: any[]): { value: string; label: string; classArms: { value: string; label: string }[] }[] {
-    const classMap = new Map<string, { value: string; label: string; classArms: { value: string; label: string }[] }>();
+  private groupClassArmsByClass(sessionData: any[]): { id: string; name: string; classArms: { id: string; name: string }[] }[] {
+    const classMap = new Map<string, { id: string; name: string; classArms: { id: string; name: string }[] }>();
 
     sessionData.forEach(item => {
       const classId = item.classId;
@@ -713,15 +713,15 @@ export class SessionsService {
 
       if (!classMap.has(classId)) {
         classMap.set(classId, {
-          value: classId,
-          label: className,
+          id: classId,
+          name: className,
           classArms: [],
         });
       }
 
       classMap.get(classId)?.classArms.push({
-        value: item.classArmId,
-        label: item.classArm.name,
+        id: item.classArmId,
+        name: item.classArm.name,
       });
     });
 

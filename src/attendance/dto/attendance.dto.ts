@@ -1,4 +1,11 @@
-import { IsString, IsNotEmpty, IsArray, IsDateString, ValidateNested, IsOptional } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsArray,
+  IsDateString,
+  ValidateNested,
+  IsOptional,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class GetStudentAttendanceDto {
@@ -23,8 +30,6 @@ export class GetStudentAttendanceDto {
   classArmId: string;
 }
 
-
-
 class StudentAttendance {
   @IsString()
   @IsNotEmpty()
@@ -34,7 +39,6 @@ class StudentAttendance {
   @IsNotEmpty()
   attendanceStatus: 'present' | 'absent' | 'late';
 }
-
 
 export class AssignStudentToClassDto {
   @IsString()
@@ -63,9 +67,8 @@ export class AssignStudentToClassDto {
 
   @IsString()
   @IsNotEmpty()
-  userId: string;  
+  userId: string;
 }
-
 
 export class StudentPromotionDto {
   @IsString()
@@ -96,8 +99,6 @@ export class StudentPromotionDto {
   @IsNotEmpty()
   createdBy: string;
 }
-
-
 
 export class MarkStudentAttendanceDto {
   @IsString()
