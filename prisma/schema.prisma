@@ -74,6 +74,7 @@ model School {
   classArms             ClassArm[] // Links to class arms
   subjects              Subject[] // Links to subjects
   invoices             Invoice[] // New: Links to invoices
+  communication        Communication[]
   // classClassArms       ClassClassArm[] // Links to class-arm mappings
   studentSubjects       StudentSubject[] // Links to student-subject mappings
   ClassClassArmSubjects ClassClassArmSubject[]
@@ -366,6 +367,7 @@ model SessionClassClassArm {
 
   @@unique([sessionId, classId, classArmId, schoolId])
   @@map("session_class_class_arms")
+  // @@index([sessionId, schoolId])
 }
 
 // Subject model for subjects offered in classes
@@ -620,12 +622,26 @@ model SubscriptionPayment {
   discount    Float?   @map("discount") // Optional discount on the invoice
   dueDate     DateTime? @map("due_date")
   paid        Float?   @map("paid") // Amount paid so far
-  // status      PaymentStatus @default(pending)
-  issuedDate  DateTime @map("issued_date")
+  status      InvoiceStatus @default(submitted)           
+  paymentReceipt String?  @map("payment_receipt")
+  issuedDate  DateTime @map("issued_date")    
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime? @updatedAt @map("updated_at")
   createdBy   String?  @map("created_by")
   @@map("invoices")
+}
+
+model Communication {
+  id          String   @id @default(uuid())
+  name        String
+  startDate   DateTime @map("start_date")
+  endDate     DateTime @map("end_date")
+  eventColor  String @map("event_color")
+  eventDescription String @map("event_description")
+  schoolId    String   @map("school_id")
+  school      School   @relation(fields: [schoolId], references: [id])
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 }
 
 // Enums
@@ -638,6 +654,13 @@ enum PaymentStatus {
   pending
   success
   failed
+}
+
+enum InvoiceStatus {
+  submitted
+  paid
+  overdue
+  cancelled
 }
 
 enum Role {

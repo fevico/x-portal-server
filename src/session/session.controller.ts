@@ -16,6 +16,9 @@ import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guards';
 // import { Permissions } from '@/auth/decorators/permissions.decorator';
 import { CreateSessionDto } from './dto/session.dto';
 import { PermissionsGuard } from '@/auth/guards/permissions.guard';
+import { AuthenticatedUser } from '@/types/express';
+import { Request as RequestExpress, Response } from 'express';
+
 
 @UseGuards(JwtAuthGuard)
 @Controller('sessions')
@@ -34,6 +37,18 @@ export class SessionsController {
       req,
     );
     return result;
+  }
+
+  @Get("session-class-class-arm/:sessionId")
+  @UseGuards(JwtAuthGuard)
+  async getSessionClassArm(@Param('sessionId') sessionId: string, @Request() req: RequestExpress) {
+    const user = req.user as AuthenticatedUser;
+    const session = await this.sessionsService.getSessionClassArm(sessionId, user);
+    return {
+      statusCode: 200,
+      message: 'Session retrieved successfully',
+      data: session,                      
+    };
   }
 
   @Get()

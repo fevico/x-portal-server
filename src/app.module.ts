@@ -23,6 +23,7 @@ import { SessionModule } from './session/session.module';
 import { AdmissionsModule } from './addmission/addmission.module';
 import { AttendanceModule } from './attendance/attendance.module';
 import { InvoiceModule } from './invoice/invoice.module';
+import { CommunicationModule } from './communication/communication.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { InvoiceModule } from './invoice/invoice.module';
     AdmissionsModule,
     AttendanceModule,
     InvoiceModule,
+    CommunicationModule,
     // ResultsModule,
   ],
   controllers: [AppController],

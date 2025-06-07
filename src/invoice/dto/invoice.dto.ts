@@ -25,3 +25,29 @@ export class InvoiceDto {
     @IsOptional()
     classArmId?: string;
 }
+
+export class UpdateInvoiceDto {
+    @IsString()
+    @IsOptional()
+    title?: string;
+
+    @IsString()
+    @IsOptional()
+    description?: string;
+
+    @IsNumber()
+    @IsOptional()
+    amount?: number;
+
+    @IsString()
+    @IsOptional()
+    classId?: string;
+
+    @IsString()
+    @IsOptional()
+    studentId?: string;
+
+    @IsString()
+    @IsOptional()
+    classArmId?: string;
+}
