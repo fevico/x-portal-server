@@ -341,6 +341,20 @@ export class UsersService {
                 createdBy: requester.id,
               },
             });
+            // create class assignment if classId is provided
+            // if(data.classId) {
+            //   await tx.studentClassAssignment.create({
+            //     data: {
+            //       // user: { connect: { id: createdUser.id } },
+            //       studentId: createdUser.id,
+            //       classArmId: data.classArmId,
+            //       termId: null, // Assuming termId is not provided in this context
+            //       sessionId,
+            //       classId: data.classId,
+            //       createdBy: requester.id,
+            //     },
+            //   });
+            // }
           } else if (subRole.name.toLowerCase() === 'parent') {
             await tx.parent.create({
               data: {

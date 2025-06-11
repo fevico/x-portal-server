@@ -20,7 +20,7 @@ import {
 } from '@/utils';
 import { AuthenticatedUser } from '@/types/express';
 import { AdmissionStatus } from '@prisma/client';
-import { v2 as cloudinary } from 'cloudinary';
+import { v2 as cloudinary } from 'cloudinary';   
 
 @Injectable()
 export class AdmissionsService {
@@ -402,6 +402,24 @@ export class AdmissionsService {
             updatedBy: requester.id,
           },
         });
+        // fetch session details 
+        const session = await this.prisma.session.findUnique({
+          where: { id: admission.sessionId },
+          select: { terms: true }
+        })
+        // create class assignment record 
+        await tx.studentClassAssignment.create({
+          data: {
+            studentId: admission.studentId,
+            classId,
+            classArmId,
+            termId: session.terms[0].id,
+            sessionId: admission.sessionId,
+            schoolId: admission.schoolId,
+            createdBy: requester.id,
+            updatedBy: requester.id,
+          },
+        })
 
         // Log the action
         await tx.logEntry.create({
