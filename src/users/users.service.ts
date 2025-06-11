@@ -15,7 +15,7 @@ import { generateRandomPassword, generateUniqueUsername } from '@/utils/';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async findByEmail(email: string): Promise<User | null> {
     return this.prisma.user.findUnique({ where: { email } });
@@ -50,145 +50,17 @@ export class UsersService {
         user.subRole?.permissions.map((p) => p.permission.name) || [],
     };
   }
-  async findById(
-    id: string,
-  ): Promise<
-    | (User & { permissions: string[]; school?:  string  })
-    | null
-  > {
-    try {
-      const user = await this.prisma.user.findUnique({
-        where: { id },
-        include: {
-          school: { select: { id: true, name: true, currentSessionId: true, currentSession: { select: { id: true, name: true } }, currentTermId: true, currentTerm: { select: { id: true, name: true } } } },
-          subRole: {
-            include: {
-              permissions: {
-                select: { permission: { select: { name: true } } },
-              },
-            },
-          },
-          student: {
-            include: {
-              class: true,
-              classArm: true,
-              parent: {
-                include: {
-                  user: true
-                }
-              }
-            }
-          },
-          staff: true,
-          parent: true,
-        },
-      });
-
-      if (!user) return null;
-
-      const permissions =
-        user.subRole?.permissions.map((p) => p.permission.name) || [];
-
-      // Transform the nested data into a flat structure
-      const flatUser = {
-        id: user.id,
-        firstname: user.firstname,
-        lastname: user.lastname,
-        othername: user.othername || '',
-        email: user.email,
-        phone: user.phone || '',
-        gender: user.gender,
-        username: user.username,
-        role: user.role,
-        isActive: user.isActive,
-        religion: user.religion || '',
-        nationality: user.nationality || '',
-        stateOfOrigin: user.stateOfOrigin || '',
-        lga: user.lga || '',
-        emailVerifiedAt: user.emailVerifiedAt,
-        password: user.password,
-        isDeleted: user.isDeleted,
-        plainPassword: user.plainPassword,
-
-        // School information
-        schoolId: user.schoolId || '',
-        school: user.school?.name || '',
-        currentSessionId: user.school?.currentSessionId || '',
-        currentSession: user.school?.currentSession?.name || '',
-        currentTermId: user.school?.currentTermId || '',
-        currentTerm: user.school?.currentTerm?.name || '',
-
-        // SubRole information
-        subRoleId: user.subRoleId || '',
-        subRole: user.subRole?.name || '',
-
-        // Student-specific fields (if user is a student)
-        isStudent: !!user.student,
-        studentId: user.student?.id || '',
-        studentRegNo: user.student?.studentRegNo || '',
-        dateOfBirth: user.student?.dateOfBirth || null,
-        admissionStatus: user.student?.admissionStatus || null,
-        classId: user.student?.classId || '',
-        class: user.student?.class?.name || '',
-        classArmId: user.student?.classArmId || '',
-        classArm: user.student?.classArm?.name || '',
-
-        // Parent information for students
-        parentId: user.student?.parentId || '',
-          parent: {
-          firstname: user.student?.parent?.user?.firstname || '',
-          lastname: user.student?.parent?.user?.lastname || '',
-          othername: user.student?.parent?.user?.othername || '',
-          email: user.student?.parent?.user?.email || '',
-          contact: user.student?.parent?.user?.phone || '',
-          relationship: user.student?.parent?.relationship || '',
-          occupation: user.student?.parent?.occupation || '',
-          address: user.student?.parent?.address || ''
-          
-
-          },
-
-        // Staff-specific fields (if user is staff)
-        isStaff: !!user.staff,
-        staffId: user.staff?.id || '',
-        staffRegNo: user.staff?.staffRegNo || '',
-        department: user.staff?.department || '',
-        position: user.staff?.position || '',
-
-        // Parent-specific fields (if user is a parent)
-        isParent: !!user.parent,
-        parentUserId: user.parent?.id || '',
-        occupation: user.parent?.occupation || '',
-        relationship: user.parent?.relationship || '',
-
-        // Common fields
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-        rememberToken: user.rememberToken || '',
-        avatar: typeof user.avatar === 'object' && user.avatar ? (user.avatar as any).imageUrl || '' : '',
-        createdBy: user.createdBy || '',
-        updatedBy: user.updatedBy || '',
-
-       
-      };
-
-      return { ...flatUser, permissions };
-    } catch (error) {
-      throw new ForbiddenException('Failed to retrieve user');
-    }
-  }
-
   // async findById(
   //   id: string,
   // ): Promise<
-  //   | (User & { permissions: string[]; school?: { id: string; name: string } })
+  //   | (User & { permissions: string[]; school?:  string  })
   //   | null
   // > {
   //   try {
   //     const user = await this.prisma.user.findUnique({
   //       where: { id },
   //       include: {
-  //         school: { select: { id: true, name: true } },
+  //         school: { select: { id: true, name: true, currentSessionId: true, currentSession: { select: { id: true, name: true } }, currentTermId: true, currentTerm: { select: { id: true, name: true } } } },
   //         subRole: {
   //           include: {
   //             permissions: {
@@ -196,17 +68,143 @@ export class UsersService {
   //             },
   //           },
   //         },
+  //         student: {
+  //           include: {
+  //             class: true,
+  //             classArm: true,
+  //             parent: {
+  //               include: {
+  //                 user: true
+  //               }
+  //             }
+  //           }
+  //         },
+  //         staff: true,
+  //         parent: true,
   //       },
   //     });
+
   //     if (!user) return null;
 
   //     const permissions =
   //       user.subRole?.permissions.map((p) => p.permission.name) || [];
-  //     return { ...user, permissions };
+
+  //     // Transform the nested data into a flat structure
+  //     const flatUser = {
+  //       id: user.id,
+  //       firstname: user.firstname,
+  //       lastname: user.lastname,
+  //       othername: user.othername || '',
+  //       email: user.email,
+  //       phone: user.phone || '',
+  //       gender: user.gender,
+  //       username: user.username,
+  //       role: user.role,
+  //       isActive: user.isActive,
+  //       religion: user.religion || '',
+  //       nationality: user.nationality || '',
+  //       stateOfOrigin: user.stateOfOrigin || '',
+  //       lga: user.lga || '',
+  //       emailVerifiedAt: user.emailVerifiedAt,
+  //       password: user.password,
+  //       isDeleted: user.isDeleted,
+  //       plainPassword: user.plainPassword,
+
+  //       // School information
+  //       schoolId: user.schoolId || '',
+  //       school: user.school?.name || '',
+  //       currentSessionId: user.school?.currentSessionId || '',
+  //       currentSession: user.school?.currentSession?.name || '',
+  //       currentTermId: user.school?.currentTermId || '',
+  //       currentTerm: user.school?.currentTerm?.name || '',
+
+  //       // SubRole information
+  //       subRoleId: user.subRoleId || '',
+  //       subRole: user.subRole?.name || '',
+
+  //       // Student-specific fields (if user is a student)
+  //       isStudent: !!user.student,
+  //       studentId: user.student?.id || '',
+  //       studentRegNo: user.student?.studentRegNo || '',
+  //       dateOfBirth: user.student?.dateOfBirth || null,
+  //       admissionStatus: user.student?.admissionStatus || null,
+  //       classId: user.student?.classId || '',
+  //       class: user.student?.class?.name || '',
+  //       classArmId: user.student?.classArmId || '',
+  //       classArm: user.student?.classArm?.name || '',
+
+  //       // Parent information for students
+  //       parentId: user.student?.parentId || '',
+  //         parent: {
+  //         firstname: user.student?.parent?.user?.firstname || '',
+  //         lastname: user.student?.parent?.user?.lastname || '',
+  //         othername: user.student?.parent?.user?.othername || '',
+  //         email: user.student?.parent?.user?.email || '',
+  //         contact: user.student?.parent?.user?.phone || '',
+  //         relationship: user.student?.parent?.relationship || '',
+  //         occupation: user.student?.parent?.occupation || '',
+  //         address: user.student?.parent?.address || ''
+
+  //         },
+
+  //       // Staff-specific fields (if user is staff)
+  //       isStaff: !!user.staff,
+  //       staffId: user.staff?.id || '',
+  //       staffRegNo: user.staff?.staffRegNo || '',
+  //       department: user.staff?.department || '',
+  //       position: user.staff?.position || '',
+
+  //       // Parent-specific fields (if user is a parent)
+  //       isParent: !!user.parent,
+  //       parentUserId: user.parent?.id || '',
+  //       occupation: user.parent?.occupation || '',
+  //       relationship: user.parent?.relationship || '',
+
+  //       // Common fields
+  //       createdAt: user.createdAt,
+  //       updatedAt: user.updatedAt,
+  //       rememberToken: user.rememberToken || '',
+  //       avatar: typeof user.avatar === 'object' && user.avatar ? (user.avatar as any).imageUrl || '' : '',
+  //       createdBy: user.createdBy || '',
+  //       updatedBy: user.updatedBy || '',
+
+  //     };
+
+  //     return { ...flatUser, permissions };
   //   } catch (error) {
   //     throw new ForbiddenException('Failed to retrieve user');
   //   }
   // }
+
+  async findById(
+    id: string,
+  ): Promise<
+    | (User & { permissions: string[]; school?: { id: string; name: string } })
+    | null
+  > {
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id },
+        include: {
+          school: { select: { id: true, name: true } },
+          subRole: {
+            include: {
+              permissions: {
+                select: { permission: { select: { name: true } } },
+              },
+            },
+          },
+        },
+      });
+      if (!user) return null;
+
+      const permissions =
+        user.subRole?.permissions.map((p) => p.permission.name) || [];
+      return { ...user, permissions };
+    } catch (error) {
+      throw new ForbiddenException('Failed to retrieve user');
+    }
+  }
 
   async create(
     data: {
@@ -228,20 +226,30 @@ export class UsersService {
       parentId?: string;
       occupation?: string;
       relationship?: string;
+      subRoleFlag?: 'student' | 'staff' | 'parent'; // Optional flag to determine subRole type
     },
-    requester: User,
+    req,
   ): Promise<User> {
+    const requester = req.user as AuthenticatedUser;
+    console.log(data, requester, 'Creating user with data:');
     // Validate subRoleId for non-superAdmin users
     let subRole: SubRole | null = null;
     if (data.role !== 'superAdmin') {
       if (!requester.schoolId) {
         throw new ForbiddenException('schoolId is required for users');
       }
-      if (!data.subRoleId) {
+      if (!data.subRoleId && !data.subRoleFlag) {
         throw new ForbiddenException('subRoleId is required for users');
       }
-      subRole = await this.prisma.subRole.findUnique({
-        where: { id: data.subRoleId },
+      subRole = await this.prisma.subRole.findFirst({
+        where: {
+          OR: [
+            { id: data.subRoleId },
+            {
+              name: data.subRoleFlag ? { equals: data.subRoleFlag } : undefined,
+            },
+          ],
+        },
       });
       if (!subRole) {
         throw new ForbiddenException('SubRole does not exist');
@@ -682,10 +690,10 @@ export class UsersService {
         subRoleId: subRoleId || undefined,
         OR: q
           ? [
-            { firstname: { contains: q } },
-            { lastname: { contains: q } },
-            { email: { contains: q } },
-          ]
+              { firstname: { contains: q } },
+              { lastname: { contains: q } },
+              { email: { contains: q } },
+            ]
           : undefined,
       };
       // console.log(where, 'check 5');
@@ -696,23 +704,21 @@ export class UsersService {
           isNot: null,
           is: {
             admissionStatus: AdmissionStatus.accepted, // Only show accepted students
-
-          }
+          },
         };
       } else if (subRoleFlag === 'staff') {
         where.staff = { isNot: null };
       } else if (subRoleFlag === 'parent') {
         // Only show parents who have at least one accepted student
         where.parent = {
-         
           isNot: null,
           is: {
             students: {
               some: {
-                admissionStatus: AdmissionStatus.accepted
-              }
+                admissionStatus: AdmissionStatus.accepted,
+              },
             },
-          }
+          },
         };
       }
       // console.log('check 6');
@@ -731,10 +737,10 @@ export class UsersService {
                 classArm: true,
                 parent: {
                   include: {
-                    user: true
-                  }
-                }
-              }
+                    user: true,
+                  },
+                },
+              },
             },
             staff: true,
             parent: true,
@@ -742,8 +748,8 @@ export class UsersService {
             school: {
               include: {
                 currentSession: true,
-                currentTerm: true
-              }
+                currentTerm: true,
+              },
             },
           },
         }),
@@ -751,7 +757,7 @@ export class UsersService {
       ]);
 
       // Transform the nested data into a flat structure
-      const flattenedUsers = users.map(user => {
+      const flattenedUsers = users.map((user) => {
         const flatUser = {
           id: user.id,
           firstname: user.firstname,
@@ -777,7 +783,7 @@ export class UsersService {
           schoolName: user.school?.name || '',
           currentSessionId: user.school?.currentSessionId || '',
           currentSessionName: user.school?.currentSession?.name || '',
-          currentTermId: user.school?.currentTermId || '',  
+          currentTermId: user.school?.currentTermId || '',
           currentTermName: user.school?.currentTerm?.name || '',
 
           // SubRole information
@@ -818,7 +824,10 @@ export class UsersService {
           createdAt: user.createdAt,
           updatedAt: user.updatedAt,
           rememberToken: user.rememberToken || '',
-          avatar: typeof user.avatar === 'object' && user.avatar ? (user.avatar as any).imageUrl || '' : '',
+          avatar:
+            typeof user.avatar === 'object' && user.avatar
+              ? (user.avatar as any).imageUrl || ''
+              : '',
           createdBy: user.createdBy || '',
           updatedBy: user.updatedBy || '',
         };

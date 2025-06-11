@@ -43,3 +43,5 @@ get sessions by school
 cron job to check active session and active term and then set status in session and term model
 
 to add student ;limit teh session to only superadmin
+
+fetch stduents for attendance form student classassignmentn this should be updated on admission, create student and on promotion for all students

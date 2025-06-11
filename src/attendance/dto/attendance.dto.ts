@@ -9,17 +9,17 @@ import {
 import { Type } from 'class-transformer';
 
 export class GetStudentAttendanceDto {
-  @IsString()
-  @IsNotEmpty()
-  schoolId: string;
+  // @IsString()
+  // @IsNotEmpty()
+  // schoolId: string;
 
   @IsString()
   @IsNotEmpty()
   sessionId: string;
 
-  @IsString()
-  @IsNotEmpty()
-  termId: string;
+  // @IsString()
+  // @IsNotEmpty()
+  // termId: string;
 
   @IsString()
   @IsNotEmpty()

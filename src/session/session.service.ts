@@ -347,7 +347,7 @@ export class SessionsService {
         // Fetch all classes for the school
         const allClasses = await this.prisma.class.findMany({
           where: { schoolId: requester.schoolId, isDeleted: false },
-          include: { classCategory: { select: { name: true } } },
+          include: { classCategory: { select: { name: true, id: true } } },
         });
 
         // Map class-arm assignments for this session
@@ -355,10 +355,13 @@ export class SessionsService {
           (acc, assignment) => {
             const classId = assignment.classId;
             if (!acc[classId]) acc[classId] = [];
-            acc[classId].push(assignment.classArm.name);
+            acc[classId].push({
+              id: assignment.classArm.id,
+              name: assignment.classArm.name
+            });
             return acc;
           },
-          {} as Record<string, string[]>,
+          {} as Record<string, Array<{ id: string; name: string }>>,
         );
 
         transformedSessions.push({
@@ -708,7 +711,7 @@ export class SessionsService {
     const classMap = new Map<string, { id: string; name: string; classArms: { id: string; name: string }[] }>();
 
     sessionData.forEach(item => {
-      const classId = item.classId;
+      const classId = item.class.id;
       const className = item.class.name;
 
       if (!classMap.has(classId)) {
@@ -720,11 +723,12 @@ export class SessionsService {
       }
 
       classMap.get(classId)?.classArms.push({
-        id: item.classArmId,
+        id: item.classArm.id,
         name: item.classArm.name,
       });
     });
 
     return Array.from(classMap.values());
   }
+ 
 }

@@ -29,7 +29,7 @@ export class UsersController {
   // @Permissions('user:create')
   @Post()
   async create(@Body() createUserDto: CreateUserDto, @Request() req) {
-    return this.usersService.create(createUserDto, req.user);
+    return this.usersService.create(createUserDto, req);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
