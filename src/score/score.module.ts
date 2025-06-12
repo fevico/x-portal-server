@@ -10,4 +10,4 @@ import { PrismaService } from '@/prisma/prisma.service';
   controllers: [ScoreController],
   providers: [ScoreService, PrismaService]
 })
-export class ScoreModule {}
+export class ScoreModule {}  

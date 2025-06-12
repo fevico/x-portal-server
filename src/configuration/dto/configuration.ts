@@ -25,6 +25,31 @@ export class UpdateSchoolInfoDto {
   @IsOptional()
   @IsString()
   address?: string;
+
+  @IsOptional()
+  @IsString()
+  bursarContact?: string;
+
+  @IsOptional()
+  @IsString()
+  bursarName?: string;
+
+  @IsOptional()
+  @IsString()
+  bursarSignature?: string;
+
+  @IsOptional()
+  @IsString()
+  principalContact?: string;
+
+  @IsOptional()
+  @IsString()
+  principalName?: string;
+
+  @IsString()
+  @IsOptional()
+  principalSignature?: string;
+
 }
 
 export interface CreateGradingSystemDto {

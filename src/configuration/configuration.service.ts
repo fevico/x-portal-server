@@ -18,7 +18,7 @@ export class ConfigurationService {
     user: AuthenticatedUser,
     logo: Express.Multer.File,
   ) {
-    const { address, color, country, email, name, state } = body;
+    const { address, color, country, email, name, state, bursarContact, bursarName, bursarSignature, principalContact, principalName, principalSignature} = body;
     if (!user || !user.schoolId)
       throw new NotFoundException(
         'User not found or not associated with a school',
@@ -45,18 +45,25 @@ export class ConfigurationService {
           country,
           state,
           logo: imageUrl ? imageUrl : undefined,
+          bursarContact,
+          bursarName,
+          bursarSignature,
+          principalContact, 
+          principalName,
+          principalSignature
         },
       });
       if (!school)
         throw new NotFoundException('School data not found for this user');
-    // const schoolInfo = await this.prisma.school.update({
-    //     where: { id: schoolId },
-    //     data: {
-    //       address,
-    //       email,
-    //       name,
-    //     }
-    // });
+    const schoolInfo = await this.prisma.school.update({
+        where: { id: schoolId },
+        data: {
+          address,
+          email,
+          name,
+        }
+    });
+    if(!schoolInfo) throw new NotFoundException("School information not found!")
       return school;
     } catch (error) {
       throw new HttpException('Failed to update school information', 500);

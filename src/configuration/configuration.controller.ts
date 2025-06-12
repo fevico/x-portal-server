@@ -27,7 +27,7 @@ export class ConfigurationController {
   @Patch('school-information')
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileInterceptor('logo'))
-  async updateSchoolInformation(
+  async updateSchoolInformation( 
     @Body() body: UpdateSchoolInfoDto,
     @Request() req: RequestExpress,
     @UploadedFile() logo?: Express.Multer.File,

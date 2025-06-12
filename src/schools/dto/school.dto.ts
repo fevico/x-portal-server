@@ -9,7 +9,7 @@ export class CreateSchoolDto {
   email?: string;
 
   //   @IsPhoneNumber()
-  @IsOptional()
+  @IsOptional() 
   contact?: string;
 
   @IsString()
