@@ -24,7 +24,10 @@ export class SubscriptionService {
   private readonly logger = new Logger(SubscriptionService.name);
   constructor(private prisma: PrismaService) {}
 
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, { name: 'checkExpiredSubscriptions', timeZone: 'Africa/Lagos' })
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, {
+    name: 'checkExpiredSubscriptions',
+    timeZone: 'Africa/Lagos',
+  })
   async handleExpiredSubscriptions() {
     this.logger.log('Running expired subscription check...');
 
@@ -53,7 +56,9 @@ export class SubscriptionService {
       this.logger.log(`Deactivated subscription for school ID: ${school.id}`);
     }
 
-    this.logger.log(`Processed ${expiredSchools.length} expired subscriptions.`);
+    this.logger.log(
+      `Processed ${expiredSchools.length} expired subscriptions.`,
+    );
   }
   async createSubscription(body: any) {
     const { name, duration, studentLimit } = body;
@@ -349,81 +354,81 @@ export class SubscriptionService {
     reqPaystack.end();
   }
 
-    async webhook(req: any, res: any) {
-      try {
-        const payload = req.body;
-        const paystackSignature = req.headers['x-paystack-signature'];
-    
-        if (!paystackSignature) {
-          return res.status(400).json({ message: 'Missing signature' });
-        }
-    
-        const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
-        const hash = crypto
-          .createHmac('sha512', PAYSTACK_SECRET_KEY)  
-          .update(JSON.stringify(payload))
-          .digest('hex');
-    
-          console.log(hash)
-        if (hash !== paystackSignature) {
-          return res.status(400).json({ message: 'Invalid signature' });
-        }
-    
-        const event = payload;
-        const data = event.data;
-    
-        if (event.event === 'charge.success') {
-          // Find all orders with the same paymentReference
-          const paymentReference = await this.prisma.subscriptionPayment.findFirst({
-            where:{reference: data.reference},
-            include:{subscription: true, school: true},
-          });
-    
-          if (!paymentReference) {
-            return res.status(404).json({ message: 'Payment data not found!' });
-          }
+  async webhook(req: any, res: any) {
+    try {
+      const payload = req.body;
+      const paystackSignature = req.headers['x-paystack-signature'];
 
-          // Update the payment status to 'paid'
-          const updatedPayment = await this.prisma.subscriptionPayment.update({
-            where: { id: paymentReference.id },
-            data: {
-              paymentStatus: 'success',
-              paymentDate: new Date(),
-            },
-          });
-
-// Custom function to calculate expiry date
-const calculateExpiryDate = (duration: number) => {
-  const currentDate = new Date();
-  currentDate.setMonth(currentDate.getMonth() + duration);
-  return currentDate;
-};
-
-          // update school subscription details
-          const schoolSubscription = await this.prisma.school.update({
-            where: { id: paymentReference.schoolId },
-            data: {
-              // schoolId: paymentReference.schoolId,
-              subscriptionId: paymentReference.subscriptionId,
-              subscriptionStatus: true,
-              subscriptionExpiresAt: calculateExpiryDate(paymentReference.subscription.duration),
-            },
-          });
-          console.log('Payment processed successfully:', updatedPayment);
-          return res.status(200).json({
-            message: 'Payment processed successfully',
-            data: {
-              payment: updatedPayment,
-              schoolSubscription,
-            },
-          });
-  
-          }
-
-      } catch (err) {
-        console.error('Error processing webhook:', err);
-        return res.status(500).json({ message: 'Server error' });
+      if (!paystackSignature) {
+        return res.status(400).json({ message: 'Missing signature' });
       }
-    }
 
+      const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
+      const hash = crypto
+        .createHmac('sha512', PAYSTACK_SECRET_KEY)
+        .update(JSON.stringify(payload))
+        .digest('hex');
+
+      console.log(hash);
+      if (hash !== paystackSignature) {
+        return res.status(400).json({ message: 'Invalid signature' });
+      }
+
+      const event = payload;
+      const data = event.data;
+
+      if (event.event === 'charge.success') {
+        // Find all orders with the same paymentReference
+        const paymentReference =
+          await this.prisma.subscriptionPayment.findFirst({
+            where: { reference: data.reference },
+            include: { subscription: true, school: true },
+          });
+
+        if (!paymentReference) {
+          return res.status(404).json({ message: 'Payment data not found!' });
+        }
+
+        // Update the payment status to 'paid'
+        const updatedPayment = await this.prisma.subscriptionPayment.update({
+          where: { id: paymentReference.id },
+          data: {
+            paymentStatus: 'success',
+            paymentDate: new Date(),
+          },
+        });
+
+        // Custom function to calculate expiry date
+        const calculateExpiryDate = (duration: number) => {
+          const currentDate = new Date();
+          currentDate.setMonth(currentDate.getMonth() + duration);
+          return currentDate;
+        };
+
+        // update school subscription details
+        const schoolSubscription = await this.prisma.school.update({
+          where: { id: paymentReference.schoolId },
+          data: {
+            // schoolId: paymentReference.schoolId,
+            subscriptionId: paymentReference.subscriptionId,
+            subscriptionStatus: true,
+            subscriptionExpiresAt: calculateExpiryDate(
+              paymentReference.subscription.duration,
+            ),
+          },
+        });
+        console.log('Payment processed successfully:', updatedPayment);
+        return res.status(200).json({
+          message: 'Payment processed successfully',
+          data: {
+            payment: updatedPayment,
+            schoolSubscription,
+          },
+        });
+      }
+    } catch (err) {
+      console.error('Error processing webhook:', err);
+      return res.status(500).json({ message: 'Server error' });
+    }
+  }
 }

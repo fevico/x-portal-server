@@ -20,13 +20,13 @@ import {
 } from '@/utils';
 import { AuthenticatedUser } from '@/types/express';
 import { AdmissionStatus } from '@prisma/client';
-import { v2 as cloudinary } from 'cloudinary';   
+import { v2 as cloudinary } from 'cloudinary';
 
 @Injectable()
 export class AdmissionsService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
-  // get all admissions 
+  // get all admissions
   async getAllAdmissions(
     user: AuthenticatedUser,
     page: number = 1,
@@ -57,7 +57,6 @@ export class AdmissionsService {
       where.OR = [
         { student: { user: { firstname: { contains: q } } } },
         { student: { user: { lastname: { contains: q } } } },
-
       ];
     }
 
@@ -101,7 +100,7 @@ export class AdmissionsService {
     const hasPreviousPage = page > 1;
 
     // Transform nested data into flat structure
-    const flattenedAdmissions = admissions.map(admission => ({
+    const flattenedAdmissions = admissions.map((admission) => ({
       id: admission.id,
       imageUrl: admission.imageUrl,
       firstname: admission.student?.user?.firstname || '',
@@ -317,10 +316,13 @@ export class AdmissionsService {
       }
       throw error;
     }
-  } 
+  }
 
-
-  async updateAdmissionStatus(id: string, dto: UpdateAdmissionStatusDto, req: any) {
+  async updateAdmissionStatus(
+    id: string,
+    dto: UpdateAdmissionStatusDto,
+    req: any,
+  ) {
     const { status, classId, classArmId, rejectionReason } = dto;
     const requester = req.user;
 
@@ -346,7 +348,9 @@ export class AdmissionsService {
     if (status === 'accepted') {
       // Validate required fields for acceptance
       if (!classId || !classArmId) {
-        throw new BadRequestException('Class ID and Class Arm ID are required for acceptance');
+        throw new BadRequestException(
+          'Class ID and Class Arm ID are required for acceptance',
+        );
       }
 
       // Validate class and class arm
@@ -358,7 +362,7 @@ export class AdmissionsService {
       });
       if (!classRecord || classRecord.schoolId !== admission.schoolId) {
         throw new BadRequestException('Invalid class ID');
-      } 
+      }
       if (!classArmRecord || classArmRecord.schoolId !== admission.schoolId) {
         throw new BadRequestException('Invalid class arm ID');
       }
@@ -402,12 +406,12 @@ export class AdmissionsService {
             updatedBy: requester.id,
           },
         });
-        // fetch session details 
+        // fetch session details
         const session = await this.prisma.session.findUnique({
           where: { id: admission.sessionId },
-          select: { terms: true }
-        })
-        // create class assignment record 
+          select: { terms: true },
+        });
+        // create class assignment record
         await tx.studentClassAssignment.create({
           data: {
             studentId: admission.studentId,
@@ -419,7 +423,7 @@ export class AdmissionsService {
             createdBy: requester.id,
             updatedBy: requester.id,
           },
-        })
+        });
 
         // Log the action
         await tx.logEntry.create({
@@ -483,11 +487,11 @@ export class AdmissionsService {
         return { message: 'Admission rejected successfully' };
       });
     } else {
-      throw new BadRequestException('Invalid status. Must be either "accepted" or "rejected"');
+      throw new BadRequestException(
+        'Invalid status. Must be either "accepted" or "rejected"',
+      );
     }
   }
-
- 
 
   async updateAdmission(id: string, dto: UpdateAdmissionDto, req: any) {
     const requester = req.user;

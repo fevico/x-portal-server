@@ -3,15 +3,12 @@ import {
   ConflictException,
   NotFoundException,
   ForbiddenException,
-  InternalServerErrorException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthenticatedUser } from '@/types/express';
 import * as bcrypt from 'bcrypt';
 import { CreateSchoolDto, UpdateSchoolDto } from './dto/school.dto';
 import { generateRandomPassword, generateUniqueUsername } from '@/utils/';
-import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
-import { Readable } from 'stream';
 
 import { LoggingService } from '@/log/logging.service';
 import { Prisma } from '@prisma/client';
@@ -55,8 +52,26 @@ export class SchoolsService {
           subscriptionId: true,
           subscriptionExpiresAt: true,
           subscriptionStatus: true,
-          logo: true,
-          // ← pointer to the Subscription plan
+          configuration: {
+            select: {
+              id: true,
+              logo: true,
+              country: true,
+              state: true,
+              color: true,
+              schoolHeadName: true,
+              schoolHeadContact: true,
+              schoolHeadSignature: true,
+              principalName: true,
+              principalContact: true,
+              principalSignature: true,
+              bursarName: true,
+              bursarContact: true,
+              bursarSignature: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          }, // ← pointer to the Subscription plan
           subscription: {
             select: {
               name: true,
@@ -86,7 +101,6 @@ export class SchoolsService {
         subscriptionId: true,
         subscriptionStatus: true,
         subscriptionExpiresAt: true,
-        logo: true,
         subscription: {
           select: {
             id: true,
@@ -141,7 +155,6 @@ export class SchoolsService {
               createdAt: true,
               updatedAt: true,
               subscriptionId: true,
-              logo: true,
             },
           });
 
@@ -198,7 +211,6 @@ export class SchoolsService {
     id: string,
     dto: UpdateSchoolDto,
     requester: AuthenticatedUser,
-    file?: Express.Multer.File,
   ) {
     if (requester.role !== 'superAdmin') {
       throw new ForbiddenException('Only superAdmin can update schools');
@@ -206,7 +218,13 @@ export class SchoolsService {
 
     const currentSchool = await this.prisma.school.findUnique({
       where: { id },
-      select: { id: true, name: true, email: true, contact: true, logo: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        contact: true,
+        address: true,
+      },
     });
 
     if (!currentSchool) {
@@ -215,7 +233,6 @@ export class SchoolsService {
 
     const updateData: Partial<UpdateSchoolDto> & {
       updatedBy?: string;
-      logo?: any;
     } = {
       updatedBy: requester.id,
     };
@@ -234,34 +251,34 @@ export class SchoolsService {
       updateData.address = dto.address;
     }
 
-    // Handle logo upload to Cloudinary
-    if (file) {
-      try {
-        // Create a readable stream from the file buffer
-        const stream = Readable.from(file.buffer);
-        const uploadResult: UploadApiResponse = await new Promise(
-          (resolve, reject) => {
-            const uploadStream = cloudinary.uploader.upload_stream(
-              {
-                folder: 'school_logos',
-                public_id: `school_${id}_${Date.now()}`,
-              },
-              (error, result) => {
-                if (error) reject(error);
-                else resolve(result as UploadApiResponse);
-              },
-            );
-            stream.pipe(uploadStream);
-          },
-        );
+    // // Handle logo upload to Cloudinary
+    // if (file) {
+    //   try {
+    //     // Create a readable stream from the file buffer
+    //     const stream = Readable.from(file.buffer);
+    //     const uploadResult: UploadApiResponse = await new Promise(
+    //       (resolve, reject) => {
+    //         const uploadStream = cloudinary.uploader.upload_stream(
+    //           {
+    //             folder: 'school_logos',
+    //             public_id: `school_${id}_${Date.now()}`,
+    //           },
+    //           (error, result) => {
+    //             if (error) reject(error);
+    //             else resolve(result as UploadApiResponse);
+    //           },
+    //         );
+    //         stream.pipe(uploadStream);
+    //       },
+    //     );
 
-        updateData.logo = { url: uploadResult.secure_url };
-      } catch (error) {
-        throw new InternalServerErrorException(
-          'Failed to upload logo to Cloudinary',
-        );
-      }
-    }
+    //     updateData.logo = { url: uploadResult.secure_url };
+    //   } catch (error) {
+    //     throw new InternalServerErrorException(
+    //       'Failed to upload logo to Cloudinary',
+    //     );
+    //   }
+    // }
 
     // Check for conflicts
     if (updateData.name || updateData.email || updateData.contact) {
@@ -306,7 +323,6 @@ export class SchoolsService {
           createdAt: true,
           updatedAt: true,
           subscriptionId: true,
-          logo: true,
         },
       });
     }
@@ -325,7 +341,6 @@ export class SchoolsService {
           createdAt: true,
           updatedAt: true,
           subscriptionId: true,
-          logo: true,
         },
       });
     } catch (error) {
@@ -377,7 +392,6 @@ export class SchoolsService {
           createdAt: true,
           updatedAt: true,
           subscriptionId: true,
-          logo: true,
         },
       });
     } catch (error) {

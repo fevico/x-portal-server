@@ -78,11 +78,8 @@ export class ClassesController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Post("create-class-category")
-  async createClassCategory(
-    @Body() body: any,
-    @Request() req: RequestExpress,
-  ) {
+  @Post('create-class-category')
+  async createClassCategory(@Body() body: any, @Request() req: RequestExpress) {
     const user = req.user as AuthenticatedUser;
     if (!user.schoolId) {
       throw new Error('User must be associated with a school');
@@ -91,7 +88,7 @@ export class ClassesController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Get("class-categories")
+  @Get('class-categories')
   async getAllClassCategories(@Request() req: RequestExpress) {
     const user = req.user as AuthenticatedUser;
     if (!user.schoolId) {
@@ -101,7 +98,7 @@ export class ClassesController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Get("class-category/:id")
+  @Get('class-category/:id')
   async getClassCategoryById(
     @Param('id') id: string,
     @Request() req: RequestExpress,
@@ -114,7 +111,7 @@ export class ClassesController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Patch("class-category/:id")
+  @Patch('class-category/:id')
   async updateClassCategory(
     @Param('id') id: string,
     @Body() body: any,
@@ -128,12 +125,15 @@ export class ClassesController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Patch("class-category/:id")
-  async deleteClassCategory(@Param('id') id: string, @Request() req: RequestExpress) {
+  @Patch('class-category/:id')
+  async deleteClassCategory(
+    @Param('id') id: string,
+    @Request() req: RequestExpress,
+  ) {
     const user = req.user as AuthenticatedUser;
     if (!user.schoolId) {
-      throw new Error('User must be associated with a school'); 
+      throw new Error('User must be associated with a school');
     }
     return this.classesService.deleteClassCategory(id, user);
-  }              
+  }
 }

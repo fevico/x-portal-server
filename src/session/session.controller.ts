@@ -19,7 +19,6 @@ import { PermissionsGuard } from '@/auth/guards/permissions.guard';
 import { AuthenticatedUser } from '@/types/express';
 import { Request as RequestExpress, Response } from 'express';
 
-
 @UseGuards(JwtAuthGuard)
 @Controller('sessions')
 export class SessionsController {
@@ -39,15 +38,21 @@ export class SessionsController {
     return result;
   }
 
-  @Get("fetch-class-class-arm/:sessionId")
+  @Get('fetch-class-class-arm/:sessionId')
   @UseGuards(JwtAuthGuard)
-  async getSessionClassArm(@Param('sessionId') sessionId: string, @Request() req: RequestExpress) {
+  async getSessionClassArm(
+    @Param('sessionId') sessionId: string,
+    @Request() req: RequestExpress,
+  ) {
     const user = req.user as AuthenticatedUser;
-    const session = await this.sessionsService.getSessionClassArm(sessionId, user);
+    const session = await this.sessionsService.getSessionClassArm(
+      sessionId,
+      user,
+    );
     return {
       statusCode: 200,
       message: 'Session retrieved successfully',
-      data: session,                      
+      data: session,
     };
   }
 

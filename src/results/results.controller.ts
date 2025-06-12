@@ -3,10 +3,8 @@ import { ResultsService } from './results.service';
 
 @Controller('results')
 export class ResultsController {
-    constructor(private resultsService: ResultsService) {}
+  constructor(private resultsService: ResultsService) {}
 
-    @Post('submit') 
-    async submitResults(@Body() results: any) {
-        
-    }
+  @Post('submit')
+  async submitResults(@Body() results: any) {}
 }

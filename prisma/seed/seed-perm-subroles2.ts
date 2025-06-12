@@ -604,6 +604,46 @@ async function seed() {
       scope: PermissionScope.school,
     },
 
+    {
+      id: uuidv4(),
+      name: 'session:create',
+      description: 'Create a new academic session',
+      scope: PermissionScope.school,
+    },
+    {
+      id: uuidv4(),
+      name: 'session:read',
+      description: 'View academic session details or lists',
+      scope: PermissionScope.school,
+    },
+    {
+      id: uuidv4(),
+      name: 'session:update',
+      description: 'Update academic session details',
+      scope: PermissionScope.school,
+    },
+    {
+      id: uuidv4(),
+      name: 'session:delete',
+      description: 'Delete an academic session',
+      scope: PermissionScope.school,
+    },
+    {
+      id: uuidv4(),
+      name: 'session:manage',
+      description: 'Manage academic session settings or status',
+      scope: PermissionScope.school,
+    },
+    
+    {
+      id: uuidv4(),
+      name: 'payment:manage',
+      description: 'Create and Manage payment records or history',
+      scope: PermissionScope.school,
+    },
+
+
+
     // logs
     {
       id: uuidv4(),

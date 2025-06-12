@@ -129,9 +129,13 @@ export class AttendanceService {
   // }
 
   // Assign a student to a class for a session/term
-  async getStudentAttendance(dto: GetStudentAttendanceDto) {
+  async getStudentAttendance(dto: GetStudentAttendanceDto, req) {
+    const schoolId = req.user.schoolId; // Assuming schoolId is in the user object from the request
+    if (!schoolId) {
+      throw new BadRequestException('School ID is required');
+    }
     try {
-      const { schoolId, sessionId, termId, classId, classArmId } = dto;
+      const { sessionId, classId, classArmId } = dto;
 
       // Validate session, class, and class arm
       const validAssignment = await this.prisma.sessionClassClassArm.findFirst({
@@ -142,19 +146,19 @@ export class AttendanceService {
       }
 
       // Validate term belongs to session
-      const validTerm = await this.prisma.term.findFirst({
-        where: { id: termId, sessionId },
-      });
-      if (!validTerm) {
-        throw new BadRequestException('Invalid term for session');
-      }
+      // const validTerm = await this.prisma.term.findFirst({
+      //   where: { id: termId, sessionId },
+      // });
+      // if (!validTerm) {
+      //   throw new BadRequestException('Invalid term for session');
+      // }
 
       const students = await this.prisma.student.findMany({
         where: {
           classAssignments: {
             some: {
               sessionId,
-              termId,
+              // termId,
               classId,
               classArmId,
               schoolId,
@@ -192,14 +196,14 @@ export class AttendanceService {
   async getStudentAttendance(dto: GetStudentAttendanceDto) {
     try {
       const { schoolId, sessionId, classId, classArmId } = dto;
-  
+
       const validAssignment = await this.prisma.sessionClassClassArm.findFirst({
         where: { sessionId, classId, classArmId, schoolId },
       });
       if (!validAssignment) {
         throw new BadRequestException('Invalid class or class arm for session');
       }
-  
+
       const students = await this.prisma.student.findMany({
         where: {
           classAssignments: {
@@ -214,58 +218,85 @@ export class AttendanceService {
         },
         include: {
           user: {
-            select: { firstname: true, lastname: true, username: true, email: true },
+            select: {
+              firstname: true,
+              lastname: true,
+              username: true,
+              email: true,
+            },
           },
           class: { select: { name: true } },
           classArm: { select: { name: true } },
         },
       });
-  
+
       if (!students || students.length === 0) {
-        throw new BadRequestException('No students found for the given class and arm');
+        throw new BadRequestException(
+          'No students found for the given class and arm',
+        );
       }
-  
+
       return students;
     } catch (error) {
       console.error(error);
-      throw error instanceof HttpException ? error : new HttpException('Internal server error', 500);
+      throw error instanceof HttpException
+        ? error
+        : new HttpException('Internal server error', 500);
     }
   }
 
   async markStudentAttendance(dto: MarkStudentAttendanceDto) {
     try {
-      const { schoolId, sessionId, termId, classId, classArmId, date, students, createdBy } = dto;
-  
+      const {
+        schoolId,
+        sessionId,
+        termId,
+        classId,
+        classArmId,
+        date,
+        students,
+        createdBy,
+      } = dto;
+
       const validAssignment = await this.prisma.sessionClassClassArm.findFirst({
         where: { sessionId, classId, classArmId, schoolId },
       });
       if (!validAssignment) {
         throw new BadRequestException('Invalid class or class arm for session');
       }
-  
+
       const validTerm = await this.prisma.term.findFirst({
         where: { id: termId, sessionId },
       });
       if (!validTerm) {
         throw new BadRequestException('Invalid term for session');
       }
-  
+
       const parsedDate = new Date(date);
       if (parsedDate < validTerm.startDate || parsedDate > validTerm.endDate) {
         throw new BadRequestException('Date is outside term range');
       }
-  
+
       const validStatuses = ['present', 'absent', 'late'];
       for (const student of students) {
-        if (!student.studentId || !validStatuses.includes(student.attendanceStatus)) {
-          throw new BadRequestException('Invalid student ID or attendance status');
+        if (
+          !student.studentId ||
+          !validStatuses.includes(student.attendanceStatus)
+        ) {
+          throw new BadRequestException(
+            'Invalid student ID or attendance status',
+          );
         }
-        const studentExists = await this.prisma.student.findUnique({ where: { id: student.studentId } });
+        const studentExists = await this.prisma.student.findUnique({
+          where: { id: student.studentId },
+        });
         if (!studentExists) {
-          throw new NotFoundException(`Student with ID ${student.studentId} not found`);
+          throw new NotFoundException(
+            `Student with ID ${student.studentId} not found`,
+          );
         }
       }
-  
+
       const existingRecords = await this.prisma.attendance.findMany({
         where: {
           studentId: { in: students.map((s) => s.studentId) },
@@ -276,9 +307,11 @@ export class AttendanceService {
         },
       });
       if (existingRecords.length > 0) {
-        throw new BadRequestException('Attendance already recorded for some students on this date');
+        throw new BadRequestException(
+          'Attendance already recorded for some students on this date',
+        );
       }
-  
+
       await this.prisma.attendance.createMany({
         data: students.map((student) => ({
           studentId: student.studentId,
@@ -292,11 +325,13 @@ export class AttendanceService {
           createdBy: createdBy || 'system',
         })),
       });
-  
+
       return { message: 'Attendance recorded successfully' };
     } catch (error) {
       console.error(error);
-      throw error instanceof HttpException ? error : new HttpException('Internal server error', 500);
+      throw error instanceof HttpException
+        ? error
+        : new HttpException('Internal server error', 500);
     }
   }
 
@@ -350,17 +385,13 @@ export class AttendanceService {
   //     return assignment;
   //   }
 
-  async assignStudentToClass(dto: AssignStudentToClassDto) {
+  async assignStudentToClass(dto: AssignStudentToClassDto, req) {
+    const schoolId = req.user.schoolId; // Assuming schoolId is in the user object from the request
+    if (!schoolId) {
+      throw new BadRequestException('School ID is required');
+    }
     try {
-      const {
-        studentId,
-        sessionId,
-        termId,
-        classId,
-        classArmId,
-        schoolId,
-        userId,
-      } = dto;
+      const { studentId, sessionId, termId, classId, classArmId } = dto;
 
       // Validate session, class, and class arm
       const validAssignment = await this.prisma.sessionClassClassArm.findFirst({
@@ -391,7 +422,7 @@ export class AttendanceService {
         // Deactivate existing assignment
         await tx.studentClassAssignment.updateMany({
           where: { studentId, sessionId, termId, schoolId, isActive: true },
-          data: { isActive: false, updatedBy: userId },
+          data: { isActive: false, updatedBy: req.user.id },
         });
 
         // Create new assignment
@@ -404,7 +435,7 @@ export class AttendanceService {
             classArmId,
             schoolId,
             isActive: true,
-            createdBy: userId,
+            createdBy: req.user.id,
           },
         });
 
@@ -498,18 +529,13 @@ export class AttendanceService {
   //   }
   // }
 
-  async markStudentAttendance(dto: MarkStudentAttendanceDto) {
+  async markStudentAttendance(dto: MarkStudentAttendanceDto, req) {
+    const schoolId = req.user.schoolId; // Assuming schoolId is in the user object from the request
+    if (!schoolId) {
+      throw new BadRequestException('School ID is required');
+    }
     try {
-      const {
-        schoolId,
-        sessionId,
-        termId,
-        classId,
-        classArmId,
-        date,
-        students,
-        createdBy,
-      } = dto;
+      const { sessionId, termId, classId, classArmId, date, students } = dto;
 
       // Validate session, class, and class arm
       const validAssignment = await this.prisma.sessionClassClassArm.findFirst({
@@ -582,7 +608,7 @@ export class AttendanceService {
           classArmId,
           status: student.attendanceStatus,
           date: parsedDate,
-          createdBy: createdBy || 'system',
+          createdBy: req.user.id || 'system',
         })),
       });
 
@@ -676,17 +702,14 @@ export class AttendanceService {
   //   }
   // }
 
-  async studentPromotion(dto: StudentPromotionDto) {
+  async studentPromotion(dto: StudentPromotionDto, req) {
+    const schoolId = req.user.schoolId; // Assuming schoolId is in the user object from the request
+    if (!schoolId) {
+      throw new BadRequestException('School ID is required');
+    }
     try {
-      const {
-        schoolId,
-        sourceClassId,
-        targetClassId,
-        sessionId,
-        termId,
-        classArmId,
-        createdBy,
-      } = dto;
+      const { sourceClassId, targetClassId, sessionId, termId, classArmId } =
+        dto;
 
       // Validate source class
       const sourceClass = await this.prisma.class.findFirst({
@@ -738,7 +761,7 @@ export class AttendanceService {
             schoolId,
             isActive: true,
           },
-          data: { isActive: false, updatedBy: createdBy || 'system' },
+          data: { isActive: false, updatedBy: req.user.id || 'system' },
         });
 
         // Create new StudentClassAssignment records
@@ -751,7 +774,7 @@ export class AttendanceService {
             classArmId: classArmId || student.classArmId,
             schoolId,
             isActive: true,
-            createdBy: createdBy || 'system',
+            createdBy: req.user.id || 'system',
           })),
         });
 
