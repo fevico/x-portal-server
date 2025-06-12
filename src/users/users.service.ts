@@ -226,6 +226,11 @@ export class UsersService {
       parentId?: string;
       occupation?: string;
       relationship?: string;
+      dateOfBirth?: Date | null;
+      religion?: string | null;
+      nationality?: string | null;
+      stateOfOrigin?: string | null;
+      lga?: string | null;
       subRoleFlag?: 'student' | 'staff' | 'parent'; // Optional flag to determine subRole type
     },
     req,
@@ -627,7 +632,7 @@ export class UsersService {
     query: GetUsersQueryDto,
     requester: AuthenticatedUser,
   ): Promise<{
-    users: User[];
+    users: any[];
     total: number;
     page: number;
     limit: number;

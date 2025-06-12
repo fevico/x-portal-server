@@ -17,7 +17,7 @@ import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guards';
 import { Permissions } from '@/auth/decorators/permissions.decorator';
 import {
   CreateAdmissionDto,
-  UpdateAdmissionDto,
+  // UpdateAdmissionDto,
   UpdateAdmissionStatusDto,
 } from './dto/addmission.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -90,16 +90,16 @@ export class AdmissionsController {
     );
   }
 
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Permissions('admissions:update')
-  @Patch(':id')
-  async updateAdmission(
-    @Param('id') id: string,
-    @Body() updateAdmissionDto: UpdateAdmissionDto,
-    @Request() req,
-  ) {
-    return this.admissionsService.updateAdmission(id, updateAdmissionDto, req);
-  }
+  // @UseGuards(JwtAuthGuard, PermissionsGuard)
+  // @Permissions('admissions:update')
+  // @Patch(':id')
+  // async updateAdmission(
+  //   @Param('id') id: string,
+  //   @Body() updateAdmissionDto: UpdateAdmissionDto,
+  //   @Request() req,
+  // ) {
+  //   return this.admissionsService.updateAdmission(id, updateAdmissionDto, req);
+  // }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('admissions:read')
