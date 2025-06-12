@@ -1,12 +1,9 @@
-import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class UtilityService {
   constructor(private prisma: PrismaService) {}
-
-
 }
 
 // export const = generateUniqueReferenceNumber(): Promise<string> => {

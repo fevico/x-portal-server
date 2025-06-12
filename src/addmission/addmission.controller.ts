@@ -26,7 +26,7 @@ import { AuthenticatedUser } from '@/types/express';
 
 @Controller('admissions')
 export class AdmissionsController {
-  constructor(private readonly admissionsService: AdmissionsService) { }
+  constructor(private readonly admissionsService: AdmissionsService) {}
 
   // @Post()
   // async createAdmission(
@@ -58,7 +58,6 @@ export class AdmissionsController {
     );
   }
 
-
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('admission:create')
   @Permissions('admission:create')
@@ -76,7 +75,6 @@ export class AdmissionsController {
     );
   }
 
-
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('sub-role:write')
   @Patch(':id/status')
@@ -85,7 +83,11 @@ export class AdmissionsController {
     @Body() updateAdmissionStatusDto: UpdateAdmissionStatusDto,
     @Request() req,
   ) {
-    return this.admissionsService.updateAdmissionStatus(id, updateAdmissionStatusDto, req);
+    return this.admissionsService.updateAdmissionStatus(
+      id,
+      updateAdmissionStatusDto,
+      req,
+    );
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -119,8 +121,8 @@ export class AdmissionsController {
     return this.admissionsService.getAdmissionDetails(id, user);
   }
 
-  async sessionDetails(){
-    // This method is not implemented in the original code snippet.     
+  async sessionDetails() {
+    // This method is not implemented in the original code snippet.
     // You can implement it based on your requirements.
     throw new Error('Method not implemented.');
   }

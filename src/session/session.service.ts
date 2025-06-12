@@ -357,7 +357,7 @@ export class SessionsService {
             if (!acc[classId]) acc[classId] = [];
             acc[classId].push({
               id: assignment.classArm.id,
-              name: assignment.classArm.name
+              name: assignment.classArm.name,
             });
             return acc;
           },
@@ -681,8 +681,8 @@ export class SessionsService {
       throw new Error(
         'Failed to delete session: ' + (error.message || 'Unknown error'),
       );
-    }  
-  }    
+    }
+  }
 
   async getSessionClassArm(sessionId: string, user: AuthenticatedUser) {
     try {
@@ -703,14 +703,22 @@ export class SessionsService {
 
       return formattedData;
     } catch (error) {
-      throw new HttpException(`Error fetching session with ID ${sessionId}: ${error.message}`, 500);
+      throw new HttpException(
+        `Error fetching session with ID ${sessionId}: ${error.message}`,
+        500,
+      );
     }
   }
 
-  private groupClassArmsByClass(sessionData: any[]): { id: string; name: string; classArms: { id: string; name: string }[] }[] {
-    const classMap = new Map<string, { id: string; name: string; classArms: { id: string; name: string }[] }>();
+  private groupClassArmsByClass(
+    sessionData: any[],
+  ): { id: string; name: string; classArms: { id: string; name: string }[] }[] {
+    const classMap = new Map<
+      string,
+      { id: string; name: string; classArms: { id: string; name: string }[] }
+    >();
 
-    sessionData.forEach(item => {
+    sessionData.forEach((item) => {
       const classId = item.class.id;
       const className = item.class.name;
 
@@ -730,5 +738,4 @@ export class SessionsService {
 
     return Array.from(classMap.values());
   }
- 
 }

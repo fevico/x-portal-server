@@ -332,7 +332,7 @@ export class ClassesService {
   // }
 
   async createClassCategory(body: any, user: AuthenticatedUser) {
-    const {name} = body
+    const { name } = body;
     const schoolId = user.schoolId;
 
     try {
@@ -342,13 +342,13 @@ export class ClassesService {
           isDeleted: false,
           schoolId, // Ensure the category is unique per school
         },
-        include:{Class: true}
+        include: { Class: true },
       });
-  
+
       if (existingCategory) {
         throw new BadRequestException('Class category already exists');
       }
-  
+
       const classCategory = await this.prisma.classCategory.create({
         data: {
           name: body.name,
@@ -356,17 +356,18 @@ export class ClassesService {
           school: { connect: { id: schoolId } },
         },
       });
-  
+
       return classCategory;
-  
     } catch (error) {
-      throw new HttpException('Failed to create class category', HttpStatus.INTERNAL_SERVER_ERROR);
-      
+      throw new HttpException(
+        'Failed to create class category',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
-}
+  }
 
   async getAllClassCategories(user: AuthenticatedUser) {
-    const schoolId = user.schoolId
+    const schoolId = user.schoolId;
     try {
       const classCategories = await this.prisma.classCategory.findMany({
         where: {
@@ -375,12 +376,13 @@ export class ClassesService {
         },
         include: { Class: true },
       });
-  
+
       return classCategories;
-        
     } catch (error) {
-      throw new HttpException('Failed to fetch class categories', HttpStatus.INTERNAL_SERVER_ERROR);
-      
+      throw new HttpException(
+        'Failed to fetch class categories',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -390,18 +392,19 @@ export class ClassesService {
         where: { id },
         include: { Class: true },
       });
-  
+
       if (!classCategory) {
         throw new NotFoundException('Class category not found');
       }
-  
+
       return classCategory;
-        
     } catch (error) {
-      throw new HttpException('Failed to fetch class category', HttpStatus.INTERNAL_SERVER_ERROR);
-      
+      throw new HttpException(
+        'Failed to fetch class category',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
-  } 
+  }
 
   async updateClassCategory(id: string, body: any, user: AuthenticatedUser) {
     const { name } = body;
@@ -413,9 +416,11 @@ export class ClassesService {
           schoolId,
           isDeleted: false,
         },
-      })
+      });
       if (!schoolCategory) {
-        throw new NotFoundException(`Class category not found for this school ${id}`);
+        throw new NotFoundException(
+          `Class category not found for this school ${id}`,
+        );
       }
 
       const updatedCategory = await this.prisma.classCategory.update({
@@ -424,10 +429,13 @@ export class ClassesService {
           name,
           updatedBy: user.id,
         },
-      })
+      });
       return updatedCategory;
     } catch (error) {
-      throw new HttpException('Failed to update class category', HttpStatus.INTERNAL_SERVER_ERROR)
+      throw new HttpException(
+        'Failed to update class category',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -456,7 +464,10 @@ export class ClassesService {
 
       return { message: 'Class category deleted successfully' };
     } catch (error) {
-      throw new HttpException('Failed to delete class category', HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException(
+        'Failed to delete class category',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 }

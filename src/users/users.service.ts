@@ -96,7 +96,7 @@ export class UsersService {
   //       lastname: user.lastname,
   //       othername: user.othername || '',
   //       email: user.email,
-  //       phone: user.phone || '',
+  //       contact: user.contact || '',
   //       gender: user.gender,
   //       username: user.username,
   //       role: user.role,
@@ -140,7 +140,7 @@ export class UsersService {
   //         lastname: user.student?.parent?.user?.lastname || '',
   //         othername: user.student?.parent?.user?.othername || '',
   //         email: user.student?.parent?.user?.email || '',
-  //         contact: user.student?.parent?.user?.phone || '',
+  //         contact: user.student?.parent?.user?.contact || '',
   //         relationship: user.student?.parent?.relationship || '',
   //         occupation: user.student?.parent?.occupation || '',
   //         address: user.student?.parent?.address || ''
@@ -212,7 +212,7 @@ export class UsersService {
       lastname?: string;
       othername?: string;
       email?: string;
-      phone?: string;
+      contact?: string;
       gender?: 'male' | 'female';
       password?: string;
       role?: 'admin' | 'superAdmin';
@@ -313,7 +313,7 @@ export class UsersService {
       othername: data.othername,
       username,
       email: data.email,
-      phone: data.phone,
+      contact: data.contact,
       gender: data.gender,
       password: hashedPassword,
       plainPassword,
@@ -350,12 +350,12 @@ export class UsersService {
               data: {
                 user: { connect: { id: createdUser.id } },
                 studentRegNo: data.studentRegNo,
-                class: data.classId
-                  ? { connect: { id: data.classId } }
-                  : undefined,
-                classArm: data.classArmId
-                  ? { connect: { id: data.classArmId } }
-                  : undefined,
+                dateOfBirth: data.dateOfBirth || null,
+                admissionStatus: AdmissionStatus.accepted, // Default to accepted
+                religion: data.religion || null,
+                nationality: data.nationality || null,
+                stateOfOrigin: data.stateOfOrigin || null,
+                lga: data.lga || null,
                 parent: data.parentId
                   ? { connect: { id: data.parentId } }
                   : undefined,
@@ -400,7 +400,7 @@ export class UsersService {
         if (error.meta?.target?.includes('username')) {
           throw new ForbiddenException('Generated username already exists');
         }
-        if (error.meta?.target?.includes('phone')) {
+        if (error.meta?.target?.includes('contact')) {
           throw new ForbiddenException('Phone number already exists');
         }
       }
@@ -494,7 +494,7 @@ export class UsersService {
             lastname: data.lastname,
             othername: data.othername,
             email: data.email,
-            phone: data.phone,
+            contact: data.phone,
             gender: data.gender,
             school: data.schoolId
               ? { connect: { id: data.schoolId } }
@@ -587,7 +587,7 @@ export class UsersService {
         if (error.meta?.target?.includes('username')) {
           throw new ForbiddenException('Generated username already exists');
         }
-        if (error.meta?.target?.includes('phone')) {
+        if (error.meta?.target?.includes('contact')) {
           throw new ForbiddenException('Phone number already exists');
         }
       }
@@ -778,15 +778,11 @@ export class UsersService {
           lastname: user.lastname,
           othername: user.othername || '',
           email: user.email,
-          phone: user.phone || '',
+          contact: user.contact || '',
           gender: user.gender,
           username: user.username,
           role: user.role,
           isActive: user.isActive,
-          religion: user.religion || '',
-          nationality: user.nationality || '',
-          stateOfOrigin: user.stateOfOrigin || '',
-          lga: user.lga || '',
           emailVerifiedAt: user.emailVerifiedAt,
           password: user.password,
           isDeleted: user.isDeleted,
@@ -798,7 +794,7 @@ export class UsersService {
           currentSessionId: user.school?.currentSessionId || '',
           currentSessionName: user.school?.currentSession?.name || '',
           currentTermId: user.school?.currentTermId || '',
-          currentTermName: user.school?.currentTerm?.name || '',
+          currentTermName: user.school?.currentTerm || '',
 
           // SubRole information
           subRoleId: user.subRoleId || '',
@@ -837,7 +833,6 @@ export class UsersService {
           // Common fields
           createdAt: user.createdAt,
           updatedAt: user.updatedAt,
-          rememberToken: user.rememberToken || '',
           avatar:
             typeof user.avatar === 'object' && user.avatar
               ? (user.avatar as any).imageUrl || ''
