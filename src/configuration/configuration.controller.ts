@@ -36,6 +36,13 @@ export class ConfigurationController {
     return this.configurationService.updateSchoolInformation(body, user, logo);
   }
 
+  @Get('school-information')
+  @UseGuards(JwtAuthGuard)
+  async getSchoolInformation(@Request() req: RequestExpress) {
+    const user = req.user as AuthenticatedUser;
+    return this.configurationService.getSchoolInformation(user);
+  }
+
 // Create Marking Scheme
 @UseGuards(JwtAuthGuard)
 @Post()

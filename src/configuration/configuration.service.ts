@@ -70,6 +70,25 @@ export class ConfigurationService {
     }
   }
 
+  async getSchoolInformation(user: AuthenticatedUser) {
+    if (!user || !user.schoolId)
+      throw new NotFoundException(
+        'User not found or not associated with a school',
+      );
+    try {
+      const schoolId = user.schoolId;
+      const school = await this.prisma.configuration.findUnique({
+        where: { id: schoolId },
+        include:{ school: true}
+      });
+      if (!school)
+        throw new NotFoundException('School data not found for this user');
+      return school;
+    } catch (error) {
+      throw new HttpException('Failed to get school information', 500);
+    }
+  }
+
 // Assign Marking Scheme to Classes and Term Definitions
 async assignMarkingSchemeToClassesAndTerms(
     markingSchemeId: string,
