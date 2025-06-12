@@ -688,6 +688,7 @@ model MarkingScheme {
   updatedAt        DateTime?                          @updatedAt @map("updated_at")
   createdBy        String?                            @map("created_by")
   updatedBy        String?                            @map("updated_by")
+  isDeleted        Boolean                            @default(false)
 
   @@unique([name, schoolId])
   @@index([schoolId])
@@ -710,6 +711,7 @@ model MarkingSchemeComponent {
   updatedAt             DateTime?                @updatedAt @map("updated_at")
   createdBy             String?                  @map("created_by")
   updatedBy             String?                  @map("updated_by")
+  isDeleted             Boolean                  @default(false)
 
   @@unique([markingSchemeId, name])
   @@index([schoolId, markingSchemeId])
@@ -729,6 +731,7 @@ model ContinuousAssessment {
   updatedAt                DateTime?                       @updatedAt @map("updated_at")
   createdBy                String?                         @map("created_by")
   updatedBy                String?                         @map("updated_by")
+  isDeleted                Boolean                         @default(false)
 
   @@unique([markingSchemeComponentId, schoolId])
   @@index([schoolId, markingSchemeComponentId])
@@ -749,6 +752,7 @@ model ContinuousAssessmentComponent {
   createdBy              String?                  @map("created_by")
   updatedBy              String?                  @map("updated_by")
   scores                 StudentScoreAssignment[] @relation("ComponentScores")
+  isDeleted              Boolean                  @default(false)
 
   @@unique([continuousAssessmentId, name])
   @@index([schoolId, continuousAssessmentId])
@@ -929,13 +933,14 @@ model Result {
   teacherComment   String?       @map("teacher_comment") @db.VarChar(191)
   principalComment String?       @map("principal_comment") @db.VarChar(191)
   isDeleted        Boolean       @default(false)
+  componentScores   Json?          // New: { "ca1-component-uuid": 15, "exam-component-uuid": 50 }
   createdAt        DateTime?     @default(now()) @map("created_at")
   updatedAt        DateTime?     @updatedAt @map("updated_at")
   createdBy        String?       @map("created_by") @db.VarChar(50)
-  updatedBy        String?       @map("updated_by") @db.VarChar(50)
+  updatedBy        String?       @map("updated_by") @db.VarChar(50) 
   @@unique([studentId, subjectId, sessionId, sessionTermId])
   @@index([schoolId, studentId, sessionId, sessionTermId])
-}
+}  
 
 model Configuration {
   id                  String    @id @default(uuid())
@@ -962,6 +967,7 @@ model Configuration {
 
   @@map("configurations")
 }
+
 
 // Enums
 enum Gender {

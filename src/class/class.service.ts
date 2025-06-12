@@ -252,7 +252,7 @@ export class ClassesService {
             }
 
             // Delete existing assignments for this class and session
-            await tx.sessionClassClassArm.deleteMany({
+            await tx.sessionClassAssignment.deleteMany({
               where: {
                 sessionId: item.sessionId,
                 classId: item.classId,
@@ -282,7 +282,7 @@ export class ClassesService {
 
             // Create new assignments (skip if arms is empty)
             if (armData.length > 0) {
-              await tx.sessionClassClassArm.createMany({
+              await tx.sessionClassAssignment.createMany({
                 data: armData,
               });
             }
@@ -342,7 +342,7 @@ export class ClassesService {
           isDeleted: false,
           schoolId, // Ensure the category is unique per school
         },
-        include: { Class: true },
+        include: { classes: true },
       });
 
       if (existingCategory) {
@@ -374,7 +374,7 @@ export class ClassesService {
           schoolId,
           isDeleted: false,
         },
-        include: { Class: true },
+        include: { classes: true },
       });
 
       return classCategories;
@@ -390,7 +390,7 @@ export class ClassesService {
     try {
       const classCategory = await this.prisma.classCategory.findUnique({
         where: { id },
-        include: { Class: true },
+        include: { classes: true },
       });
 
       if (!classCategory) {

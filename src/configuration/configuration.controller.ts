@@ -1,16 +1,20 @@
 import {
   Body,
   Controller,
+  Delete,
+  Get,
   NotFoundException,
+  Param,
   Patch,
   Post,
+  Req,
   Request,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { ConfigurationService } from './configuration.service';
-import { UpdateSchoolInfoDto } from './dto/configuration';
+import { AssignClassesDto, AssignMarkingSchemeDto, CreateGradingSystemDto, CreateMarkingSchemeDto, UpdateSchoolInfoDto } from './dto/configuration';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guards';
 import { Request as RequestExpress } from 'express';
 import { AuthenticatedUser } from '@/types/express';
@@ -32,20 +36,92 @@ export class ConfigurationController {
     return this.configurationService.updateSchoolInformation(body, user, logo);
   }
 
-  @Post('school-marking-scheme')
+// Create Marking Scheme
+@UseGuards(JwtAuthGuard)
+@Post()
+async createMarkingScheme(@Body() dto: CreateMarkingSchemeDto, @Req() req: any) {
+  return await this.configurationService.createMarkingScheme({
+    ...dto,
+    schoolId: req.user.schoolId,
+    createdBy: req.user.id,
+  });
+}
+
+// Assign Marking Scheme to Classes and Term Definitions
+@UseGuards(JwtAuthGuard)
+@Post(':id/assign')  
+async assignMarkingScheme(
+  @Param('id') id: string,
+  @Body() dto: AssignMarkingSchemeDto,
+  @Req() req: any,
+) {  
+  return await this.configurationService.assignMarkingSchemeToClassesAndTerms(id, dto, req);
+} 
+
+// Update Marking Scheme
+@UseGuards(JwtAuthGuard)
+@Patch(':id')
+async updateMarkingScheme(
+  @Param('id') id: string,
+  @Body() dto: CreateMarkingSchemeDto,
+  @Req() req: any,
+) {
+  return await this.configurationService.updateMarkingScheme(id, dto, req);
+}
+
+// Delete Marking Scheme
+@UseGuards(JwtAuthGuard)
+@Delete(':id')
+async deleteMarkingScheme(@Param('id') id: string, @Req() req: any) {
+  return await this.configurationService.deleteMarkingScheme(id, req);
+}
+
+// Get Marking Scheme by ID
+@UseGuards(JwtAuthGuard)
+@Get(':id')
+async getMarkingScheme(@Param('id') id: string) {
+  return await this.configurationService.getMarkingScheme(id);
+}
+  // Create Grading System
   @UseGuards(JwtAuthGuard)
-  async addSchoolMarkingScheme(
-    @Body() body: any,
-    @Request() req: RequestExpress,
+  @Post()
+  async createGradingSystem(@Body() dto: CreateGradingSystemDto, @Req() req: any) {
+    return await this.configurationService.createGradingSystem(dto, req);
+  }
+
+  // Assign Grading System to Classes
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/assign-classes')
+  async assignGradingSystemToClasses(
+    @Param('id') id: string,
+    @Body() dto: AssignClassesDto,
+    @Req() req: any,
   ) {
-    const user = req.user as AuthenticatedUser;
-    if (!user || !user.schoolId)
-      throw new NotFoundException(
-        'User not found or not associated with a school',
-      );
-    return this.configurationService.addSchoolMarkingScheme(
-      body,
-      user.schoolId,
-    );
+    return await this.configurationService.assignGradingSystemToClasses(id, dto, req);
+  }
+
+  // Fetch Grading System, Grades, and Assigned Classes
+  @UseGuards(JwtAuthGuard)
+  @Get(':id')
+  async getGradingSystem(@Param('id') id: string, @Req() req: any) {
+    return await this.configurationService.getGradingSystem(id, req);
+  }
+
+  // Update Grading System and Grades
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id')
+  async updateGradingSystem(
+    @Param('id') id: string,
+    @Body() dto: CreateGradingSystemDto,
+    @Req() req: any,
+  ) {
+    return await this.configurationService.updateGradingSystem(id, dto, req);
+  }
+
+  // New Delete Endpoint
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id')
+  async deleteGradingSystem(@Param('id') id: string, @Req() req: any) {
+    return await this.configurationService.deleteGradingSystem(id, req);
   }
 }

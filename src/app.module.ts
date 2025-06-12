@@ -25,6 +25,7 @@ import { AttendanceModule } from './attendance/attendance.module';
 import { InvoiceModule } from './invoice/invoice.module';
 import { CommunicationModule } from './communication/communication.module';
 import { ConfigurationModule } from './configuration/configuration.module';
+import { ScoreModule } from './score/score.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { ConfigurationModule } from './configuration/configuration.module';
     InvoiceModule,
     CommunicationModule,
     ConfigurationModule,
+    ScoreModule,
     // ResultsModule,
   ],
   controllers: [AppController],

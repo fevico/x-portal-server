@@ -103,7 +103,7 @@ export class SchoolsController {
       id,
       updateSchoolDto,
       user,
-      file,
+      // file,
     );
     if (!school) {
       throw new NotFoundException('School not found');
