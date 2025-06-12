@@ -47,3 +47,5 @@ to add student ;limit teh session to only superadmin
 fetch stduents for attendance form student classassignmentn this should be updated on admission, create student and on promotion for all students
 
 to assing teavhers to subject and class or class arms fetch all in the school not session, same for assigning subjetcs to clasa and class arms because it is not session dependent
+
+already set in admission accept srill set in create student and on promotion, the studentclassArmsubject and classassignment

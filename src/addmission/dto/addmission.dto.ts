@@ -83,6 +83,10 @@ export class ParentDto {
   @IsString()
   @IsOptional()
   relationship?: string;
+
+  @IsString()
+  @IsOptional()
+  occupation?: string;
 }
 
 export class FormerSchoolDto {
@@ -118,7 +122,7 @@ export class CreateAdmissionDto {
   presentClassId?: string;
 
   @IsString()
-  classApplyingForId: string;
+  classApplyingTo: string;
 
   @IsString()
   @IsOptional()

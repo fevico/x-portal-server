@@ -7,10 +7,8 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import {
-  AcceptAdmissionDto,
   CreateAdmissionDto,
-  RejectAdmissionDto,
-  UpdateAdmissionDto,
+  // UpdateAdmissionDto,
   UpdateAdmissionStatusDto,
 } from './dto/addmission.dto';
 import {
@@ -73,9 +71,8 @@ export class AdmissionsService {
       },
       select: {
         id: true,
-        imageUrl: true,
         admissionDate: true,
-        class: { select: { name: true } },
+        assignedClass: { select: { name: true } },
         student: {
           select: {
             dateOfBirth: true,
@@ -84,13 +81,14 @@ export class AdmissionsService {
                 firstname: true,
                 lastname: true,
                 gender: true,
+                avatar: true,
               },
             },
           },
         },
         session: { select: { id: true, name: true } },
         presentClass: { select: { name: true } },
-        classApplyingFor: { select: { name: true } },
+        classToApply: { select: { name: true } },
       },
     });
 
@@ -102,7 +100,9 @@ export class AdmissionsService {
     // Transform nested data into flat structure
     const flattenedAdmissions = admissions.map((admission) => ({
       id: admission.id,
-      imageUrl: admission.imageUrl,
+      imageUrl:
+        (admission.student.user.avatar as { imageUrl?: string })?.imageUrl ||
+        '',
       firstname: admission.student?.user?.firstname || '',
       lastname: admission.student?.user?.lastname || '',
       dateOfBirth: admission.student?.dateOfBirth || null,
@@ -110,9 +110,9 @@ export class AdmissionsService {
       session: admission.session?.name || '',
       sessionId: admission.session?.id || '',
       presentClass: admission.presentClass?.name || '',
-      classApplyingFor: admission.classApplyingFor?.name || '',
+      classToApply: admission.classToApply?.name || '',
       admissionDate: admission.admissionDate || null,
-      class: admission.class?.name || null,
+      assignedClass: admission.assignedClass?.name || null,
     }));
 
     return {
@@ -140,7 +140,7 @@ export class AdmissionsService {
       otherInfo,
       sessionId,
       presentClassId,
-      classApplyingForId,
+      classApplyingTo,
       imageBase64,
     } = dto;
     const requester = req.user;
@@ -205,12 +205,8 @@ export class AdmissionsService {
         lastname: student.lastname,
         username: studentUsername,
         email: student.email,
-        phone: student.contact,
+        contact: student.contact,
         gender: student.gender,
-        religion: student.religion,
-        nationality: student.nationality,
-        stateOfOrigin: student.stateOfOrigin,
-        lga: student.lga,
         password: studentHashedPassword,
         plainPassword: studentPassword,
         role: 'admin',
@@ -228,7 +224,7 @@ export class AdmissionsService {
         othername: parent.othername,
         username: parentUsername,
         email: parent.email,
-        phone: parent.contact,
+        contact: parent.contact,
         password: parentHashedPassword,
         plainPassword: parentPassword,
         role: 'admin',
@@ -247,6 +243,10 @@ export class AdmissionsService {
               userId: studentUser.id,
               studentRegNo: student.studentRegNo,
               dateOfBirth: student.dateOfBirth,
+              religion: student.religion,
+              nationality: student.nationality,
+              stateOfOrigin: student.stateOfOrigin,
+              lga: student.lga,
               admissionStatus: AdmissionStatus.pending,
               createdBy: requester?.id,
             },
@@ -256,8 +256,8 @@ export class AdmissionsService {
           const parentRecord = await tx.parent.create({
             data: {
               userId: parentUser.id,
-              address: parent.address,
               relationship: parent.relationship,
+              occupation: parent.occupation,
               createdBy: requester?.id,
             },
           });
@@ -270,28 +270,12 @@ export class AdmissionsService {
               studentId: studentRecord.id,
               parentId: parentRecord.id,
               presentClassId,
-              classApplyingForId,
-              homeAddress: student.homeAddress,
-              contact: student.contact,
-              email: student.email,
-              dateOfBirth: student.dateOfBirth,
-              religion: student.religion,
-              nationality: student.nationality,
-              stateOfOrigin: student.stateOfOrigin,
-              lga: student.lga,
-              parentLastname: parent.lastname,
-              parentFirstname: parent.firstname,
-              parentOthername: parent.othername,
-              parentAddress: parent.address,
-              parentContact: parent.contact,
-              parentEmail: parent.email,
-              parentRelationship: parent.relationship,
+              classApplyingTo,
               formerSchoolName: formerSchool.name,
               formerSchoolAddress: formerSchool.address,
               formerSchoolContact: formerSchool.contact,
               healthProblems: otherInfo.healthProblems,
               howHeardAboutUs: otherInfo.howHeardAboutUs,
-              imageUrl,
               createdBy: requester?.id,
             },
           });
@@ -368,7 +352,7 @@ export class AdmissionsService {
       }
 
       // Validate class-class arm compatibility
-      const classClassArm = await this.prisma.sessionClassClassArm.findFirst({
+      const classClassArm = await this.prisma.sessionClassAssignment.findFirst({
         where: {
           classId,
           classArmId,
@@ -387,8 +371,8 @@ export class AdmissionsService {
           where: { id },
           data: {
             admissionStatus: AdmissionStatus.accepted,
-            classId,
-            classArmId,
+            assignedClassId: classId,
+            assignedClassArmId: classArmId,
             admissionDate: new Date(),
             rejectionReason: null,
             updatedBy: requester.id,
@@ -400,31 +384,49 @@ export class AdmissionsService {
           where: { id: admission.studentId },
           data: {
             admissionStatus: AdmissionStatus.accepted,
-            classId,
-            classArmId,
             admissionDate: new Date(),
             updatedBy: requester.id,
           },
         });
-        // fetch session details
-        const session = await this.prisma.session.findUnique({
-          where: { id: admission.sessionId },
-          select: { terms: true },
-        });
+
         // create class assignment record
         await tx.studentClassAssignment.create({
           data: {
             studentId: admission.studentId,
             classId,
             classArmId,
-            termId: session.terms[0].id,
             sessionId: admission.sessionId,
             schoolId: admission.schoolId,
             createdBy: requester.id,
-            updatedBy: requester.id,
+            // updatedBy: requester.id,
           },
         });
 
+        // update student with subject assignments we fetch subjects from classarmsubjectassignment using the students classid and classarmid and create a recird in StudentSubjectAssignment make sure it is for the current school
+        const subjects = await tx.classArmSubjectAssignment.findMany({
+          where: {
+            classId,
+            classArmId,
+            schoolId: admission.schoolId,
+          },
+          select: { subjectId: true, id: true },
+        });
+
+        if (subjects.length > 0) {
+          const studentSubjectAssignments = subjects.map((subj) => ({
+            studentId: admission.studentId,
+            subjectId: subj.subjectId,
+            classId,
+            classArmId,
+            sessionId: admission.sessionId,
+            schoolId: admission.schoolId,
+            classArmSubjectId: subj.id,
+            createdBy: requester.id,
+          }));
+          await tx.studentSubjectAssignment.createMany({
+            data: studentSubjectAssignments,
+          });
+        }
         // Log the action
         await tx.logEntry.create({
           data: {
@@ -452,8 +454,8 @@ export class AdmissionsService {
             rejectionReason,
             admissionDate: new Date(),
             updatedBy: requester.id,
-            classId: null,
-            classArmId: null,
+            assignedClassId: null,
+            assignedClassArmId: null,
           },
         });
 
@@ -462,8 +464,6 @@ export class AdmissionsService {
           where: { id: admission.studentId },
           data: {
             admissionStatus: AdmissionStatus.rejected,
-            classId: null,
-            classArmId: null,
             admissionDate: null,
             updatedBy: requester.id,
           },
@@ -493,175 +493,160 @@ export class AdmissionsService {
     }
   }
 
-  async updateAdmission(id: string, dto: UpdateAdmissionDto, req: any) {
-    const requester = req.user;
+  // async updateAdmission(id: string, dto: UpdateAdmissionDto, req: any) {
+  //   const requester = req.user;
 
-    // Validate admission
-    const admission = await this.prisma.admission.findUnique({
-      where: { id, isDeleted: false },
-      include: { student: true },
-    });
-    if (!admission) {
-      throw new NotFoundException('Admission not found');
-    }
+  //   // Validate admission
+  //   const admission = await this.prisma.admission.findUnique({
+  //     where: { id, isDeleted: false },
+  //     include: { student: true },
+  //   });
+  //   if (!admission) {
+  //     throw new NotFoundException('Admission not found');
+  //   }
 
-    // Validate permissions
-    if (
-      requester.role !== 'superAdmin' &&
-      requester.schoolId !== admission.schoolId
-    ) {
-      throw new ForbiddenException(
-        'You can only update admissions for your school',
-      );
-    }
+  //   // Validate permissions
+  //   if (
+  //     requester.role !== 'superAdmin' &&
+  //     requester.schoolId !== admission.schoolId
+  //   ) {
+  //     throw new ForbiddenException(
+  //       'You can only update admissions for your school',
+  //     );
+  //   }
 
-    // Validate session and class IDs if provided
-    if (dto.sessionId) {
-      const session = await this.prisma.session.findUnique({
-        where: { id: dto.sessionId },
-      });
-      if (!session || session.schoolId !== admission.schoolId) {
-        throw new BadRequestException('Invalid session');
-      }
-    }
-    if (dto.presentClassId || dto.classApplyingForId || dto.classId) {
-      const classIds = [
-        dto.presentClassId,
-        dto.classApplyingForId,
-        dto.classId,
-      ].filter(Boolean);
-      const classes = await this.prisma.class.findMany({
-        where: { id: { in: classIds }, schoolId: admission.schoolId },
-      });
-      if (classes.length !== classIds.length) {
-        throw new BadRequestException('Invalid class IDs');
-      }
-    }
-    if (dto.classArmId) {
-      const classArm = await this.prisma.classArm.findUnique({
-        where: { id: dto.classArmId },
-      });
-      if (!classArm || classArm.schoolId !== admission.schoolId) {
-        throw new BadRequestException('Invalid class arm');
-      }
-    }
+  //   // Validate session and class IDs if provided
+  //   if (dto.sessionId) {
+  //     const session = await this.prisma.session.findUnique({
+  //       where: { id: dto.sessionId },
+  //     });
+  //     if (!session || session.schoolId !== admission.schoolId) {
+  //       throw new BadRequestException('Invalid session');
+  //     }
+  //   }
+  //   if (dto.presentClassId || dto.classApplyingForId || dto.classId) {
+  //     const classIds = [
+  //       dto.presentClassId,
+  //       dto.classApplyingForId,
+  //       dto.classId,
+  //     ].filter(Boolean);
+  //     const classes = await this.prisma.class.findMany({
+  //       where: { id: { in: classIds }, schoolId: admission.schoolId },
+  //     });
+  //     if (classes.length !== classIds.length) {
+  //       throw new BadRequestException('Invalid class IDs');
+  //     }
+  //   }
+  //   if (dto.classArmId) {
+  //     const classArm = await this.prisma.classArm.findUnique({
+  //       where: { id: dto.classArmId },
+  //     });
+  //     if (!classArm || classArm.schoolId !== admission.schoolId) {
+  //       throw new BadRequestException('Invalid class arm');
+  //     }
+  //   }
 
-    return await this.prisma.$transaction(async (tx) => {
-      // Update admission
-      const updatedAdmission = await tx.admission.update({
-        where: { id },
-        data: {
-          sessionId: dto.sessionId,
-          presentClassId: dto.presentClassId,
-          classApplyingForId: dto.classApplyingForId,
-          classId: dto.classId,
-          classArmId: dto.classArmId,
-          homeAddress: dto.student?.homeAddress,
-          contact: dto.student?.contact,
-          email: dto.student?.email,
-          dateOfBirth: dto.student?.dateOfBirth,
-          religion: dto.student?.religion,
-          nationality: dto.student?.nationality,
-          stateOfOrigin: dto.student?.stateOfOrigin,
-          lga: dto.student?.lga,
-          parentLastname: dto.parent?.lastname,
-          parentFirstname: dto.parent?.firstname,
-          parentOthername: dto.parent?.othername,
-          parentAddress: dto.parent?.address,
-          parentContact: dto.parent?.contact,
-          parentEmail: dto.parent?.email,
-          parentRelationship: dto.parent?.relationship,
-          formerSchoolName: dto.formerSchool?.name,
-          formerSchoolAddress: dto.formerSchool?.address,
-          formerSchoolContact: dto.formerSchool?.contact,
-          healthProblems: dto.otherInfo?.healthProblems,
-          howHeardAboutUs: dto.otherInfo?.howHeardAboutUs,
-          updatedBy: requester.id,
-        },
-        include: {
-          session: { select: { name: true } },
-          school: { select: { name: true } },
-          presentClass: { select: { name: true } },
-          classApplyingFor: { select: { name: true } },
-          class: { select: { name: true } },
-          classArm: { select: { name: true } },
-          student: {
-            include: { user: { select: { firstname: true, lastname: true } } },
-          },
-        },
-      });
+  //   return await this.prisma.$transaction(async (tx) => {
+  //     // Update admission
+  //     const updatedAdmission = await tx.admission.update({
+  //       where: { id },
+  //       data: {
+  //         sessionId: dto.sessionId,
+  //         presentClassId: dto.presentClassId,
+  //         classApplyingTo: dto.classApplyingTo,
+  //         assignedClassId: dto.classId,
+  //         assignedClassArmId: dto.classArmId,
+  //         formerSchoolName: dto.formerSchool?.name,
+  //         formerSchoolAddress: dto.formerSchool?.address,
+  //         formerSchoolContact: dto.formerSchool?.contact,
+  //         healthProblems: dto.otherInfo?.healthProblems,
+  //         howHeardAboutUs: dto.otherInfo?.howHeardAboutUs,
+  //         updatedBy: requester.id,
+  //       },
+  //       include: {
+  //         session: { select: { name: true } },
+  //         school: { select: { name: true } },
+  //         presentClass: { select: { name: true } },
+  //         classApplyingFor: { select: { name: true } },
+  //         class: { select: { name: true } },
+  //         classArm: { select: { name: true } },
+  //         student: {
+  //           include: { user: { select: { firstname: true, lastname: true } } },
+  //         },
+  //       },
+  //     });
 
-      // Optionally update student
-      if (dto.student) {
-        await tx.student.update({
-          where: { id: admission.studentId },
-          data: {
-            dateOfBirth: dto.student.dateOfBirth,
-            updatedBy: requester.id,
-          },
-        });
-        await tx.user.update({
-          where: { id: admission.student.userId },
-          data: {
-            firstname: dto.student.firstname,
-            lastname: dto.student.lastname,
-            email: dto.student.email,
-            phone: dto.student.contact,
-            gender: dto.student.gender,
-            religion: dto.student.religion,
-            nationality: dto.student.nationality,
-            stateOfOrigin: dto.student.stateOfOrigin,
-            lga: dto.student.lga,
-            updatedBy: requester.id,
-          },
-        });
-      }
+  //     // Optionally update student
+  //     if (dto.student) {
+  //       await tx.student.update({
+  //         where: { id: admission.studentId },
+  //         data: {
+  //           dateOfBirth: dto.student.dateOfBirth,
+  //           updatedBy: requester.id,
+  //         },
+  //       });
+  //       await tx.user.update({
+  //         where: { id: admission.student.userId },
+  //         data: {
+  //           firstname: dto.student.firstname,
+  //           lastname: dto.student.lastname,
+  //           email: dto.student.email,
+  //           phone: dto.student.contact,
+  //           gender: dto.student.gender,
+  //           religion: dto.student.religion,
+  //           nationality: dto.student.nationality,
+  //           stateOfOrigin: dto.student.stateOfOrigin,
+  //           lga: dto.student.lga,
+  //           updatedBy: requester.id,
+  //         },
+  //       });
+  //     }
 
-      // Optionally update parent
-      if (dto.parent) {
-        await tx.parent.update({
-          where: { id: admission.parentId },
-          data: {
-            address: dto.parent.address,
-            relationship: dto.parent.relationship,
-            updatedBy: requester.id,
-          },
-        });
-        await tx.user.update({
-          where: {
-            id: (
-              await tx.parent.findUnique({ where: { id: admission.parentId } })
-            ).userId,
-          },
-          data: {
-            firstname: dto.parent.firstname,
-            lastname: dto.parent.lastname,
-            othername: dto.parent.othername,
-            email: dto.parent.email,
-            phone: dto.parent.contact,
-            updatedBy: requester.id,
-          },
-        });
-      }
+  //     // Optionally update parent
+  //     if (dto.parent) {
+  //       await tx.parent.update({
+  //         where: { id: admission.parentId },
+  //         data: {
+  //           address: dto.parent.address,
+  //           relationship: dto.parent.relationship,
+  //           updatedBy: requester.id,
+  //         },
+  //       });
+  //       await tx.user.update({
+  //         where: {
+  //           id: (
+  //             await tx.parent.findUnique({ where: { id: admission.parentId } })
+  //           ).userId,
+  //         },
+  //         data: {
+  //           firstname: dto.parent.firstname,
+  //           lastname: dto.parent.lastname,
+  //           othername: dto.parent.othername,
+  //           email: dto.parent.email,
+  //           phone: dto.parent.contact,
+  //           updatedBy: requester.id,
+  //         },
+  //       });
+  //     }
 
-      // Log the action
-      await tx.logEntry.create({
-        data: {
-          action: 'update_admission',
-          target: 'Admission',
-          targetId: id,
-          userId: requester.id,
-          schoolId: admission.schoolId,
-          meta: { updatedFields: Object.keys(dto) },
-          ipAddress: req.ip || '::1',
-          device: req.headers['user-agent'] || 'Unknown',
-          location: 'Localhost',
-        },
-      });
+  //     // Log the action
+  //     await tx.logEntry.create({
+  //       data: {
+  //         action: 'update_admission',
+  //         target: 'Admission',
+  //         targetId: id,
+  //         userId: requester.id,
+  //         schoolId: admission.schoolId,
+  //         meta: { updatedFields: Object.keys(dto) },
+  //         ipAddress: req.ip || '::1',
+  //         device: req.headers['user-agent'] || 'Unknown',
+  //         location: 'Localhost',
+  //       },
+  //     });
 
-      return updatedAdmission;
-    });
-  }
+  //     return updatedAdmission;
+  //   });
+  // }
 
   async getStudentsByParentId(parentId: string, req: any) {
     const requester = req.user;
@@ -729,22 +714,6 @@ export class AdmissionsService {
       where: { id, isDeleted: false },
       select: {
         id: true,
-        imageUrl: true,
-        homeAddress: true,
-        contact: true,
-        email: true,
-        dateOfBirth: true,
-        religion: true,
-        nationality: true,
-        stateOfOrigin: true,
-        lga: true,
-        parentLastname: true,
-        parentFirstname: true,
-        parentOthername: true,
-        parentAddress: true,
-        parentContact: true,
-        parentEmail: true,
-        parentRelationship: true,
         formerSchoolName: true,
         formerSchoolAddress: true,
         formerSchoolContact: true,
@@ -755,13 +724,31 @@ export class AdmissionsService {
         rejectionReason: true,
         createdAt: true,
         schoolId: true,
+        classToApply: {
+          select: { id: true, name: true },
+        },
         // Related models
         school: { select: { id: true, name: true } },
         session: { select: { id: true, name: true } },
         presentClass: { select: { id: true, name: true } },
-        classApplyingFor: { select: { id: true, name: true } },
-        class: { select: { id: true, name: true } },
-        classArm: { select: { id: true, name: true } },
+        assignedClass: { select: { id: true, name: true } },
+        assignedClassArm: { select: { id: true, name: true } },
+        parent: {
+          select: {
+            user: {
+              select: {
+                firstname: true,
+                lastname: true,
+                othername: true,
+                address: true,
+                contact: true,
+                email: true,
+              },
+            },
+            relationship: true,
+            occupation: true,
+          },
+        },
         student: {
           select: {
             user: {
@@ -769,8 +756,17 @@ export class AdmissionsService {
                 firstname: true,
                 lastname: true,
                 gender: true,
+                avatar: true,
+                email: true,
+                contact: true,
+                address: true,
               },
             },
+            dateOfBirth: true,
+            religion: true,
+            nationality: true,
+            stateOfOrigin: true,
+            lga: true,
           },
         },
       },
@@ -794,31 +790,34 @@ export class AdmissionsService {
       student: {
         firstname: admission.student?.user?.firstname || '',
         lastname: admission.student?.user?.lastname || '',
-        email: admission.email || '',
+        email: admission.student.user.email || '',
         gender: admission.student?.user?.gender || null,
-        dateOfBirth: admission.dateOfBirth,
+        dateOfBirth: admission.student.dateOfBirth,
         sessionId: admission.session?.id || '',
         sessionName: admission.session?.name || '',
         presentClassId: admission.presentClass?.id || '',
         presentClassName: admission.presentClass?.name || '',
-        classApplyingForId: admission.classApplyingFor?.id || '',
-        classApplyingForName: admission.classApplyingFor?.name || '',
-        homeAddress: admission.homeAddress || '',
-        contact: admission.contact || '',
-        religion: admission.religion || '',
-        nationality: admission.nationality || '',
-        stateOfOrigin: admission.stateOfOrigin || '',
-        lga: admission.lga || '',
-        imageUrl: admission.imageUrl || '',
+        classApplyingForId: admission.classToApply?.id || '',
+        classApplyingForName: admission.classToApply?.name || '',
+        homeAddress: admission.student.user.address || '',
+        contact: admission.student.user.contact || '',
+        religion: admission.student.religion || '',
+        nationality: admission.student.nationality || '',
+        stateOfOrigin: admission.student.stateOfOrigin || '',
+        lga: admission.student.lga || '',
+        imageUrl:
+          (admission.student.user.avatar as { imageUrl?: string })?.imageUrl ||
+          '',
       },
       guardian: {
-        lastName: admission.parentLastname || '',
-        firstName: admission.parentFirstname || '',
-        otherName: admission.parentOthername || '',
-        address: admission.parentAddress || '',
-        tel: admission.parentContact || '',
-        email: admission.parentEmail || '',
-        relationship: admission.parentRelationship || '',
+        lastName: admission.parent.user.lastname || '',
+        firstName: admission.parent.user.firstname || '',
+        otherName: admission.parent.user.othername || '',
+        address: admission.parent.user.address || '',
+        tel: admission.parent.user.contact || '',
+        email: admission.parent.user.email || '',
+        relationship: admission.parent.relationship || '',
+        occupation: admission.parent.occupation || '',
       },
       formerSchool: {
         name: admission.formerSchoolName || '',

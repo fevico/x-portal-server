@@ -359,6 +359,7 @@ model SessionTerm {
   endDate           DateTime
   schoolId          String                   @map("school_id")
   school            School                   @relation(fields: [schoolId], references: [id])
+  isActive         Boolean                  @default(false)
   isDeleted         Boolean                  @default(false)
   createdAt         DateTime                 @default(now()) @map("created_at")
   updatedAt         DateTime                 @updatedAt @map("updated_at")
