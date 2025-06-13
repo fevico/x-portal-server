@@ -448,7 +448,7 @@ model ClassArmSubjectAssignment {
   schoolId                  String                     @map("school_id")
   class                     Class                      @relation(fields: [classId], references: [id])
   classArm                  ClassArm                   @relation(fields: [classArmId], references: [id])
-  subject                   Subject                    @relation("SubjectAssignments", fields: [subjectId], references: [id])
+  subject                  Subject                    @relation("SubjectAssignments", fields: [subjectId], references: [id])
   school                    School                     @relation(fields: [schoolId], references: [id])
   isActive                  Boolean                    @default(true)
   createdAt                 DateTime?                  @default(now()) @map("created_at")
@@ -950,13 +950,13 @@ model Configuration {
   color               String?   @map("color") // New: For school color
   schoolHeadName      String?   @map("school_head_name") // New: For school head name
   schoolHeadContact   String?   @map("school_head_contact") // New: For school head email
-  schoolHeadSignature String?   @map("school_head_signature") // New: For school head signature
+  schoolHeadSignature Json?     @map("school_head_signature") // New: For school head signature
   principalName       String?   @map("principal_name") // New: For principal name
   principalContact    String?   @map("principal_contact") // New: For principal contact
-  principalSignature  String?   @map("principal_signature") // New: For principal signature
+  principalSignature  Json?     @map("principal_signature") // New: For principal signature
   bursarName          String?   @map("bursar_name") // New: For bursar name
   bursarContact       String?   @map("bursar_contact") // New: For bursar contact
-  bursarSignature     String?   @map("bursar_signature") // New: For bursar signature
+  bursarSignature     Json?     @map("bursar_signature") // New: For bursar signature
   schoolId            String    @unique @map("school_id")
   school              School    @relation("SchoolConfiguration", fields: [schoolId], references: [id])
   isDeleted           Boolean   @default(false)

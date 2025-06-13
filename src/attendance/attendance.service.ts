@@ -25,9 +25,10 @@ export class AttendanceService {
   ) {
     try {
       // Validate session, class, and class arm
-      const validAssignment = await this.prisma.sessionClassAssignment.findFirst({
-        where: { sessionId, classId, classArmId, schoolId },
-      });
+      const validAssignment =
+        await this.prisma.sessionClassAssignment.findFirst({
+          where: { sessionId, classId, classArmId, schoolId },
+        });
       if (!validAssignment) {
         throw new BadRequestException('Invalid class or class arm for session');
       }
@@ -128,16 +129,16 @@ export class AttendanceService {
   // }
 
   // Assign a student to a class for a session/term
- 
 
   async getStudentAttendance(dto: GetStudentAttendanceDto, req: any) {
     const schoolId = req.user.schoolId; // Assuming schoolId is in the user object from the request
     try {
       const { sessionId, classId, classArmId } = dto;
 
-      const validAssignment = await this.prisma.sessionClassAssignment.findFirst({
-        where: { sessionId, classId, classArmId, schoolId },
-      });
+      const validAssignment =
+        await this.prisma.sessionClassAssignment.findFirst({
+          where: { sessionId, classId, classArmId, schoolId },
+        });
       if (!validAssignment) {
         throw new BadRequestException('Invalid class or class arm for session');
       }
@@ -182,7 +183,6 @@ export class AttendanceService {
         : new HttpException('Internal server error', 500);
     }
   }
-
 
   // async  assignStudentToClass({
   //     studentId,
@@ -243,9 +243,10 @@ export class AttendanceService {
       const { studentId, sessionId, termId, classId, classArmId } = dto;
 
       // Validate session, class, and class arm
-      const validAssignment = await this.prisma.sessionClassAssignment.findFirst({
-        where: { sessionId, classId, classArmId, schoolId },
-      });
+      const validAssignment =
+        await this.prisma.sessionClassAssignment.findFirst({
+          where: { sessionId, classId, classArmId, schoolId },
+        });
       if (!validAssignment) {
         throw new BadRequestException('Invalid class or class arm for session');
       }
@@ -386,9 +387,10 @@ export class AttendanceService {
       const { sessionId, termId, classId, classArmId, date, students } = dto;
 
       // Validate session, class, and class arm
-      const validAssignment = await this.prisma.sessionClassAssignment.findFirst({
-        where: { sessionId, classId, classArmId, schoolId },
-      });
+      const validAssignment =
+        await this.prisma.sessionClassAssignment.findFirst({
+          where: { sessionId, classId, classArmId, schoolId },
+        });
       if (!validAssignment) {
         throw new BadRequestException('Invalid class or class arm for session');
       }
@@ -568,9 +570,10 @@ export class AttendanceService {
       }
 
       // Validate target class and class arm
-      const validAssignment = await this.prisma.sessionClassAssignment.findFirst({
-        where: { sessionId, classId: targetClassId, classArmId, schoolId },
-      });
+      const validAssignment =
+        await this.prisma.sessionClassAssignment.findFirst({
+          where: { sessionId, classId: targetClassId, classArmId, schoolId },
+        });
       if (!validAssignment) {
         throw new BadRequestException(
           'Invalid target class or class arm for session',

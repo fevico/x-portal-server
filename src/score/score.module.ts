@@ -8,6 +8,6 @@ import { PrismaService } from '@/prisma/prisma.service';
 @Module({
   imports: [JwtModule, LoggingModule],
   controllers: [ScoreController],
-  providers: [ScoreService, PrismaService]
+  providers: [ScoreService, PrismaService],
 })
-export class ScoreModule {}  
+export class ScoreModule {}

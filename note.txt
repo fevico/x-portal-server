@@ -12,6 +12,14 @@ SELECT * FROM _prisma_migrations WHERE migration_name = '20250522111812_latest_a
 DELETE FROM _prisma_migrations WHERE migration_name = '20250522111812_latest_admission';
 exit
 
+
+npx prisma migrate dev --name modified-configuration
+SELECT id, migration_name 
+  FROM _prisma_migrations;
+
+DELETE FROM _prisma_migrations 
+ WHERE migration_name = '20250612131015_modified';
+
     "school": {
         "id": "92801adb-19ac-4c8e-a265-77c9c70f5583",
         "name": "Riverside High School 2",

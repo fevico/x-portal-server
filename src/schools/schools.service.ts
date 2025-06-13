@@ -37,7 +37,10 @@ export class SchoolsService {
 
     const [schools, total] = await Promise.all([
       this.prisma.school.findMany({
-        where,
+        where: {
+          ...where,
+          isDeleted: false,
+        },
         take: limit,
         skip: (page - 1) * limit,
         select: {
@@ -177,6 +180,26 @@ export class SchoolsService {
         },
         { timeout: 10000 }, // Increase timeout to 10s
       );
+
+      // create recode in configuration model
+      await this.prisma.configuration.create({
+        data: {
+          schoolId: school.id,
+          logo: { imageUrl: '', pubId: '' }, // Placeholder, can be updated later
+          country: '',
+          state: '',
+          color: '#3F51B5',
+          schoolHeadName: '',
+          schoolHeadContact: '',
+          schoolHeadSignature: { imageUrl: '', pubId: '' },
+          principalName: '',
+          principalContact: '',
+          principalSignature: { imageUrl: '', pubId: '' },
+          bursarName: '',
+          bursarContact: '',
+          bursarSignature: { imageUrl: '', pubId: '' },
+        },
+      });
 
       // Log action after transaction
       await this.loggingService.logAction(
@@ -356,9 +379,15 @@ export class SchoolsService {
       throw new ForbiddenException('Only superAdmin can delete schools');
     }
     try {
+      // on delete check user model for users associated with this school and delete too using soft delete
+      await this.prisma.user.updateMany({
+        where: { schoolId: id },
+        data: { isDeleted: true },
+      });
+      // Soft delete the school
       await this.prisma.school.update({
         where: { id },
-        data: { isActive: false, updatedBy: requester.id },
+        data: { isDeleted: true, updatedBy: requester.id },
       });
     } catch (error) {
       if (error.code === 'P2025') {
