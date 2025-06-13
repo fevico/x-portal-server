@@ -85,4 +85,12 @@ export class SessionsController {
     const result = await this.sessionsService.deleteSession(id, req);
     return result;
   }
+
+  @Post("assgn-class-to-session")
+  @UseGuards(JwtAuthGuard)
+  async assignClassToSession(@Body() body: any, @Request() req: RequestExpress) {
+    const user = req.user as AuthenticatedUser;
+    const result = await this.sessionsService.assignClassToSession(body, user);
+    return result;
+  }
 }

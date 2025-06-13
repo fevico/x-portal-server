@@ -78,7 +78,7 @@ export class ConfigurationService {
     try {
       const schoolId = user.schoolId;
       const school = await this.prisma.configuration.findUnique({
-        where: { id: schoolId },
+        where: { schoolId }, 
         include:{ school: true}
       });
       if (!school)

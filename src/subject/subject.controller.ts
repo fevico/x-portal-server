@@ -9,10 +9,13 @@ import {
   Body,
   UseGuards,
   Request,
+  RequestTimeoutException,
 } from '@nestjs/common';
 import { SubjectService } from './subject.service';
 import { PermissionsGuard } from '@/auth/guards/permissions.guard';
 import { Permissions } from '@/auth/decorators/permissions.decorator';
+import { AuthenticatedUser } from '@/types/express';
+import {Request as RequestExpress} from "express"
 
 @Controller('subject')
 export class SubjectsController {
@@ -58,5 +61,12 @@ export class SubjectsController {
   @Delete('/subject/:id')
   async delete(@Param('id') id: string, @Request() req) {
     return this.subjectsService.delete(id, req);
+  }
+
+  @Post("assign-subject-to-class")
+  @UseGuards(JwtAuthGuard)
+  async assignSubjectToClass(@Body() body: any, @Request() req: RequestExpress) {
+    const user = req.user as AuthenticatedUser
+    return this.subjectsService.assignSubjectToClass(body, user);
   }
 }

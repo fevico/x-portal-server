@@ -349,7 +349,7 @@ model TermDefinition {
 }
 
 // SessionTerm model - Links sessions to term definitions with dates
-model SessionTerm {
+model SessionTerm { 
   id                String                   @id @default(uuid())
   termDefinitionId  String                   @map("term_definition_id")
   termDefinition    TermDefinition           @relation(fields: [termDefinitionId], references: [id])

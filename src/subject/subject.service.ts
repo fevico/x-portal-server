@@ -162,4 +162,25 @@ export class SubjectService {
 
     return { message: 'Subject deleted successfully' };
   }
+
+  async assignSubjectToClass(body: any, user: AuthenticatedUser){
+    const {classId, classArmId, subjectId, } = body
+    const schoolId = user.schoolId
+
+    try {
+      const classSubject = await this.prisma.classArmSubjectAssignment.create({
+        data: {
+          classId,
+          classArmId,
+          subjectId,
+          schoolId,
+          createdBy: user.id,
+        },
+      })
+      return classSubject
+    } catch (error) {
+      throw new HttpException('Something went wrong', HttpStatus.INTERNAL_SERVER_ERROR)
+    }
+
+  }
 }

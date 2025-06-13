@@ -9,6 +9,7 @@ import { CreateSessionDto } from './dto/session.dto';
 import { LoggingService } from '@/log/logging.service';
 import { AuthenticatedUser } from '@/types/express';
 import { TermEnum } from '@prisma/client';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class SessionsService {
@@ -16,6 +17,99 @@ export class SessionsService {
     private prisma: PrismaService,
     private loggingService: LoggingService,
   ) {}
+
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, {
+    name: 'checkActiveAndInactiveSession',
+    timeZone: 'Africa/Lagos',
+  })
+  async handleActiveAndInActiveSession() {
+    const currentDate = new Date();
+  
+    // Get all session terms that are not deleted
+    const sessionTerms = await this.prisma.sessionTerm.findMany({
+      where: {
+        isDeleted: false,
+        school: { isDeleted: false },
+      },
+      include: {
+        session: true,
+      },
+    });
+  
+    for (const term of sessionTerms) {
+      const isCurrentlyActive =
+        term.startDate <= currentDate && term.endDate >= currentDate;
+  
+      const isExpired = term.endDate < currentDate;
+  
+      if (isCurrentlyActive) {
+        // Deactivate all other terms and sessions for this school
+        await this.prisma.sessionTerm.updateMany({
+          where: {
+            schoolId: term.schoolId,
+            id: { not: term.id },
+          },
+          data: {
+            isActive: false,
+          },
+        });
+  
+        await this.prisma.session.updateMany({
+          where: {
+            schoolId: term.schoolId,
+            id: { not: term.sessionId },
+          },
+          data: {
+            isActive: false,
+          },
+        });
+  
+        // Activate this term and session
+        await this.prisma.sessionTerm.update({
+          where: { id: term.id },
+          data: {
+            isActive: true,
+          },
+        });
+  
+        await this.prisma.session.update({
+          where: { id: term.sessionId },
+          data: {
+            isActive: true,
+          },
+        });
+  
+      } else if (isExpired) {
+        // Mark expired term as inactive
+        await this.prisma.sessionTerm.update({
+          where: { id: term.id },
+          data: {
+            isActive: false,
+          },
+        });
+  
+        // Optionally also deactivate the session if all its terms are expired
+        const activeTerms = await this.prisma.sessionTerm.findMany({
+          where: {
+            sessionId: term.sessionId,
+            isActive: true,
+          },
+        });    
+  
+        if (activeTerms.length === 0) {
+          await this.prisma.session.update({
+            where: { id: term.sessionId },
+            data: {               
+              isActive: false,
+            },
+          });
+        }
+      }
+    }
+  
+    // this.logger.log('Session and term activation/inactivation check completed.');
+  }
+  
 
   async createSession(dto: CreateSessionDto, req: any) {
     const requester = req.user;
@@ -644,4 +738,25 @@ export class SessionsService {
 
     return Array.from(classMap.values());
   }
+
+  async assignClassToSession(body: any, user: AuthenticatedUser){
+    const {sessionId, classId, classArmId} = body
+    const schoolId = user.schoolId 
+    try {
+      const classSession = await this.prisma.sessionClassAssignment.create({
+        data: {
+          sessionId,
+          classId,
+          classArmId,
+          schoolId,
+          createdBy: user.id,
+        }
+      })
+      return classSession
+    }catch(error){
+  throw new HttpException(error.message, 500)
+    }
+
+  }
+  
 }

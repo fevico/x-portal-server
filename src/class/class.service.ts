@@ -371,7 +371,7 @@ export class ClassesService {
     try {
       const classCategories = await this.prisma.classCategory.findMany({
         where: {
-          schoolId,
+          schoolId,  
           isDeleted: false,
         },
         include: { classes: true },
