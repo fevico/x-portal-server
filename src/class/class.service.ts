@@ -8,7 +8,6 @@ import {
 } from '@nestjs/common';
 import { AuthenticatedUser } from '@/types/express';
 import { LoggingService } from '@/log/logging.service';
-import { ClassCategory } from '@prisma/client';
 
 @Injectable()
 export class ClassesService {
@@ -17,7 +16,7 @@ export class ClassesService {
     private loggingService: LoggingService,
   ) {}
 
-  async create(createClassDto: { name: string; category: ClassCategory }, req) {
+  async create(createClassDto: { name: string; category: string }, req) {
     const user = req.user as AuthenticatedUser;
     if (!createClassDto.name) {
       throw new HttpException('Class name is required', HttpStatus.BAD_REQUEST);
@@ -46,12 +45,26 @@ export class ClassesService {
       );
     }
 
+    // Check if the category exists
+    const categoryExists = await this.prisma.classCategory.findFirst({
+      where: {
+        id: createClassDto.category,
+        schoolId: user.schoolId,
+        isDeleted: false,
+      },
+    });
+    if (!categoryExists) {
+      throw new HttpException(
+        'Class category does not exist in this school',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
     const classRecord = await this.prisma.class.create({
       data: {
         name: createClassDto.name.toLowerCase(),
         schoolId: user.schoolId,
-        // classCategoryId: createClassDto.category,
-        classCategoryId: createClassDto.category.id,
+        classCategoryId: createClassDto.category,
         createdBy: user.id,
       },
     });
@@ -87,10 +100,16 @@ export class ClassesService {
           schoolId: req.user.schoolId,
           isDeleted: false,
         },
+        orderBy: { name: 'asc' },
         select: {
           id: true,
           name: true,
-          classCategory: true,
+          classCategory: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
           isActive: true,
         },
       });
@@ -127,9 +146,10 @@ export class ClassesService {
 
   async update(
     id: string,
-    updateClassDto: { name?: string; classCategoryId?: ClassCategory },
+    updateClassDto: { name?: string; category?: string; isActive?: boolean },
     user: AuthenticatedUser,
   ) {
+    console.log('Update Class DTO:', updateClassDto, id);
     const classRecord = await this.prisma.class.findFirst({
       where: {
         id,
@@ -165,8 +185,9 @@ export class ClassesService {
       where: { id },
       data: {
         name: updateClassDto.name ?? classRecord.name,
-        // classCategoryId: updateClassDto.classCategoryId ?? classRecord.classCategoryId,
+        classCategoryId: updateClassDto.category ?? classRecord.classCategoryId,
         updatedBy: user.id,
+        isActive: updateClassDto.isActive,
         updatedAt: new Date(),
       },
     });
@@ -371,13 +392,17 @@ export class ClassesService {
     try {
       const classCategories = await this.prisma.classCategory.findMany({
         where: {
-          schoolId,  
+          schoolId,
           isDeleted: false,
         },
+        orderBy: { name: 'asc' },
         include: { classes: true },
       });
-
-      return classCategories;
+      // console.log('Class Categories:', classCategories);
+      return {
+        classCategories,
+        message: 'Class categories fetched successfully',
+      };
     } catch (error) {
       throw new HttpException(
         'Failed to fetch class categories',
@@ -387,6 +412,7 @@ export class ClassesService {
   }
 
   async getClassCategoryById(id: string, user: AuthenticatedUser) {
+    console.log(user);
     try {
       const classCategory = await this.prisma.classCategory.findUnique({
         where: { id },

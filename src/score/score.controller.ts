@@ -1,7 +1,20 @@
-import { Controller, Post, Get, Body, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { ScoreService } from './score.service';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guards';
-import { FetchClassArmResultsDto, FetchStudentResultDto, FetchStudentScoresDto, SaveStudentScoresDto } from './dto/score.dto';
+import {
+  FetchClassArmResultsDto,
+  FetchStudentResultDto,
+  FetchStudentScoresDto,
+  SaveStudentScoresDto,
+} from './dto/score.dto';
 
 @Controller('scores')
 export class ScoreController {

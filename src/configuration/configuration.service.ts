@@ -1,69 +1,223 @@
 import { PrismaService } from '@/prisma/prisma.service';
-import { BadRequestException, HttpException, Injectable, NotFoundException } from '@nestjs/common';
-import { AssignClassesDto, AssignMarkingSchemeDto, CreateGradingSystemDto, CreateMarkingSchemeDto, UpdateSchoolInfoDto } from './dto/configuration';
+import {
+  BadRequestException,
+  HttpException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  AssignClassesDto,
+  AssignMarkingSchemeDto,
+  CreateGradingSystemDto,
+  CreateMarkingSchemeDto,
+  UpdateSchoolInfoDto,
+} from './dto/configuration';
 import { AuthenticatedUser } from '@/types/express';
-import { v2 as cloudinary } from 'cloudinary';
+// import { v2 as cloudinary } from 'cloudinary';
 import { uploadToCloudinary } from '@/utils';
 import { AssessmentType } from '@prisma/client';
 import { LoggingService } from '@/log/logging.service';
 
 @Injectable()
 export class ConfigurationService {
-  constructor(private prisma: PrismaService,
-        private loggingService: LoggingService,
+  constructor(
+    private prisma: PrismaService,
+    private loggingService: LoggingService,
   ) {}
 
   async updateSchoolInformation(
     body: UpdateSchoolInfoDto,
     user: AuthenticatedUser,
     logo: Express.Multer.File,
+    schoolHeadSignature?: Express.Multer.File,
+    principalSignature?: Express.Multer.File,
+    bursarSignature?: Express.Multer.File,
   ) {
-    const { address, color, country, email, name, state, bursarContact, bursarName, bursarSignature, principalContact, principalName, principalSignature} = body;
+    const {
+      address,
+      color,
+      country,
+      email,
+      name,
+      state,
+      bursarContact,
+      bursarName,
+      bursarSignatureBase64,
+      principalContact,
+      principalName,
+      principalSignatureBase64,
+      schoolHeadContact,
+      schoolHeadName,
+      schoolHeadSignatureBase64,
+      logoBase64,
+    } = body;
     if (!user || !user.schoolId)
       throw new NotFoundException(
         'User not found or not associated with a school',
       );
     try {
-      let imageUrl: string | undefined;
-      let pubId: string | undefined;
+      let logoImageUrl: string | undefined;
+      let logoPubId: string | undefined;
+      let principalSignatureUrl: string | undefined;
+      let principalSignaturePubId: string | undefined;
+      let schoolHeadSignatureUrl: string | undefined;
+      let schoolHeadSignaturePubId: string | undefined;
+      let bursarSignatureUrl: string | undefined;
+      let bursarSignaturePubId: string | undefined;
 
-      if (logo && logo.buffer) {
-        // Use the reusable Cloudinary upload function with file buffer
-        const uploadResult = await uploadToCloudinary(logo.buffer, {
-          folder: 'school-logos',
-          transformation: { width: 800, height: 800, crop: 'limit' },
-        });
-        imageUrl = uploadResult.imageUrl;
-        pubId = uploadResult.pubId;
+      try {
+        // Handle logo upload
+        if (logo) {
+          const uploadResult = await uploadToCloudinary(logo.buffer, {
+            folder: 'configuration/logos',
+            transformation: { width: 800, height: 800, crop: 'limit' },
+          });
+          logoImageUrl = uploadResult.imageUrl;
+          logoPubId = uploadResult.pubId;
+        } else if (logoBase64) {
+          const uploadResult = await uploadToCloudinary(logoBase64, {
+            folder: 'configuration/logos',
+            transformation: { width: 800, height: 800, crop: 'limit' },
+          });
+          logoImageUrl = uploadResult.imageUrl;
+          logoPubId = uploadResult.pubId;
+        }
+
+        if (principalSignature) {
+          const uploadResult = await uploadToCloudinary(
+            principalSignature.buffer,
+            {
+              folder: 'configuration/signatures',
+              transformation: { width: 600, height: 200, crop: 'limit' },
+            },
+          );
+          principalSignatureUrl = uploadResult.imageUrl;
+          principalSignaturePubId = uploadResult.pubId;
+        }
+        // Handle principal signature upload
+        else if (principalSignatureBase64) {
+          const uploadResult = await uploadToCloudinary(
+            principalSignatureBase64,
+            {
+              folder: 'configuration/signatures',
+              transformation: { width: 600, height: 200, crop: 'limit' },
+            },
+          );
+          principalSignatureUrl = uploadResult.imageUrl;
+          principalSignaturePubId = uploadResult.pubId;
+        }
+
+        if (schoolHeadSignature) {
+          const uploadResult = await uploadToCloudinary(
+            schoolHeadSignature.buffer,
+            {
+              folder: 'configuration/signatures',
+              transformation: { width: 600, height: 200, crop: 'limit' },
+            },
+          );
+          schoolHeadSignatureUrl = uploadResult.imageUrl;
+          schoolHeadSignaturePubId = uploadResult.pubId;
+        }
+        // Handle school head signature upload
+        else if (schoolHeadSignatureBase64) {
+          const uploadResult = await uploadToCloudinary(
+            schoolHeadSignatureBase64,
+            {
+              folder: 'configuration/signatures',
+              transformation: { width: 600, height: 200, crop: 'limit' },
+            },
+          );
+          schoolHeadSignatureUrl = uploadResult.imageUrl;
+          schoolHeadSignaturePubId = uploadResult.pubId;
+        }
+
+        if (bursarSignature) {
+          const uploadResult = await uploadToCloudinary(
+            bursarSignature.buffer,
+            {
+              folder: 'configuration/signatures',
+              transformation: { width: 600, height: 200, crop: 'limit' },
+            },
+          );
+          bursarSignatureUrl = uploadResult.imageUrl;
+          bursarSignaturePubId = uploadResult.pubId;
+        }
+        // Handle bursar signature upload
+        else if (bursarSignatureBase64) {
+          const uploadResult = await uploadToCloudinary(bursarSignatureBase64, {
+            folder: 'configuration/signatures',
+            transformation: { width: 600, height: 200, crop: 'limit' },
+          });
+          bursarSignatureUrl = uploadResult.imageUrl;
+          bursarSignaturePubId = uploadResult.pubId;
+        }
+      } catch (error) {
+        console.error('Image upload error:', error);
+        throw new BadRequestException('Failed to upload image to Cloudinary');
       }
 
       const schoolId = user.schoolId;
+
+      // Prepare update data object
+      const updateData: any = {
+        color,
+        country,
+        state,
+        bursarContact,
+        bursarName,
+        principalContact,
+        principalName,
+        schoolHeadContact,
+        schoolHeadName,
+      };
+
+      // Only update logo if uploaded
+      if (logoImageUrl && logoPubId) {
+        updateData.logo = { imageUrl: logoImageUrl, pubId: logoPubId };
+      }
+
+      // Only update signatures if uploaded
+      if (principalSignatureUrl && principalSignaturePubId) {
+        updateData.principalSignature = {
+          imageUrl: principalSignatureUrl,
+          pubId: principalSignaturePubId,
+        };
+      }
+
+      if (schoolHeadSignatureUrl && schoolHeadSignaturePubId) {
+        updateData.schoolHeadSignature = {
+          imageUrl: schoolHeadSignatureUrl,
+          pubId: schoolHeadSignaturePubId,
+        };
+      }
+
+      if (bursarSignatureUrl && bursarSignaturePubId) {
+        updateData.bursarSignature = {
+          imageUrl: bursarSignatureUrl,
+          pubId: bursarSignaturePubId,
+        };
+      }
+
       const school = await this.prisma.configuration.update({
-        where: { id: schoolId },
-        data: {
-          color,
-          country,
-          state,
-          logo: imageUrl ? imageUrl : undefined,
-          bursarContact,
-          bursarName,
-          bursarSignature,
-          principalContact, 
-          principalName,
-          principalSignature
-        },
+        where: { schoolId },
+        data: updateData,
       });
+
       if (!school)
         throw new NotFoundException('School data not found for this user');
-    const schoolInfo = await this.prisma.school.update({
+
+      const schoolInfo = await this.prisma.school.update({
         where: { id: schoolId },
         data: {
           address,
           email,
           name,
-        }
-    });
-    if(!schoolInfo) throw new NotFoundException("School information not found!")
+        },
+      });
+
+      if (!schoolInfo)
+        throw new NotFoundException('School information not found!');
+
       return school;
     } catch (error) {
       throw new HttpException('Failed to update school information', 500);
@@ -78,19 +232,19 @@ export class ConfigurationService {
     try {
       const schoolId = user.schoolId;
       const school = await this.prisma.configuration.findUnique({
-        where: { schoolId }, 
-        include:{ school: true}
+        where: { schoolId },
+        include: { school: true },
       });
       if (!school)
         throw new NotFoundException('School data not found for this user');
-      return school;
+      return { school, message: 'School information retrieved successfully' };
     } catch (error) {
       throw new HttpException('Failed to get school information', 500);
     }
   }
 
-// Assign Marking Scheme to Classes and Term Definitions
-async assignMarkingSchemeToClassesAndTerms(
+  // Assign Marking Scheme to Classes and Term Definitions
+  async assignMarkingSchemeToClassesAndTerms(
     markingSchemeId: string,
     dto: AssignMarkingSchemeDto,
     req: any,
@@ -100,7 +254,11 @@ async assignMarkingSchemeToClassesAndTerms(
     try {
       // Validate marking scheme
       const markingScheme = await this.prisma.markingScheme.findUnique({
-        where: { id: markingSchemeId, schoolId: requester.schoolId, isDeleted: false },
+        where: {
+          id: markingSchemeId,
+          schoolId: requester.schoolId,
+          isDeleted: false,
+        },
         select: { id: true, name: true },
       });
       if (!markingScheme) {
@@ -109,15 +267,23 @@ async assignMarkingSchemeToClassesAndTerms(
 
       // Validate assignments
       if (!dto.assignments || dto.assignments.length === 0) {
-        throw new BadRequestException('At least one class and term definition assignment is required');
+        throw new BadRequestException(
+          'At least one class and term definition assignment is required',
+        );
       }
 
-      const classIds = [...new Set(dto.assignments.map(a => a.classId))];
-      const termDefinitionIds = [...new Set(dto.assignments.map(a => a.termDefinitionId))];
+      const classIds = [...new Set(dto.assignments.map((a) => a.classId))];
+      const termDefinitionIds = [
+        ...new Set(dto.assignments.map((a) => a.termDefinitionId)),
+      ];
 
       // Validate classes
       const classes = await this.prisma.class.findMany({
-        where: { id: { in: classIds }, schoolId: requester.schoolId, isDeleted: false },
+        where: {
+          id: { in: classIds },
+          schoolId: requester.schoolId,
+          isDeleted: false,
+        },
       });
       if (classes.length !== classIds.length) {
         throw new BadRequestException('One or more class IDs are invalid');
@@ -128,7 +294,9 @@ async assignMarkingSchemeToClassesAndTerms(
         where: { id: { in: termDefinitionIds }, schoolId: requester.schoolId },
       });
       if (termDefinitions.length !== termDefinitionIds.length) {
-        throw new BadRequestException('One or more term definition IDs are invalid');
+        throw new BadRequestException(
+          'One or more term definition IDs are invalid',
+        );
       }
 
       // Update assignments in a transaction
@@ -183,7 +351,10 @@ async assignMarkingSchemeToClassesAndTerms(
       };
     } catch (error) {
       console.error('Error assigning marking scheme:', error);
-      throw new Error('Failed to assign marking scheme: ' + (error.message || 'Unknown error'));
+      throw new Error(
+        'Failed to assign marking scheme: ' +
+          (error.message || 'Unknown error'),
+      );
     }
   }
 
@@ -202,7 +373,10 @@ async assignMarkingSchemeToClassesAndTerms(
       }
 
       // Validate total score
-      const totalScore = dto.components.reduce((sum, comp) => sum + comp.score, 0);
+      const totalScore = dto.components.reduce(
+        (sum, comp) => sum + comp.score,
+        0,
+      );
       if (totalScore !== 100) {
         throw new BadRequestException('Total score of components must be 100');
       }
@@ -221,7 +395,7 @@ async assignMarkingSchemeToClassesAndTerms(
       }
 
       // Update marking scheme and components in a transaction
-      const result = await this.prisma.$transaction(async (tx) => {
+      await this.prisma.$transaction(async (tx) => {
         // Update marking scheme
         const updatedMarkingScheme = await tx.markingScheme.update({
           where: { id },
@@ -239,12 +413,18 @@ async assignMarkingSchemeToClassesAndTerms(
         await tx.continuousAssessmentComponent.deleteMany({
           where: {
             continuousAssessment: {
-              markingSchemeComponentId: { in: existingComponents.map(c => c.id) },
+              markingSchemeComponentId: {
+                in: existingComponents.map((c) => c.id),
+              },
             },
           },
         });
         await tx.continuousAssessment.deleteMany({
-          where: { markingSchemeComponentId: { in: existingComponents.map(c => c.id) } },
+          where: {
+            markingSchemeComponentId: {
+              in: existingComponents.map((c) => c.id),
+            },
+          },
         });
         await tx.markingSchemeComponent.deleteMany({
           where: { markingSchemeId: id },
@@ -269,7 +449,7 @@ async assignMarkingSchemeToClassesAndTerms(
         // Create ContinuousAssessment for CA-type components
         const continuousAssessments = await Promise.all(
           components
-            .filter((comp) => comp.type === 'CA')
+            .filter((comp) => comp.type === AssessmentType.CA)
             .map((comp) =>
               tx.continuousAssessment.create({
                 data: {
@@ -302,7 +482,10 @@ async assignMarkingSchemeToClassesAndTerms(
       return await this.getMarkingScheme(id);
     } catch (error) {
       console.error('Error updating marking scheme:', error);
-      throw new Error('Failed to update marking scheme: ' + (error.message || 'Unknown error'));
+      throw new Error(
+        'Failed to update marking scheme: ' +
+          (error.message || 'Unknown error'),
+      );
     }
   }
 
@@ -350,7 +533,7 @@ async assignMarkingSchemeToClassesAndTerms(
         await tx.continuousAssessmentComponent.updateMany({
           where: {
             continuousAssessment: {
-              markingSchemeComponentId: { in: components.map(c => c.id) },
+              markingSchemeComponentId: { in: components.map((c) => c.id) },
             },
           },
           data: {
@@ -360,7 +543,9 @@ async assignMarkingSchemeToClassesAndTerms(
           },
         });
         await tx.continuousAssessment.updateMany({
-          where: { markingSchemeComponentId: { in: components.map(c => c.id) } },
+          where: {
+            markingSchemeComponentId: { in: components.map((c) => c.id) },
+          },
           data: {
             isDeleted: true,
             updatedBy: requester.id,
@@ -397,7 +582,10 @@ async assignMarkingSchemeToClassesAndTerms(
       };
     } catch (error) {
       console.error('Error deleting marking scheme:', error);
-      throw new Error('Failed to delete marking scheme: ' + (error.message || 'Unknown error'));
+      throw new Error(
+        'Failed to delete marking scheme: ' +
+          (error.message || 'Unknown error'),
+      );
     }
   }
 
@@ -443,11 +631,12 @@ async assignMarkingSchemeToClassesAndTerms(
             name: comp.name,
             score: comp.score,
             type: comp.type,
-            subComponents: comp.continuousAssessments[0]?.components.map((sub) => ({
-              id: sub.id,
-              name: sub.name,
-              score: sub.score,
-            })) || [],
+            subComponents:
+              comp.continuousAssessments[0]?.components.map((sub) => ({
+                id: sub.id,
+                name: sub.name,
+                score: sub.score,
+              })) || [],
           })),
           assignments: markingScheme.classAssignments.map((a) => ({
             classId: a.class.id,
@@ -459,7 +648,9 @@ async assignMarkingSchemeToClassesAndTerms(
       };
     } catch (error) {
       console.error('Error fetching marking scheme:', error);
-      throw new Error('Failed to fetch marking scheme: ' + (error.message || 'Unknown error'));
+      throw new Error(
+        'Failed to fetch marking scheme: ' + (error.message || 'Unknown error'),
+      );
     }
   }
 
@@ -467,12 +658,15 @@ async assignMarkingSchemeToClassesAndTerms(
   async createMarkingScheme(data: {
     name: string;
     schoolId: string;
-    components: { name: string; score: number; type: 'CA' | 'EXAM' }[];
+    components: { name: string; score: number; type: AssessmentType }[];
     createdBy: string;
   }) {
     // Validate total score
-    const totalScore = data.components.reduce((sum, comp) => sum + comp.score, 0);
-    if (totalScore !== 100) {     
+    const totalScore = data.components.reduce(
+      (sum, comp) => sum + comp.score,
+      0,
+    );
+    if (totalScore !== 100) {
       throw new BadRequestException('Total score of components must be 100');
     }
 
@@ -530,9 +724,14 @@ async assignMarkingSchemeToClassesAndTerms(
     });
     if (!ca) throw new BadRequestException('Continuous Assessment not found');
 
-    const totalScore = data.components.reduce((sum, comp) => sum + comp.score, 0);
+    const totalScore = data.components.reduce(
+      (sum, comp) => sum + comp.score,
+      0,
+    );
     if (totalScore !== ca.markingSchemeComponent.score) {
-      throw new BadRequestException(`Total score of components must equal ${ca.markingSchemeComponent.score}`);
+      throw new BadRequestException(
+        `Total score of components must equal ${ca.markingSchemeComponent.score}`,
+      );
     }
 
     // Delete existing components
@@ -557,8 +756,6 @@ async assignMarkingSchemeToClassesAndTerms(
 
     return components;
   }
-
-     
 
   // Create Grading System and Grades
   async createGradingSystem(dto: CreateGradingSystemDto, req: any) {
@@ -658,12 +855,19 @@ async assignMarkingSchemeToClassesAndTerms(
       };
     } catch (error) {
       console.error('Error creating grading system:', error);
-      throw new Error('Failed to create grading system: ' + (error.message || 'Unknown error'));
+      throw new Error(
+        'Failed to create grading system: ' +
+          (error.message || 'Unknown error'),
+      );
     }
   }
 
   // Assign Grading System to Classes
-  async assignGradingSystemToClasses(id: string, dto: AssignClassesDto, req: any) {
+  async assignGradingSystemToClasses(
+    id: string,
+    dto: AssignClassesDto,
+    req: any,
+  ) {
     const requester = req.user;
 
     try {
@@ -680,7 +884,11 @@ async assignMarkingSchemeToClassesAndTerms(
         throw new BadRequestException('At least one class ID is required');
       }
       const classes = await this.prisma.class.findMany({
-        where: { id: { in: dto.classIds }, schoolId: requester.schoolId, isDeleted: false },
+        where: {
+          id: { in: dto.classIds },
+          schoolId: requester.schoolId,
+          isDeleted: false,
+        },
       });
       if (classes.length !== dto.classIds.length) {
         throw new BadRequestException('One or more class IDs are invalid');
@@ -731,7 +939,9 @@ async assignMarkingSchemeToClassesAndTerms(
       };
     } catch (error) {
       console.error('Error assigning classes:', error);
-      throw new Error('Failed to assign classes: ' + (error.message || 'Unknown error'));
+      throw new Error(
+        'Failed to assign classes: ' + (error.message || 'Unknown error'),
+      );
     }
   }
 
@@ -784,7 +994,9 @@ async assignMarkingSchemeToClassesAndTerms(
       };
     } catch (error) {
       console.error('Error fetching grading system:', error);
-      throw new Error('Failed to fetch grading system: ' + (error.message || 'Unknown error'));
+      throw new Error(
+        'Failed to fetch grading system: ' + (error.message || 'Unknown error'),
+      );
     }
   }
 
@@ -894,7 +1106,10 @@ async assignMarkingSchemeToClassesAndTerms(
       };
     } catch (error) {
       console.error('Error updating grading system:', error);
-      throw new Error('Failed to update grading system: ' + (error.message || 'Unknown error'));
+      throw new Error(
+        'Failed to update grading system: ' +
+          (error.message || 'Unknown error'),
+      );
     }
   }
 
@@ -963,8 +1178,121 @@ async assignMarkingSchemeToClassesAndTerms(
       };
     } catch (error) {
       console.error('Error deleting grading system:', error);
-      throw new Error('Failed to delete grading system: ' + (error.message || 'Unknown error'));
+      throw new Error(
+        'Failed to delete grading system: ' +
+          (error.message || 'Unknown error'),
+      );
     }
   }
- 
+
+  // get terms
+  async getTerms(req: any) {
+    const user = req.user as AuthenticatedUser;
+
+    if (!user.schoolId) {
+      throw new NotFoundException('User must be associated with a school');
+    }
+
+    try {
+      const terms = await this.prisma.termDefinition.findMany({
+        where: { schoolId: user.schoolId },
+        orderBy: { name: 'asc' },
+        select: {
+          id: true,
+          name: true,
+        },
+      });
+
+      return {
+        statusCode: 200,
+        message: 'Terms retrieved successfully',
+        data: terms,
+      };
+    } catch (error) {
+      console.error('Error fetching terms:', error);
+      throw new HttpException('Failed to fetch terms', 500);
+    }
+  }
+
+  // get all marking schemes
+  async getAllMarkingSchemes(req: any) {
+    const user = req.user as AuthenticatedUser;
+
+    if (!user.schoolId) {
+      throw new NotFoundException('User must be associated with a school');
+    }
+
+    try {
+      const markingSchemes = await this.prisma.markingScheme.findMany({
+        where: { schoolId: user.schoolId, isDeleted: false },
+        orderBy: { name: 'asc' },
+        include: {
+          components: {
+            where: { isDeleted: false },
+            include: {
+              continuousAssessments: {
+                where: { isDeleted: false },
+                include: {
+                  components: { where: { isDeleted: false } },
+                },
+              },
+            },
+          },
+          classAssignments: {
+            where: { isDeleted: false },
+            include: {
+              class: { select: { id: true, name: true } },
+              termDefinition: { select: { id: true, name: true } },
+            },
+          },
+        },
+      });
+
+      return {
+        statusCode: 200,
+        message: 'Marking schemes retrieved successfully',
+        data: markingSchemes,
+      };
+    } catch (error) {
+      console.error('Error fetching marking schemes:', error);
+      throw new HttpException('Failed to fetch marking schemes', 500);
+    }
+  }
+
+  // get all grading systems
+  async getAllGradingSystems(req: any) {
+    const user = req.user as AuthenticatedUser;
+
+    if (!user.schoolId) {
+      throw new NotFoundException('User must be associated with a school');
+    }
+
+    try {
+      const gradingSystems = await this.prisma.gradingSystem.findMany({
+        where: { schoolId: user.schoolId, isDeleted: false },
+        orderBy: { name: 'asc' },
+        include: {
+          grades: {
+            where: { isDeleted: false },
+            orderBy: { scoreEndPoint: 'desc' },
+          },
+          classAssignments: {
+            where: { isDeleted: false },
+            include: {
+              class: { select: { id: true, name: true } },
+            },
+          },
+        },
+      });
+
+      return {
+        statusCode: 200,
+        message: 'Grading systems retrieved successfully',
+        data: gradingSystems,
+      };
+    } catch (error) {
+      console.error('Error fetching grading systems:', error);
+      throw new HttpException('Failed to fetch grading systems', 500);
+    }
+  }
 }
