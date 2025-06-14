@@ -470,4 +470,28 @@ export class ClassesService {
       );
     }
   }
+
+  async getStudentClassAssignment(user: AuthenticatedUser, body: any) {
+    const { classId, classArmId, sessionId } = body;
+    const schoolId = user.schoolId;
+    try {
+      const studentClassAssignment = await this.prisma.studentClassAssignment.findMany({
+        where: {
+          schoolId,
+          classId,
+          classArmId,
+          sessionId,
+        },
+        include: {
+          class: { select: {name: true } },
+        },
+      })
+      return studentClassAssignment;   
+    }catch(error) {
+      throw new HttpException(
+        'Failed to fetch student class assignment',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 }

@@ -745,18 +745,36 @@ export class SessionsService {
     try {
       const classSession = await this.prisma.sessionClassAssignment.create({
         data: {
-          sessionId,
+          sessionId,  
           classId,
-          classArmId,
+          classArmId,  
           schoolId,
           createdBy: user.id,
         }
       })
       return classSession
-    }catch(error){
+    }catch(error){     
   throw new HttpException(error.message, 500)
     }
 
+  }
+
+  async schoolSessionTerm(user: AuthenticatedUser){
+    const schoolId = user.schoolId
+    try {
+      const session = await this.prisma.session.findMany({
+        where: { schoolId, isDeleted: false },
+        include: { terms: { where: { isDeleted: false } }
+        },
+      })
+      if(!session){
+        throw new NotFoundException('Session not found for this school')
+      }
+      return session
+  
+    } catch (error) {
+      throw new HttpException(error.message, 500)
+    }
   }
   
 }

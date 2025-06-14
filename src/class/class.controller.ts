@@ -10,6 +10,7 @@ import {
   Patch,
   Post,
   Request,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { ClassesService } from './class.service';
@@ -136,4 +137,15 @@ export class ClassesController {
     }
     return this.classesService.deleteClassCategory(id, user);
   }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Get('get-student-class-assignment')
+  async getStudentClassAssignment(@Request() req: RequestExpress, @Body() body: any) {
+    const user = req.user as AuthenticatedUser;
+    if (!user.schoolId) {
+      throw new UnauthorizedException('User must be associated with a school');
+    }
+    return this.classesService.getStudentClassAssignment(user, body);
+  }
+
 }

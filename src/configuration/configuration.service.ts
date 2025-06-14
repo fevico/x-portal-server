@@ -966,5 +966,31 @@ async assignMarkingSchemeToClassesAndTerms(
       throw new Error('Failed to delete grading system: ' + (error.message || 'Unknown error'));
     }
   }
+
+  async createReportSetting(dto: any, req:any){
+    const schoolId = req.user.schoolId;
+    const userId = req.user.id;
+    const {classId, padding, headerFont, subjectFont, valueFont, classTeacherCompute, showAge, showPosition, showNextFee} = dto;
+    try {
+      const reportSetting = await this.prisma.reportSetting.create({
+        data: {
+          schoolId,
+          userId,
+          classId,
+          padding,
+          headerFont,
+          subjectFont,
+          valueFont,
+          classTeacherCompute,
+          showAge,
+          showPosition,
+          showNextFee,
+        },
+      });
+
+      return {
+        statusCode: 200,
+    }
+  }
  
 }

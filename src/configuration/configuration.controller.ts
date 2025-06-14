@@ -96,6 +96,12 @@ async getMarkingScheme(@Param('id') id: string) {
     return await this.configurationService.createGradingSystem(dto, req);
   }
 
+  @Post("report-setting")
+  @UseGuards(JwtAuthGuard)
+  async createReportSetting(@Body() dto: any, @Req() req: any) {
+    return await this.configurationService.createReportSetting(dto, req);
+  }
+
   // Assign Grading System to Classes
   @UseGuards(JwtAuthGuard)
   @Post(':id/assign-classes')
