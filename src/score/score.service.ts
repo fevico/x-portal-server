@@ -1,8 +1,16 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
-import { FetchClassArmResultsDto, FetchStudentResultDto, FetchStudentScoresDto, SaveStudentScoresDto } from './dto/score.dto';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  FetchClassArmResultsDto,
+  FetchStudentResultDto,
+  FetchStudentScoresDto,
+  SaveStudentScoresDto,
+} from './dto/score.dto';
 import { PrismaService } from '@/prisma/prisma.service';
 import { LoggingService } from '@/log/logging.service';
-
 
 @Injectable()
 export class ScoreService {
@@ -46,71 +54,89 @@ export class ScoreService {
       }
 
       // Resolve marking scheme for the class and term
-      const markingSchemeAssignment = await this.prisma.classTermMarkingSchemeAssignment.findFirst({
-        where: {
-          classId: data.classId,
-          termDefinitionId: sessionTerm.termDefinitionId,
-          schoolId: data.schoolId,
-          isDeleted: false,
-        },
-        include: { markingScheme: { include: { components: true } } },
-      });
+      const markingSchemeAssignment =
+        await this.prisma.classTermMarkingSchemeAssignment.findFirst({
+          where: {
+            classId: data.classId,
+            termDefinitionId: sessionTerm.termDefinitionId,
+            schoolId: data.schoolId,
+            isDeleted: false,
+          },
+          include: { markingScheme: { include: { components: true } } },
+        });
       if (!markingSchemeAssignment) {
-        throw new BadRequestException('No marking scheme assigned to this class and term');
+        throw new BadRequestException(
+          'No marking scheme assigned to this class and term',
+        );
       }
 
       // Save scores
-      const scoreRecords = await this.prisma.$transaction(async (prisma) => Promise.all(data.scores.map(async (score) => {
-          let markingSchemeComponentId = score.markingSchemeComponentId; 
+      const scoreRecords = await this.prisma.$transaction(async (prisma) =>
+        Promise.all(
+          data.scores.map(async (score) => {
+            let markingSchemeComponentId = score.markingSchemeComponentId;
 
-          // If continuousAssessmentComponentId is provided, find the parent MarkingSchemeComponent
-          if (score.continuousAssessmentComponentId) {
-            const caComponent = await this.prisma.continuousAssessmentComponent.findUnique({
-              where: { id: score.continuousAssessmentComponentId },
-              include: { continuousAssessment: { include: { markingSchemeComponent: true } } },
-            });
-            if (!caComponent) {
-              throw new BadRequestException('Invalid continuous assessment component');
+            // If continuousAssessmentComponentId is provided, find the parent MarkingSchemeComponent
+            if (score.continuousAssessmentComponentId) {
+              const caComponent =
+                await this.prisma.continuousAssessmentComponent.findUnique({
+                  where: { id: score.continuousAssessmentComponentId },
+                  include: {
+                    continuousAssessment: {
+                      include: { markingSchemeComponent: true },
+                    },
+                  },
+                });
+              if (!caComponent) {
+                throw new BadRequestException(
+                  'Invalid continuous assessment component',
+                );
+              }
+              markingSchemeComponentId =
+                caComponent.continuousAssessment.markingSchemeComponentId;
             }
-            markingSchemeComponentId = caComponent.continuousAssessment.markingSchemeComponentId;
-          }
 
-          // Validate component exists in the marking scheme
-          if (markingSchemeComponentId) {
-            const componentExists = markingSchemeAssignment.markingScheme.components.some(
-              (c) => c.id === markingSchemeComponentId,
-            );
-            if (!componentExists) {
-              throw new BadRequestException('Invalid marking scheme component');
+            // Validate component exists in the marking scheme
+            if (markingSchemeComponentId) {
+              const componentExists =
+                markingSchemeAssignment.markingScheme.components.some(
+                  (c) => c.id === markingSchemeComponentId,
+                );
+              if (!componentExists) {
+                throw new BadRequestException(
+                  'Invalid marking scheme component',
+                );
+              }
             }
-          }
 
-          return this.prisma.studentScoreAssignment.upsert({
-            where: {
-              studentId_subjectId_sessionId_sessionTermId: {
+            return this.prisma.studentScoreAssignment.upsert({
+              where: {
+                studentId_subjectId_sessionId_sessionTermId: {
+                  studentId: data.studentId,
+                  subjectId: data.subjectId,
+                  sessionId: data.sessionId,
+                  sessionTermId: data.sessionTermId,
+                },
+              },
+              update: { score: score.score, updatedBy: data.recordedBy },
+              create: {
                 studentId: data.studentId,
                 subjectId: data.subjectId,
+                classId: data.classId,
+                classArmId: data.classArmId,
                 sessionId: data.sessionId,
                 sessionTermId: data.sessionTermId,
+                schoolId: data.schoolId,
+                markingSchemeComponentId: markingSchemeComponentId,
+                continuousAssessmentComponentId:
+                  score.continuousAssessmentComponentId,
+                score: score.score,
+                recordedBy: data.recordedBy,
+                createdBy: data.recordedBy,
               },
-            },
-            update: { score: score.score, updatedBy: data.recordedBy },
-            create: {
-              studentId: data.studentId,
-              subjectId: data.subjectId,
-              classId: data.classId,
-              classArmId: data.classArmId,
-              sessionId: data.sessionId,
-              sessionTermId: data.sessionTermId,
-              schoolId: data.schoolId,
-              markingSchemeComponentId: markingSchemeComponentId,
-              continuousAssessmentComponentId: score.continuousAssessmentComponentId,
-              score: score.score,
-              recordedBy: data.recordedBy,
-              createdBy: data.recordedBy,
-            },
-          });
-        }))
+            });
+          }),
+        ),
       );
 
       // Calculate component-level scores
@@ -142,12 +168,22 @@ export class ScoreService {
       }, {});
 
       // Total score
-      const totalScore: number = Object.values(componentScores as { [key: string]: { score: number } }).reduce((sum: number, comp) => sum + comp.score, 0);
+      const totalScore: number = Object.values(
+        componentScores as { [key: string]: { score: number } },
+      ).reduce((sum: number, comp) => sum + comp.score, 0);
 
       // Get grading system
       const gradingSystem = await this.prisma.classGradingSystem.findFirst({
-        where: { classId: data.classId, schoolId: data.schoolId, isDeleted: false },
-        include: { gradingSystem: { include: { grades: { where: { isDeleted: false } } } } },
+        where: {
+          classId: data.classId,
+          schoolId: data.schoolId,
+          isDeleted: false,
+        },
+        include: {
+          gradingSystem: {
+            include: { grades: { where: { isDeleted: false } } },
+          },
+        },
       });
 
       const grade = gradingSystem?.gradingSystem.grades.find(
@@ -210,7 +246,9 @@ export class ScoreService {
       };
     } catch (error) {
       console.error('Error saving student scores:', error);
-      throw new Error('Failed to save student scores: ' + (error.message || 'Unknown error'));
+      throw new Error(
+        'Failed to save student scores: ' + (error.message || 'Unknown error'),
+      );
     }
   }
 
@@ -227,19 +265,28 @@ export class ScoreService {
           isDeleted: false,
         },
         include: {
-          markingSchemeComponent: { select: { id: true, name: true, score: true, type: true } },
-          continuousAssessmentComponent: { select: { id: true, name: true, score: true } },
+          markingSchemeComponent: {
+            select: { id: true, name: true, score: true, type: true },
+          },
+          continuousAssessmentComponent: {
+            select: { id: true, name: true, score: true },
+          },
         },
       });
 
       const result = scores.reduce((acc, score) => {
-        const id = score.continuousAssessmentComponentId || score.markingSchemeComponentId;
+        const id =
+          score.continuousAssessmentComponentId ||
+          score.markingSchemeComponentId;
         acc[id] = {
           id,
-          name: score.continuousAssessmentComponent?.name || score.markingSchemeComponent?.name,
+          name:
+            score.continuousAssessmentComponent?.name ||
+            score.markingSchemeComponent?.name,
           score: score.score,
           markingSchemeComponentId: score.markingSchemeComponentId,
-          continuousAssessmentComponentId: score.continuousAssessmentComponentId,
+          continuousAssessmentComponentId:
+            score.continuousAssessmentComponentId,
           type: score.markingSchemeComponent?.type,
         };
         return acc;
@@ -252,7 +299,9 @@ export class ScoreService {
       };
     } catch (error) {
       console.error('Error fetching student scores:', error);
-      throw new Error('Failed to fetch student scores: ' + (error.message || 'Unknown error'));
+      throw new Error(
+        'Failed to fetch student scores: ' + (error.message || 'Unknown error'),
+      );
     }
   }
 
@@ -285,7 +334,14 @@ export class ScoreService {
         include: {
           student: {
             include: {
-              user: { select: { id: true, firstname: true, lastname: true, email: true } },
+              user: {
+                select: {
+                  id: true,
+                  firstname: true,
+                  lastname: true,
+                  email: true,
+                },
+              },
             },
           },
         },
@@ -296,51 +352,57 @@ export class ScoreService {
       }
 
       // Fetch MarkingSchemeComponents
-      const markingSchemeAssignment = await this.prisma.classTermMarkingSchemeAssignment.findFirst({
-        where: {
-          classId: result.classId,
-          termDefinitionId: {
-            in: [await this.prisma.sessionTerm.findUnique({
-              where: { id: dto.sessionTermId },
-              select: { termDefinitionId: true },
-            }).then(t => t.termDefinitionId)].flat(),
+      const markingSchemeAssignment =
+        await this.prisma.classTermMarkingSchemeAssignment.findFirst({
+          where: {
+            classId: result.classId,
+            termDefinitionId: {
+              in: [
+                await this.prisma.sessionTerm
+                  .findUnique({
+                    where: { id: dto.sessionTermId },
+                    select: { termDefinitionId: true },
+                  })
+                  .then((t) => t.termDefinitionId),
+              ].flat(),
+            },
+            schoolId: dto.schoolId,
+            isDeleted: false,
           },
-          schoolId: dto.schoolId,
-          isDeleted: false,
-        },
-        include: {
-          markingScheme: {
-            include: {
-              components: {
-                select: { id: true, name: true },
-                where: { isDeleted: false },
+          include: {
+            markingScheme: {
+              include: {
+                components: {
+                  select: { id: true, name: true },
+                  where: { isDeleted: false },
+                },
               },
             },
           },
-        },
-      });
+        });
 
       if (!markingSchemeAssignment) {
-        throw new BadRequestException('No matching marking scheme found for the term');
+        throw new BadRequestException(
+          'No matching marking scheme found for the term',
+        );
       }
 
       // Map componentScores to include names
-      const componentScoresWithNames = Object.entries(result.componentScores || []).reduce(
-        (acc: any, [componentId, comp]: [string, any]) => {
-          const component = markingSchemeAssignment.markingScheme.components.find(
-            (c) => c.id === componentId,
-          );
-          if (component) {
-            acc[componentId] = {
-              id: comp.id,
-              name: comp.name,
-              score: comp.score,
-            };
-          }
-          return acc;
-        },
-        {},
-      );
+      const componentScoresWithNames = Object.entries(
+        result.componentScores || [],
+      ).reduce((acc: any, [componentId, comp]: [string, any]) => {
+        const component = markingSchemeAssignment.markingScheme.components.find(
+          (c) => c.id === componentId,
+        );
+        if (component) {
+          acc[componentId] = {
+            id: comp.id,
+            name: comp.name,
+            score: comp.score,
+          };
+        }
+        return acc;
+      }, {});
 
       return {
         statusCode: 200,
@@ -368,7 +430,9 @@ export class ScoreService {
       };
     } catch (error) {
       console.error('Error fetching student result:', error);
-      throw new Error('Failed to fetch student result: ' + (error.message || 'Unknown error'));
+      throw new Error(
+        'Failed to fetch student result: ' + (error.message || 'Unknown error'),
+      );
     }
   }
 
@@ -401,7 +465,14 @@ export class ScoreService {
         include: {
           student: {
             include: {
-              user: { select: { id: true, firstname: true, lastname: true, email: true } },
+              user: {
+                select: {
+                  id: true,
+                  firstname: true,
+                  lastname: true,
+                  email: true,
+                },
+              },
             },
           },
           subject: { select: { id: true, name: true } },
@@ -409,55 +480,69 @@ export class ScoreService {
       });
 
       // Fetch marking scheme for the class and term
-      const markingSchemeAssignment = await this.prisma.classTermMarkingSchemeAssignment.findFirst({
-        where: {
-          classId: {
-            in: [await this.prisma.classArm.findUnique({
-              where: { id: dto.classArmId },
-              select: { id: true },
-            }).then(() => this.prisma.sessionClassAssignment.findFirst({
-              where: { classArmId: dto.classArmId, sessionId: dto.sessionId },
-              select: { classId: true },
-            }).then(a => a.classId))],
+      const markingSchemeAssignment =
+        await this.prisma.classTermMarkingSchemeAssignment.findFirst({
+          where: {
+            classId: {
+              in: [
+                await this.prisma.classArm
+                  .findUnique({
+                    where: { id: dto.classArmId },
+                    select: { id: true },
+                  })
+                  .then(() =>
+                    this.prisma.sessionClassAssignment
+                      .findFirst({
+                        where: {
+                          classArmId: dto.classArmId,
+                          sessionId: dto.sessionId,
+                        },
+                        select: { classId: true },
+                      })
+                      .then((a) => a.classId),
+                  ),
+              ],
+            },
+            termDefinitionId: sessionTerm.termDefinitionId,
+            schoolId: dto.schoolId,
+            isDeleted: false,
           },
-          termDefinitionId: sessionTerm.termDefinitionId,
-          schoolId: dto.schoolId,
-          isDeleted: false,
-        },
-        include: {
-          markingScheme: {
-            include: {
-              components: {
-                select: { id: true, name: true },
-                where: { isDeleted: false },
+          include: {
+            markingScheme: {
+              include: {
+                components: {
+                  select: { id: true, name: true },
+                  where: { isDeleted: false },
+                },
               },
             },
           },
-        },
-      });
+        });
 
       if (!markingSchemeAssignment) {
-        throw new BadRequestException('No marking scheme assigned to this class and term');
+        throw new BadRequestException(
+          'No marking scheme assigned to this class and term',
+        );
       }
 
       // Map results with component scores
       const formattedResults = results.map((result) => {
-        const componentScoresWithNames = Object.entries(result.componentScores || []).reduce(
-          (acc: any, [componentId, comp]: [string, any]) => {
-            const component = markingSchemeAssignment.markingScheme.components.find(
+        const componentScoresWithNames = Object.entries(
+          result.componentScores || [],
+        ).reduce((acc: any, [componentId, comp]: [string, any]) => {
+          const component =
+            markingSchemeAssignment.markingScheme.components.find(
               (c) => c.id === componentId,
             );
-            if (component) {
-              acc[componentId] = {
-                id: comp.id,
-                name: comp.name,
-                score: comp.score,
-              };
-            }
-            return acc;
-          },
-          {},
-        );
+          if (component) {
+            acc[componentId] = {
+              id: comp.id,
+              name: comp.name,
+              score: comp.score,
+            };
+          }
+          return acc;
+        }, {});
 
         return {
           id: result.id,
@@ -491,7 +576,10 @@ export class ScoreService {
       };
     } catch (error) {
       console.error('Error fetching class arm results:', error);
-      throw new Error('Failed to fetch class arm results: ' + (error.message || 'Unknown error'));
+      throw new Error(
+        'Failed to fetch class arm results: ' +
+          (error.message || 'Unknown error'),
+      );
     }
   }
 }

@@ -13,7 +13,6 @@ import {
   Query,
   Req,
   UseInterceptors,
-  UploadedFile,
 } from '@nestjs/common';
 import { SchoolsService } from './schools.service';
 
@@ -96,7 +95,6 @@ export class SchoolsController {
     @Param('id') id: string,
     @Body() updateSchoolDto: UpdateSchoolDto,
     @Request() req: RequestExpress,
-    @UploadedFile() file: Express.Multer.File,
   ) {
     const user = req.user as AuthenticatedUser;
     const school = await this.schoolsService.updateSchool(

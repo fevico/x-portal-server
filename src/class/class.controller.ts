@@ -17,7 +17,6 @@ import { ClassesService } from './class.service';
 import { AssignClassArmsDto } from './dto/assign.class.dto';
 import { Request as RequestExpress } from 'express';
 import { AuthenticatedUser } from '@/types/express';
-import { ClassCategory } from '@prisma/client';
 
 @Controller('classes')
 export class ClassesController {
@@ -27,7 +26,7 @@ export class ClassesController {
   @Permissions('configuration:manage')
   @Post()
   async create(
-    @Body() createClassDto: { name: string; category: ClassCategory },
+    @Body() createClassDto: { name: string; category: string },
     @Request() req,
   ) {
     return this.classesService.create(createClassDto, req);
@@ -63,7 +62,8 @@ export class ClassesController {
   @Patch(':id')
   async update(
     @Param('id') id: string,
-    @Body() updateClassDto: { name?: string; category?: ClassCategory },
+    @Body()
+    updateClassDto: { name?: string; category?: string; isActive?: boolean },
     @Request() req: RequestExpress,
   ) {
     const user = req.user as AuthenticatedUser;
@@ -79,7 +79,7 @@ export class ClassesController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Post('create-class-category')
+  @Post('category')
   async createClassCategory(@Body() body: any, @Request() req: RequestExpress) {
     const user = req.user as AuthenticatedUser;
     if (!user.schoolId) {
@@ -88,8 +88,8 @@ export class ClassesController {
     return this.classesService.createClassCategory(body, user);
   }
 
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Get('class-categories')
+  @UseGuards(JwtAuthGuard)
+  @Get('category/get/all')
   async getAllClassCategories(@Request() req: RequestExpress) {
     const user = req.user as AuthenticatedUser;
     if (!user.schoolId) {
@@ -99,7 +99,7 @@ export class ClassesController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Get('class-category/:id')
+  @Get('category/:id')
   async getClassCategoryById(
     @Param('id') id: string,
     @Request() req: RequestExpress,
@@ -112,7 +112,7 @@ export class ClassesController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Patch('class-category/:id')
+  @Patch('category/:id')
   async updateClassCategory(
     @Param('id') id: string,
     @Body() body: any,
@@ -125,8 +125,8 @@ export class ClassesController {
     return this.classesService.updateClassCategory(id, body, user);
   }
 
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Patch('class-category/:id')
+  @UseGuards(JwtAuthGuard)
+  @Delete('category/:id')
   async deleteClassCategory(
     @Param('id') id: string,
     @Request() req: RequestExpress,

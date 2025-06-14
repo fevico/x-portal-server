@@ -36,7 +36,7 @@ export class UpdateSchoolInfoDto {
 
   @IsOptional()
   @IsString()
-  bursarSignature?: string;
+  bursarSignatureBase64?: string;
 
   @IsOptional()
   @IsString()
@@ -48,39 +48,54 @@ export class UpdateSchoolInfoDto {
 
   @IsString()
   @IsOptional()
-  principalSignature?: string;
+  principalSignatureBase64?: string;
 
+  @IsOptional()
+  @IsString()
+  schoolHeadContact?: string;
+
+  @IsOptional()
+  @IsString()
+  schoolHeadName?: string;
+
+  @IsOptional()
+  @IsString()
+  schoolHeadSignatureBase64?: string;
+
+  @IsOptional()
+  @IsString()
+  logoBase64?: string;
 }
 
 export interface CreateGradingSystemDto {
+  name: string;
+  grades: Array<{
+    id: string;
     name: string;
-    grades: Array<{
-      id: string;
-      name: string;
-      scoreStartPoint: number;
-      scoreEndPoint: number;
-      remark?: string;
-      teacherComment?: string;
-      principalComment?: string;
-    }>;
-  }
-  
-  export interface AssignClassesDto {
-    classIds: string[];
-  }
+    scoreStartPoint: number;
+    scoreEndPoint: number;
+    remark?: string;
+    teacherComment?: string;
+    principalComment?: string;
+  }>;
+}
 
-  export interface CreateMarkingSchemeDto {
+export interface AssignClassesDto {
+  classIds: string[];
+}
+
+export interface CreateMarkingSchemeDto {
+  name: string;
+  components: Array<{
     name: string;
-    components: Array<{
-      name: string;
-      score: number;
-      type: AssessmentType;
-    }>;
-  }
-  
-  export interface AssignMarkingSchemeDto {
-    assignments: Array<{
-      classId: string;
-      termDefinitionId: string;
-    }>;
-  }
+    score: number;
+    type: AssessmentType;
+  }>;
+}
+
+export interface AssignMarkingSchemeDto {
+  assignments: Array<{
+    classId: string;
+    termDefinitionId: string;
+  }>;
+}
