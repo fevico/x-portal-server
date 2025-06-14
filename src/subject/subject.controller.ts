@@ -13,6 +13,8 @@ import {
 import { SubjectService } from './subject.service';
 import { PermissionsGuard } from '@/auth/guards/permissions.guard';
 import { Permissions } from '@/auth/decorators/permissions.decorator';
+import { Request as RequestExpress } from 'express';
+import { AssignSubjectToClassesDto } from './dto/assign-subject.dto';
 
 @Controller('subject')
 export class SubjectsController {
@@ -55,8 +57,19 @@ export class SubjectsController {
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('configuration:manage')
-  @Delete('/subject/:id')
+  @Delete('subject/:id')
   async delete(@Param('id') id: string, @Request() req) {
     return this.subjectsService.delete(id, req);
+  }
+
+  @Post('assign/:id')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('configuration:manage')
+  async assignSubjectToClasses(
+    @Param('id') subjectId: string,
+    @Body() dto: AssignSubjectToClassesDto,
+    @Request() req: RequestExpress,
+  ) {
+    return this.subjectsService.assignSubjectToClasses(subjectId, dto, req);
   }
 }

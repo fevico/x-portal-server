@@ -63,7 +63,7 @@ export class ConfigurationController {
 
   // Create Marking Scheme
   @UseGuards(JwtAuthGuard)
-  @Post()
+  @Post('marking-scheme')
   async createMarkingScheme(
     @Body() dto: CreateMarkingSchemeDto,
     @Req() req: any,
@@ -75,9 +75,16 @@ export class ConfigurationController {
     });
   }
 
+  // get all marking schemes
+  @UseGuards(JwtAuthGuard)
+  @Get('marking-scheme')
+  async getAllMarkingSchemes(@Req() req: any) {
+    return await this.configurationService.getAllMarkingSchemes(req);
+  }
+
   // Assign Marking Scheme to Classes and Term Definitions
   @UseGuards(JwtAuthGuard)
-  @Post(':id/assign')
+  @Post('marking-scheme/:id/assign')
   async assignMarkingScheme(
     @Param('id') id: string,
     @Body() dto: AssignMarkingSchemeDto,
@@ -92,7 +99,7 @@ export class ConfigurationController {
 
   // Update Marking Scheme
   @UseGuards(JwtAuthGuard)
-  @Patch(':id')
+  @Patch('marking-scheme/:id')
   async updateMarkingScheme(
     @Param('id') id: string,
     @Body() dto: CreateMarkingSchemeDto,
@@ -103,20 +110,27 @@ export class ConfigurationController {
 
   // Delete Marking Scheme
   @UseGuards(JwtAuthGuard)
-  @Delete(':id')
+  @Delete('marking-scheme/:id')
   async deleteMarkingScheme(@Param('id') id: string, @Req() req: any) {
     return await this.configurationService.deleteMarkingScheme(id, req);
   }
 
   // Get Marking Scheme by ID
   @UseGuards(JwtAuthGuard)
-  @Get(':id')
+  @Get('marking-scheme/:id')
   async getMarkingScheme(@Param('id') id: string) {
     return await this.configurationService.getMarkingScheme(id);
   }
+
+  // get all grading systems
+  @UseGuards(JwtAuthGuard)
+  @Get('grading-system')
+  async getAllGradingSystems(@Req() req: any) {
+    return await this.configurationService.getAllGradingSystems(req);
+  }
   // Create Grading System
   @UseGuards(JwtAuthGuard)
-  @Post()
+  @Post('grading-system')
   async createGradingSystem(
     @Body() dto: CreateGradingSystemDto,
     @Req() req: any,
@@ -126,7 +140,7 @@ export class ConfigurationController {
 
   // Assign Grading System to Classes
   @UseGuards(JwtAuthGuard)
-  @Post(':id/assign-classes')
+  @Post('grading-system/:id/assign')
   async assignGradingSystemToClasses(
     @Param('id') id: string,
     @Body() dto: AssignClassesDto,
@@ -141,14 +155,14 @@ export class ConfigurationController {
 
   // Fetch Grading System, Grades, and Assigned Classes
   @UseGuards(JwtAuthGuard)
-  @Get(':id')
+  @Get('grading-system/:id')
   async getGradingSystem(@Param('id') id: string, @Req() req: any) {
     return await this.configurationService.getGradingSystem(id, req);
   }
 
   // Update Grading System and Grades
   @UseGuards(JwtAuthGuard)
-  @Patch(':id')
+  @Patch('grading-system/:id')
   async updateGradingSystem(
     @Param('id') id: string,
     @Body() dto: CreateGradingSystemDto,
@@ -159,8 +173,15 @@ export class ConfigurationController {
 
   // New Delete Endpoint
   @UseGuards(JwtAuthGuard)
-  @Delete(':id')
+  @Delete('grading-system/:id')
   async deleteGradingSystem(@Param('id') id: string, @Req() req: any) {
     return await this.configurationService.deleteGradingSystem(id, req);
+  }
+
+  // get terms
+  @UseGuards(JwtAuthGuard)
+  @Get('terms')
+  async getTerms(@Request() req: RequestExpress) {
+    return this.configurationService.getTerms(req);
   }
 }

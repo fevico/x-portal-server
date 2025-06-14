@@ -14,10 +14,10 @@ import { SessionsService } from './session.service';
 // import { PermissionsGuard } from '@/auth/guards/permissions.guard';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guards';
 // import { Permissions } from '@/auth/decorators/permissions.decorator';
-import { CreateSessionDto } from './dto/session.dto';
+import { AssignClassToSessionDto, CreateSessionDto } from './dto/session.dto';
 import { PermissionsGuard } from '@/auth/guards/permissions.guard';
 import { AuthenticatedUser } from '@/types/express';
-import { Request as RequestExpress, Response } from 'express';
+import { Request as RequestExpress } from 'express';
 
 @UseGuards(JwtAuthGuard)
 @Controller('sessions')
@@ -84,5 +84,15 @@ export class SessionsController {
   async deleteSession(@Param('id') id: string, @Request() req: Request) {
     const result = await this.sessionsService.deleteSession(id, req);
     return result;
+  }
+
+  @Post('assign-class-to-session/:id')
+  @UseGuards(JwtAuthGuard)
+  async assignClassToSession(
+    @Param('id') sessionId: string,
+    @Body() dto: AssignClassToSessionDto,
+    @Request() req: RequestExpress,
+  ) {
+    return this.sessionsService.assignClassToSession(sessionId, dto, req);
   }
 }

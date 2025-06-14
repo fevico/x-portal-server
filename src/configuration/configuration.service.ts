@@ -449,7 +449,7 @@ export class ConfigurationService {
         // Create ContinuousAssessment for CA-type components
         const continuousAssessments = await Promise.all(
           components
-            .filter((comp) => comp.type === 'CA')
+            .filter((comp) => comp.type === AssessmentType.CA)
             .map((comp) =>
               tx.continuousAssessment.create({
                 data: {
@@ -658,7 +658,7 @@ export class ConfigurationService {
   async createMarkingScheme(data: {
     name: string;
     schoolId: string;
-    components: { name: string; score: number; type: 'CA' | 'EXAM' }[];
+    components: { name: string; score: number; type: AssessmentType }[];
     createdBy: string;
   }) {
     // Validate total score
@@ -1182,6 +1182,117 @@ export class ConfigurationService {
         'Failed to delete grading system: ' +
           (error.message || 'Unknown error'),
       );
+    }
+  }
+
+  // get terms
+  async getTerms(req: any) {
+    const user = req.user as AuthenticatedUser;
+
+    if (!user.schoolId) {
+      throw new NotFoundException('User must be associated with a school');
+    }
+
+    try {
+      const terms = await this.prisma.termDefinition.findMany({
+        where: { schoolId: user.schoolId },
+        orderBy: { name: 'asc' },
+        select: {
+          id: true,
+          name: true,
+        },
+      });
+
+      return {
+        statusCode: 200,
+        message: 'Terms retrieved successfully',
+        data: terms,
+      };
+    } catch (error) {
+      console.error('Error fetching terms:', error);
+      throw new HttpException('Failed to fetch terms', 500);
+    }
+  }
+
+  // get all marking schemes
+  async getAllMarkingSchemes(req: any) {
+    const user = req.user as AuthenticatedUser;
+
+    if (!user.schoolId) {
+      throw new NotFoundException('User must be associated with a school');
+    }
+
+    try {
+      const markingSchemes = await this.prisma.markingScheme.findMany({
+        where: { schoolId: user.schoolId, isDeleted: false },
+        orderBy: { name: 'asc' },
+        include: {
+          components: {
+            where: { isDeleted: false },
+            include: {
+              continuousAssessments: {
+                where: { isDeleted: false },
+                include: {
+                  components: { where: { isDeleted: false } },
+                },
+              },
+            },
+          },
+          classAssignments: {
+            where: { isDeleted: false },
+            include: {
+              class: { select: { id: true, name: true } },
+              termDefinition: { select: { id: true, name: true } },
+            },
+          },
+        },
+      });
+
+      return {
+        statusCode: 200,
+        message: 'Marking schemes retrieved successfully',
+        data: markingSchemes,
+      };
+    } catch (error) {
+      console.error('Error fetching marking schemes:', error);
+      throw new HttpException('Failed to fetch marking schemes', 500);
+    }
+  }
+
+  // get all grading systems
+  async getAllGradingSystems(req: any) {
+    const user = req.user as AuthenticatedUser;
+
+    if (!user.schoolId) {
+      throw new NotFoundException('User must be associated with a school');
+    }
+
+    try {
+      const gradingSystems = await this.prisma.gradingSystem.findMany({
+        where: { schoolId: user.schoolId, isDeleted: false },
+        orderBy: { name: 'asc' },
+        include: {
+          grades: {
+            where: { isDeleted: false },
+            orderBy: { scoreEndPoint: 'desc' },
+          },
+          classAssignments: {
+            where: { isDeleted: false },
+            include: {
+              class: { select: { id: true, name: true } },
+            },
+          },
+        },
+      });
+
+      return {
+        statusCode: 200,
+        message: 'Grading systems retrieved successfully',
+        data: gradingSystems,
+      };
+    } catch (error) {
+      console.error('Error fetching grading systems:', error);
+      throw new HttpException('Failed to fetch grading systems', 500);
     }
   }
 }

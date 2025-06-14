@@ -100,6 +100,7 @@ export class ClassesService {
           schoolId: req.user.schoolId,
           isDeleted: false,
         },
+        orderBy: { name: 'asc' },
         select: {
           id: true,
           name: true,
@@ -394,6 +395,7 @@ export class ClassesService {
           schoolId,
           isDeleted: false,
         },
+        orderBy: { name: 'asc' },
         include: { classes: true },
       });
       // console.log('Class Categories:', classCategories);
@@ -410,6 +412,7 @@ export class ClassesService {
   }
 
   async getClassCategoryById(id: string, user: AuthenticatedUser) {
+    console.log(user);
     try {
       const classCategory = await this.prisma.classCategory.findUnique({
         where: { id },

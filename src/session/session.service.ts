@@ -3,12 +3,14 @@ import {
   NotFoundException,
   BadRequestException,
   HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateSessionDto } from './dto/session.dto';
+import { AssignClassToSessionDto, CreateSessionDto } from './dto/session.dto';
 import { LoggingService } from '@/log/logging.service';
 import { AuthenticatedUser } from '@/types/express';
 import { TermEnum } from '@prisma/client';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class SessionsService {
@@ -16,6 +18,212 @@ export class SessionsService {
     private prisma: PrismaService,
     private loggingService: LoggingService,
   ) {}
+
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, {
+    name: 'checkActiveAndInactiveSession',
+    timeZone: 'Africa/Lagos',
+  })
+  async handleActiveAndInActiveSession() {
+    const currentDate = new Date();
+
+    try {
+      // Get all schools that are not deleted
+      const schools = await this.prisma.school.findMany({
+        where: { isDeleted: false },
+        select: { id: true, name: true },
+      });
+
+      for (const school of schools) {
+        await this.processSchoolSessionActivation(school.id, currentDate);
+      }
+
+      console.log(
+        'Session and term activation/inactivation check completed successfully.',
+      );
+    } catch (error) {
+      console.error('Error in session activation cron job:', error);
+    }
+  }
+
+  private async processSchoolSessionActivation(
+    schoolId: string,
+    currentDate: Date,
+  ) {
+    try {
+      // Get all session terms for this school
+      const sessionTerms = await this.prisma.sessionTerm.findMany({
+        where: {
+          schoolId,
+          isDeleted: false,
+          session: { isDeleted: false },
+        },
+        include: {
+          session: { select: { id: true, name: true } },
+          termDefinition: { select: { name: true } },
+        },
+        orderBy: [{ sessionId: 'asc' }, { startDate: 'asc' }],
+      });
+
+      if (sessionTerms.length === 0) {
+        return; // No terms for this school
+      }
+
+      // Group terms by session
+      const sessionGroups = sessionTerms.reduce(
+        (groups, term) => {
+          const sessionId = term.sessionId;
+          if (!groups[sessionId]) {
+            groups[sessionId] = {
+              sessionId,
+              sessionName: term.session.name,
+              terms: [],
+            };
+          }
+          groups[sessionId].terms.push(term);
+          return groups;
+        },
+        {} as Record<
+          string,
+          { sessionId: string; sessionName: string; terms: any[] }
+        >,
+      );
+
+      // Process each session
+      for (const sessionGroup of Object.values(sessionGroups)) {
+        await this.processSessionGroup(schoolId, sessionGroup, currentDate);
+      }
+    } catch (error) {
+      console.error(`Error processing school ${schoolId}:`, error);
+    }
+  }
+
+  private async processSessionGroup(
+    schoolId: string,
+    sessionGroup: {
+      sessionId: string;
+      sessionName: string;
+      terms: any[];
+    },
+    currentDate: Date,
+  ) {
+    const { sessionId, terms } = sessionGroup;
+
+    // Find if any term is currently active (today falls within its date range)
+    const activeTerm = terms.find(
+      (term) => term.startDate <= currentDate && term.endDate >= currentDate,
+    );
+
+    // Calculate session date range (earliest start to latest end)
+    const sessionStartDate = new Date(
+      Math.min(...terms.map((t) => t.startDate.getTime())),
+    );
+    const sessionEndDate = new Date(
+      Math.max(...terms.map((t) => t.endDate.getTime())),
+    );
+
+    // Session is active if current date falls within overall session range
+    const isSessionActive =
+      currentDate >= sessionStartDate && currentDate <= sessionEndDate;
+
+    await this.prisma.$transaction(async (tx) => {
+      if (activeTerm) {
+        // Deactivate all terms in this school except the active one
+        await tx.sessionTerm.updateMany({
+          where: {
+            schoolId,
+            id: { not: activeTerm.id },
+          },
+          data: { isActive: false },
+        });
+
+        // Activate the current term
+        await tx.sessionTerm.update({
+          where: { id: activeTerm.id },
+          data: { isActive: true },
+        });
+
+        // Update school's current term if this term is active
+        await tx.school.update({
+          where: { id: schoolId },
+          data: {
+            currentTermId: activeTerm.id,
+            currentSessionId: sessionId,
+          },
+        });
+
+        console.log(
+          `Activated term ${activeTerm.termDefinition.name} for session ${sessionGroup.sessionName} in school ${schoolId}`,
+        );
+      } else {
+        // No active term found, deactivate all terms in this school
+        await tx.sessionTerm.updateMany({
+          where: { schoolId },
+          data: { isActive: false },
+        });
+
+        // If no active terms, clear current term but keep session if it's still in range
+        if (!isSessionActive) {
+          await tx.school.update({
+            where: { id: schoolId },
+            data: {
+              currentTermId: null,
+              currentSessionId: null,
+            },
+          });
+        }
+      }
+
+      // Handle session activation
+      if (isSessionActive) {
+        // Deactivate all other sessions for this school
+        await tx.session.updateMany({
+          where: {
+            schoolId,
+            id: { not: sessionId },
+          },
+          data: { isActive: false },
+        });
+
+        // Activate current session
+        await tx.session.update({
+          where: { id: sessionId },
+          data: { isActive: true },
+        });
+
+        // Update school's current session
+        await tx.school.update({
+          where: { id: schoolId },
+          data: { currentSessionId: sessionId },
+        });
+
+        console.log(
+          `Activated session ${sessionGroup.sessionName} for school ${schoolId}`,
+        );
+      } else {
+        // Session is not active, deactivate it
+        await tx.session.update({
+          where: { id: sessionId },
+          data: { isActive: false },
+        });
+
+        // If this was the current session, clear it
+        const school = await tx.school.findUnique({
+          where: { id: schoolId },
+          select: { currentSessionId: true },
+        });
+
+        if (school?.currentSessionId === sessionId) {
+          await tx.school.update({
+            where: { id: schoolId },
+            data: {
+              currentSessionId: null,
+              currentTermId: null,
+            },
+          });
+        }
+      }
+    });
+  }
 
   async createSession(dto: CreateSessionDto, req: any) {
     const requester = req.user;
@@ -643,5 +851,157 @@ export class SessionsService {
     });
 
     return Array.from(classMap.values());
+  }
+
+  async assignClassToSession(
+    sessionId: string,
+    dto: AssignClassToSessionDto,
+    req: any,
+  ) {
+    const user = req.user as AuthenticatedUser;
+
+    try {
+      // Validate subject exists and belongs to the school
+      const session = await this.prisma.session.findFirst({
+        where: {
+          id: sessionId,
+          schoolId: user.schoolId,
+          isDeleted: false,
+        },
+        select: { id: true, name: true },
+      });
+
+      if (!session) {
+        throw new HttpException(
+          'Session not found or does not belong to your school',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      // Validate assignments
+      if (!dto.assignments || dto.assignments.length === 0) {
+        throw new HttpException(
+          'At least one class assignment must be provided',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      // Extract all unique class IDs and class arm IDs
+      const classIds = [...new Set(dto.assignments.map((a) => a.classId))];
+      const allClassArmIds = dto.assignments.flatMap((a) => a.classArmIds);
+      const uniqueClassArmIds = [...new Set(allClassArmIds)];
+
+      // Validate all classes belong to the school
+      const classes = await this.prisma.class.findMany({
+        where: {
+          id: { in: classIds },
+          schoolId: user.schoolId,
+          isDeleted: false,
+        },
+        select: { id: true, name: true },
+      });
+
+      if (classes.length !== classIds.length) {
+        throw new HttpException(
+          'One or more classes not found or do not belong to your school',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      // Validate all class arms belong to the school and their respective classes
+      const classArms = await this.prisma.classArm.findMany({
+        where: {
+          id: { in: uniqueClassArmIds },
+          schoolId: user.schoolId,
+          isDeleted: false,
+        },
+        select: { id: true, name: true, schoolId: true },
+      });
+
+      if (classArms.length !== uniqueClassArmIds.length) {
+        throw new HttpException(
+          'One or more class arms not found or do not belong to your school',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      // Validate that each class arm belongs to its specified class
+      for (const assignment of dto.assignments) {
+        const classArmsForClass = await this.prisma.classArm.findMany({
+          where: {
+            id: { in: assignment.classArmIds },
+            schoolId: user.schoolId,
+            isDeleted: false,
+          },
+          select: { id: true },
+        });
+
+        if (classArmsForClass.length !== assignment.classArmIds.length) {
+          throw new HttpException(
+            `Some class arms do not exist for class ID: ${assignment.classId}`,
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+      }
+
+      // Create assignments in a transaction
+      const result = await this.prisma.$transaction(async (tx) => {
+        // Delete existing assignments for this subject and the specified classes/arms
+        await tx.sessionClassAssignment.deleteMany({
+          where: {
+            sessionId,
+            schoolId: user.schoolId,
+            OR: dto.assignments.map((assignment) => ({
+              classId: assignment.classId,
+              classArmId: { in: assignment.classArmIds },
+            })),
+          },
+        });
+
+        // Create new assignments
+        const newAssignments = [];
+        for (const assignment of dto.assignments) {
+          for (const classArmId of assignment.classArmIds) {
+            newAssignments.push({
+              classId: assignment.classId,
+              classArmId,
+              sessionId,
+              schoolId: user.schoolId,
+              createdBy: user.id,
+            });
+          }
+        }
+
+        const createdAssignments = await tx.sessionClassAssignment.createMany({
+          data: newAssignments,
+        });
+
+        return createdAssignments;
+      });
+
+      return {
+        statusCode: 200,
+        message: 'Session assigned to classes successfully',
+        data: {
+          sessionId,
+          sessionName: session.name,
+          assignments: dto.assignments.map((assignment) => ({
+            classId: assignment.classId,
+            classArmIds: assignment.classArmIds,
+          })),
+          totalAssignments: result.count,
+        },
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      console.error('Error assigning session to classes:', error);
+      throw new HttpException(
+        'Failed to assign session to classes: ' +
+          (error.message || 'Unknown error'),
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 }
