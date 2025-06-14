@@ -342,6 +342,7 @@ model TermDefinition {
   updatedAt                     DateTime?                          @updatedAt @map("updated_at")
   createdBy                     String?                            @map("created_by")
   updatedBy                     String?                            @map("updated_by")
+  scores            StudentScoreAssignment[] @relation("TermScores")
 
   @@unique([name, schoolId])
   @@index([schoolId])
@@ -366,7 +367,6 @@ model SessionTerm {
   createdBy         String?                  @map("created_by")
   updatedBy         String?                  @map("updated_by") // Relations
   attendanceRecords Attendance[]             @relation("TermAttendance")
-  scores            StudentScoreAssignment[] @relation("TermScores")
   results           Result[]
   currentSchools    School[]                 @relation("SchoolCurrentTerm") // Back-reference for School.currentTerm
 
@@ -883,8 +883,8 @@ model StudentScoreAssignment {
   classArm                        ClassArm                       @relation(fields: [classArmId], references: [id])
   sessionId                       String                         @map("session_id")
   session                         Session                        @relation("SessionScores", fields: [sessionId], references: [id])
-  sessionTermId                   String                         @map("session_term_id")
-  sessionTerm                     SessionTerm                    @relation("TermScores", fields: [sessionTermId], references: [id])
+  termDefinitionId                String                         @map("term_definition_id")
+  termDefinition                  TermDefinition                 @relation("TermScores", fields: [termDefinitionId], references: [id])
   markingSchemeComponentId        String?                        @map("marking_scheme_component_id")
   markingSchemeComponent          MarkingSchemeComponent?        @relation("ComponentScores", fields: [markingSchemeComponentId], references: [id])
   continuousAssessmentId          String?                        @map("continuous_assessment_id")
@@ -902,9 +902,9 @@ model StudentScoreAssignment {
   updatedBy                       String?                        @map("updated_by")
 
   // @@unique([studentId, subjectId, classId, classArmId, sessionId, sessionTermId, markingSchemeComponentId, continuousAssessmentId, continuousAssessmentComponentId])
-  @@unique([studentId, subjectId, sessionId, sessionTermId])
+  @@unique([studentId, subjectId, sessionId, termDefinitionId])
 
-  @@index([schoolId, studentId, sessionId, sessionTermId])
+  @@index([schoolId, studentId, sessionId, termDefinitionId])
   @@map("student_score_assignments")
 }
 

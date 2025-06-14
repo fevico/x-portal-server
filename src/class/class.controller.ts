@@ -136,4 +136,19 @@ export class ClassesController {
     }
     return this.classesService.deleteClassCategory(id, user);
   }
+
+  // Get all classes and their class arms by session ID
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('configuration:read')
+  @Get('session/:sessionId')
+  async getClassesBySession(
+    @Param('sessionId') sessionId: string,
+    @Request() req: RequestExpress,
+  ) {
+    const user = req.user as AuthenticatedUser;
+    if (!user.schoolId) {
+      throw new Error('User must be associated with a school');
+    }
+    return this.classesService.getClassesBySession(sessionId, user);
+  }
 }

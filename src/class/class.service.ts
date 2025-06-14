@@ -496,4 +496,96 @@ export class ClassesService {
       );
     }
   }
+
+  async getClassesBySession(sessionId: string, user: AuthenticatedUser) {
+    try {
+      // Validate session exists and belongs to the school
+      const session = await this.prisma.session.findFirst({
+        where: {
+          id: sessionId,
+          schoolId: user.schoolId,
+          isDeleted: false,
+        },
+        select: { id: true, name: true },
+      });
+
+      if (!session) {
+        throw new NotFoundException('Session not found for this school');
+      }
+
+      // Get all class assignments for the session
+      const classAssignments =
+        await this.prisma.sessionClassAssignment.findMany({
+          where: {
+            sessionId,
+            schoolId: user.schoolId,
+            isDeleted: false,
+          },
+          include: {
+            class: {
+              select: {
+                id: true,
+                name: true,
+                classCategory: {
+                  select: { id: true, name: true },
+                },
+              },
+            },
+            classArm: {
+              select: { id: true, name: true },
+            },
+          },
+          orderBy: [{ class: { name: 'asc' } }, { classArm: { name: 'asc' } }],
+        });
+
+      // Group class arms by class
+      const classesMap = new Map();
+
+      classAssignments.forEach((assignment) => {
+        const classId = assignment.class.id;
+
+        if (!classesMap.has(classId)) {
+          classesMap.set(classId, {
+            id: assignment.class.id,
+            name: assignment.class.name,
+            category: assignment.class.classCategory,
+            classArms: [],
+          });
+        }
+
+        classesMap.get(classId).classArms.push({
+          id: assignment.classArm.id,
+          name: assignment.classArm.name,
+        });
+      });
+
+      // Convert map to array and sort
+      const classes = Array.from(classesMap.values()).sort((a, b) =>
+        a.name.localeCompare(b.name),
+      );
+
+      return {
+        statusCode: 200,
+        message: 'Classes and arms retrieved successfully',
+        data: {
+          session: {
+            id: session.id,
+            name: session.name,
+          },
+          classes,
+          totalClasses: classes.length,
+          totalAssignments: classAssignments.length,
+        },
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      console.error('Error fetching classes by session:', error);
+      throw new HttpException(
+        'Failed to fetch classes and arms',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 }
