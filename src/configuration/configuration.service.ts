@@ -1559,4 +1559,63 @@ export class ConfigurationService {
       throw new HttpException('Failed to fetch marking scheme', 500);
     }
   }
+  async createReportSetting(dto: any, req: any) {
+    const schoolId = req.user.schoolId;
+    const userId = req.user.id;
+    const {
+      classId,
+      padding,
+      headerFont,
+      subjectFont,
+      valueFont,
+      classTeacherCompute,
+      showAge,
+      showPosition,
+      showNextFee,
+    } = dto;
+    try {
+      const reportSetting = await this.prisma.reportSheetSetting.create({
+        data: {
+          schoolId,
+          classId,
+          padding,
+          headerFont,
+          subjectFont,
+          valueFont,
+          classTeacherCompute: classTeacherCompute ? true : false,
+          showAge: showAge ? true : false,
+          showPosition: showPosition ? true : false,
+          showNextFee: showNextFee ? true : false,
+          createdBy: userId,
+        },
+      });
+
+      return {
+        statusCode: 200,
+        message: 'Report setting created successfully',
+        data: reportSetting,
+      };
+    } catch (error) {
+      throw new HttpException('Failed to create report setting', 500);
+    }
+  }
+
+  async getReportSetting(req: any) {
+    const schoolId = req.user.schoolId;
+    try {
+      const reportSetting = await this.prisma.reportSheetSetting.findFirst({
+        where: {
+          schoolId,
+        },
+      });
+
+      return {
+        statusCode: 200,
+        message: 'Report setting retrieved successfully',
+        data: reportSetting,
+      };
+    } catch (error) {
+      throw new HttpException('Failed to retrieve report setting', 500);
+    }
+  }
 }

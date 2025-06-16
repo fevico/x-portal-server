@@ -175,6 +175,18 @@ export class ConfigurationController {
     return await this.configurationService.createGradingSystem(dto, req);
   }
 
+  @Post('report-setting')
+  @UseGuards(JwtAuthGuard)
+  async createReportSetting(@Body() dto: any, @Req() req: any) {
+    return await this.configurationService.createReportSetting(dto, req);
+  }
+
+  @Get('report-setting')
+  @UseGuards(JwtAuthGuard)
+  async getReportSetting(@Req() req: any) {
+    return await this.configurationService.getReportSetting(req);
+  }
+
   // Assign Grading System to Classes
   @UseGuards(JwtAuthGuard)
   @Post('grading-system/:id/assign')

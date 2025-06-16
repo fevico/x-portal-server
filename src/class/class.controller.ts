@@ -10,6 +10,7 @@ import {
   Patch,
   Post,
   Request,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { ClassesService } from './class.service';
@@ -19,7 +20,7 @@ import { AuthenticatedUser } from '@/types/express';
 
 @Controller('classes')
 export class ClassesController {
-  constructor(private readonly classesService: ClassesService) {}
+  constructor(private readonly classesService: ClassesService) { }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('configuration:manage')
@@ -150,5 +151,24 @@ export class ClassesController {
       throw new Error('User must be associated with a school');
     }
     return this.classesService.getClassesBySession(sessionId, user);
+  }
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('configuration:read')
+  @Get('sessions/:sessionId/class/:classId/arm/:classArmId/students')
+  async getStudentClassAssignment(
+    @Param('sessionId') sessionId: string,
+    @Param('classId') classId: string,
+    @Param('classArmId') classArmId: string,
+    @Request() req: RequestExpress,
+  ) {
+    const user = req.user as AuthenticatedUser;
+    if (!user.schoolId) {
+      throw new UnauthorizedException('User must be associated with a school');
+    }
+    return this.classesService.getStudentClassAssignment(user, {
+      sessionId,
+      classId,
+      classArmId,
+    });
   }
 }
