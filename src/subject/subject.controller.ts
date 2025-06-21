@@ -72,4 +72,15 @@ export class SubjectsController {
   ) {
     return this.subjectsService.assignSubjectToClasses(subjectId, dto, req);
   }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('configuration:read')
+  @Get('class/:classId/class-arm/:classArmId')
+  async getSubjectsByClassArm(
+    @Param('classId') classId: string,
+    @Param('classArmId') classArmId: string,
+    @Request() req: RequestExpress,
+  ) {
+    return this.subjectsService.getSubjectsByClassArm(classId, classArmId, req);
+  }
 }

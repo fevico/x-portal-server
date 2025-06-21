@@ -9,6 +9,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Request,
   UnauthorizedException,
   UseGuards,
@@ -37,6 +38,11 @@ export class ClassesController {
   @Get()
   async findAll(@Request() req) {
     return this.classesService.findAll(req);
+  }
+
+  @Get('public')
+  async findAllPublic(@Query('schoolId') schoolId: string) {
+    return this.classesService.findAllPublic(schoolId);
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -138,14 +144,37 @@ export class ClassesController {
     return this.classesService.deleteClassCategory(id, user);
   }
 
+  // Get all classes and their class arms by session ID
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Get('get-student-class-assignment')
-  async getStudentClassAssignment(@Request() req: RequestExpress, @Body() body: any) {
+  @Permissions('configuration:read')
+  @Get('session/:sessionId')
+  async getClassesBySession(
+    @Param('sessionId') sessionId: string,
+    @Request() req: RequestExpress,
+  ) {
+    const user = req.user as AuthenticatedUser;
+    if (!user.schoolId) {
+      throw new Error('User must be associated with a school');
+    }
+    return this.classesService.getClassesBySession(sessionId, user);
+  }
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('configuration:read')
+  @Get('sessions/:sessionId/class/:classId/arm/:classArmId/students')
+  async getStudentClassAssignment(
+    @Param('sessionId') sessionId: string,
+    @Param('classId') classId: string,
+    @Param('classArmId') classArmId: string,
+    @Request() req: RequestExpress,
+  ) {
     const user = req.user as AuthenticatedUser;
     if (!user.schoolId) {
       throw new UnauthorizedException('User must be associated with a school');
     }
-    return this.classesService.getStudentClassAssignment(user, body);
+    return this.classesService.getStudentClassAssignment(user, {
+      sessionId,
+      classId,
+      classArmId,
+    });
   }
-
 }

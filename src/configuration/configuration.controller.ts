@@ -18,6 +18,7 @@ import {
   AssignMarkingSchemeDto,
   CreateGradingSystemDto,
   CreateMarkingSchemeDto,
+  UpdateContinuousAssessmentDto,
   UpdateSchoolInfoDto,
 } from './dto/configuration';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guards';
@@ -115,11 +116,47 @@ export class ConfigurationController {
     return await this.configurationService.deleteMarkingScheme(id, req);
   }
 
-  // Get Marking Scheme by ID
+  // Get Marking Scheme by Class and Term (more specific route first)
+  @UseGuards(JwtAuthGuard)
+  @Get('marking-scheme/class/:classId/term/:termDefinitionId')
+  async getMarkingSchemeByClassAndTerm(
+    @Param('classId') classId: string,
+    @Param('termDefinitionId') termDefinitionId: string,
+    @Request() req: RequestExpress,
+  ) {
+    return this.configurationService.getMarkingSchemeByClassAndTerm(
+      classId,
+      termDefinitionId,
+      req,
+    );
+  }
+
+  // Get Marking Scheme by ID (general route after specific)
   @UseGuards(JwtAuthGuard)
   @Get('marking-scheme/:id')
   async getMarkingScheme(@Param('id') id: string) {
     return await this.configurationService.getMarkingScheme(id);
+  }
+
+  // get all continuous assesment
+  @UseGuards(JwtAuthGuard)
+  @Get('continuous-assessment')
+  async getContinuousAssessments(@Req() req: any) {
+    return await this.configurationService.getContinuousAssessments(req);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('continuous-assessment/:id')
+  async updateContinuousAssessment(
+    @Param('id') id: string,
+    @Body() dto: UpdateContinuousAssessmentDto,
+    @Req() req: any,
+  ) {
+    return await this.configurationService.updateContinuousAssessment(
+      id,
+      dto,
+      req,
+    );
   }
 
   // get all grading systems
@@ -138,16 +175,16 @@ export class ConfigurationController {
     return await this.configurationService.createGradingSystem(dto, req);
   }
 
-  @Post("report-setting")
+  @Post('report-setting')
   @UseGuards(JwtAuthGuard)
   async createReportSetting(@Body() dto: any, @Req() req: any) {
     return await this.configurationService.createReportSetting(dto, req);
   }
 
-  @Get("report-setting")
+  @Get('report-setting')
   @UseGuards(JwtAuthGuard)
   async getReportSetting(@Req() req: any) {
-    return await this.configurationService.getReportSetting(req);        
+    return await this.configurationService.getReportSetting(req);
   }
 
   // Assign Grading System to Classes

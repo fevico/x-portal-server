@@ -4,6 +4,7 @@ import {
   BadRequestException,
   HttpException,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AssignClassToSessionDto, CreateSessionDto } from './dto/session.dto';
@@ -18,8 +19,10 @@ export class SessionsService {
     private prisma: PrismaService,
     private loggingService: LoggingService,
   ) {}
+  private readonly logger = new Logger(SessionsService.name);
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, {
+    // @Cron('*/1 * * * *', {
     name: 'checkActiveAndInactiveSession',
     timeZone: 'Africa/Lagos',
   })
@@ -136,11 +139,15 @@ export class SessionsService {
           data: { isActive: false },
         });
 
+        this.logger.log('Deactivating all terms except the active one');
+
         // Activate the current term
         await tx.sessionTerm.update({
           where: { id: activeTerm.id },
           data: { isActive: true },
         });
+
+        this.logger.log('Activating current term');
 
         // Update school's current term if this term is active
         await tx.school.update({
@@ -151,6 +158,8 @@ export class SessionsService {
           },
         });
 
+        this.logger.log('Updating school current term and session');
+
         console.log(
           `Activated term ${activeTerm.termDefinition.name} for session ${sessionGroup.sessionName} in school ${schoolId}`,
         );
@@ -160,6 +169,7 @@ export class SessionsService {
           where: { schoolId },
           data: { isActive: false },
         });
+        this.logger.log('Deactivating all terms for this session');
 
         // If no active terms, clear current term but keep session if it's still in range
         if (!isSessionActive) {
@@ -171,6 +181,8 @@ export class SessionsService {
             },
           });
         }
+
+        this.logger.log('Clearing current term and session for school');
       }
 
       // Handle session activation
@@ -190,12 +202,14 @@ export class SessionsService {
           data: { isActive: true },
         });
 
+        this.logger.log('Activating current session');
+
         // Update school's current session
         await tx.school.update({
           where: { id: schoolId },
           data: { currentSessionId: sessionId },
         });
-
+        this.logger.log('Updating school current session');
         console.log(
           `Activated session ${sessionGroup.sessionName} for school ${schoolId}`,
         );
@@ -206,6 +220,7 @@ export class SessionsService {
           data: { isActive: false },
         });
 
+        this.logger.log('Deactivating current session');
         // If this was the current session, clear it
         const school = await tx.school.findUnique({
           where: { id: schoolId },
@@ -495,6 +510,35 @@ export class SessionsService {
       );
 
       return resolvedSessions;
+    } catch (error) {
+      console.error('Error fetching sessions:', error);
+      throw new Error(
+        'Failed to fetch sessions: ' + (error.message || 'Unknown error'),
+      );
+    }
+  }
+
+  async getSessionsBySchoolPublic(schoolId: string) {
+    try {
+      // Validate school
+      const school = await this.prisma.school.findUnique({
+        where: { id: schoolId },
+      });
+      if (!school) {
+        throw new NotFoundException('School not found');
+      }
+
+      // Fetch sessions with only id and name
+      const sessions = await this.prisma.session.findMany({
+        where: { schoolId, isDeleted: false },
+        select: {
+          id: true,
+          name: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      return sessions;
     } catch (error) {
       console.error('Error fetching sessions:', error);
       throw new Error(

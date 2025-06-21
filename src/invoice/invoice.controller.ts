@@ -14,7 +14,7 @@ import { InvoiceService } from './invoice.service';
 import { InvoiceDto, UpdateInvoiceDto } from './dto/invoice.dto';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guards';
 import { AuthenticatedUser } from '@/types/express';
-import { Request as RequestExpress, Response } from 'express';
+import { Request as RequestExpress } from 'express';
 
 @Controller('invoice')
 export class InvoiceController {

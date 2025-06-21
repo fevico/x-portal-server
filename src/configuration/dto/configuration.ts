@@ -93,6 +93,13 @@ export interface CreateMarkingSchemeDto {
   }>;
 }
 
+export interface UpdateContinuousAssessmentDto {
+  components: Array<{
+    name: string;
+    score: number;
+  }>;
+}
+
 export interface AssignMarkingSchemeDto {
   assignments: Array<{
     classId: string;

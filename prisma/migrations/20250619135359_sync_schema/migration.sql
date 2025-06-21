@@ -20,6 +20,7 @@ CREATE TABLE `users` (
     `updated_at` DATETIME(3) NOT NULL,
     `created_by` VARCHAR(191) NULL,
     `updated_by` VARCHAR(191) NULL,
+    `school_slug` VARCHAR(191) NULL,
     `school_id` VARCHAR(191) NULL,
     `sub_role_id` VARCHAR(191) NULL,
 
@@ -36,6 +37,7 @@ CREATE TABLE `schools` (
     `id` VARCHAR(191) NOT NULL,
     `name` VARCHAR(191) NOT NULL,
     `email` VARCHAR(191) NOT NULL,
+    `slug` VARCHAR(191) NOT NULL,
     `contact` VARCHAR(191) NOT NULL,
     `isActive` BOOLEAN NOT NULL DEFAULT true,
     `isDeleted` BOOLEAN NOT NULL DEFAULT false,
@@ -52,6 +54,7 @@ CREATE TABLE `schools` (
 
     UNIQUE INDEX `schools_name_key`(`name`),
     UNIQUE INDEX `schools_email_key`(`email`),
+    UNIQUE INDEX `schools_slug_key`(`slug`),
     UNIQUE INDEX `schools_contact_key`(`contact`),
     INDEX `schools_email_idx`(`email`),
     PRIMARY KEY (`id`)
@@ -91,6 +94,7 @@ CREATE TABLE `students` (
     `class_arm_id` VARCHAR(191) NULL,
     `admission_status` ENUM('pending', 'accepted', 'rejected') NOT NULL DEFAULT 'pending',
     `admission_date` DATETIME(3) NULL,
+    `is_alumni` BOOLEAN NOT NULL DEFAULT false,
     `updated_at` DATETIME(3) NOT NULL,
     `created_by` VARCHAR(191) NULL,
     `updated_by` VARCHAR(191) NULL,
@@ -236,6 +240,7 @@ CREATE TABLE `session_terms` (
     `startDate` DATETIME(3) NOT NULL,
     `endDate` DATETIME(3) NOT NULL,
     `school_id` VARCHAR(191) NOT NULL,
+    `isActive` BOOLEAN NOT NULL DEFAULT false,
     `isDeleted` BOOLEAN NOT NULL DEFAULT false,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` DATETIME(3) NOT NULL,
@@ -518,6 +523,7 @@ CREATE TABLE `marking_schemes` (
     `updated_at` DATETIME(3) NULL,
     `created_by` VARCHAR(191) NULL,
     `updated_by` VARCHAR(191) NULL,
+    `isDeleted` BOOLEAN NOT NULL DEFAULT false,
 
     INDEX `marking_schemes_school_id_idx`(`school_id`),
     UNIQUE INDEX `marking_schemes_name_school_id_key`(`name`, `school_id`),
@@ -536,6 +542,7 @@ CREATE TABLE `marking_scheme_components` (
     `updated_at` DATETIME(3) NULL,
     `created_by` VARCHAR(191) NULL,
     `updated_by` VARCHAR(191) NULL,
+    `isDeleted` BOOLEAN NOT NULL DEFAULT false,
 
     INDEX `marking_scheme_components_school_id_marking_scheme_id_idx`(`school_id`, `marking_scheme_id`),
     UNIQUE INDEX `marking_scheme_components_marking_scheme_id_name_key`(`marking_scheme_id`, `name`),
@@ -551,6 +558,7 @@ CREATE TABLE `continuous_assessments` (
     `updated_at` DATETIME(3) NULL,
     `created_by` VARCHAR(191) NULL,
     `updated_by` VARCHAR(191) NULL,
+    `isDeleted` BOOLEAN NOT NULL DEFAULT false,
 
     INDEX `continuous_assessments_school_id_marking_scheme_component_id_idx`(`school_id`, `marking_scheme_component_id`),
     UNIQUE INDEX `continuous_assessments_marking_scheme_component_id_school_id_key`(`marking_scheme_component_id`, `school_id`),
@@ -568,6 +576,7 @@ CREATE TABLE `continuous_assessment_components` (
     `updated_at` DATETIME(3) NULL,
     `created_by` VARCHAR(191) NULL,
     `updated_by` VARCHAR(191) NULL,
+    `isDeleted` BOOLEAN NOT NULL DEFAULT false,
 
     INDEX `continuous_assessment_components_school_id_continuous_assess_idx`(`school_id`, `continuous_assessment_id`),
     UNIQUE INDEX `continuous_assessment_components_continuous_assessment_id_na_key`(`continuous_assessment_id`, `name`),
@@ -675,12 +684,13 @@ CREATE TABLE `student_score_assignments` (
     `class_id` VARCHAR(191) NOT NULL,
     `class_arm_id` VARCHAR(191) NOT NULL,
     `session_id` VARCHAR(191) NOT NULL,
-    `session_term_id` VARCHAR(191) NOT NULL,
+    `term_definition_id` VARCHAR(191) NOT NULL,
     `marking_scheme_component_id` VARCHAR(191) NULL,
     `continuous_assessment_id` VARCHAR(191) NULL,
     `continuous_assessment_component_id` VARCHAR(191) NULL,
     `score` DOUBLE NOT NULL,
     `recorded_by` VARCHAR(191) NOT NULL,
+    `unique_hash` VARCHAR(64) NOT NULL,
     `school_id` VARCHAR(191) NOT NULL,
     `isDeleted` BOOLEAN NOT NULL DEFAULT false,
     `created_at` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -688,35 +698,54 @@ CREATE TABLE `student_score_assignments` (
     `created_by` VARCHAR(191) NULL,
     `updated_by` VARCHAR(191) NULL,
 
-    INDEX `student_score_assignments_school_id_student_id_session_id_se_idx`(`school_id`, `student_id`, `session_id`, `session_term_id`),
-    UNIQUE INDEX `student_score_assignments_student_id_subject_id_session_id_s_key`(`student_id`, `subject_id`, `session_id`, `session_term_id`),
+    UNIQUE INDEX `student_score_assignments_unique_hash_key`(`unique_hash`),
+    INDEX `student_score_assignments_school_id_student_id_session_id_te_idx`(`school_id`, `student_id`, `session_id`, `term_definition_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `Result` (
+CREATE TABLE `result_batches` (
     `id` VARCHAR(191) NOT NULL,
-    `student_id` VARCHAR(50) NOT NULL,
-    `subject_id` VARCHAR(50) NOT NULL,
-    `class_id` VARCHAR(50) NOT NULL,
-    `class_arm_id` VARCHAR(50) NOT NULL,
-    `session_id` VARCHAR(50) NOT NULL,
-    `session_term_id` VARCHAR(50) NOT NULL,
-    `school_id` VARCHAR(50) NOT NULL,
-    `grading_system_id` VARCHAR(50) NOT NULL,
-    `totalScore` DOUBLE NOT NULL,
-    `grade_id` VARCHAR(50) NULL,
-    `remark` VARCHAR(191) NULL,
-    `teacher_comment` VARCHAR(191) NULL,
-    `principal_comment` VARCHAR(191) NULL,
-    `isDeleted` BOOLEAN NOT NULL DEFAULT false,
-    `created_at` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updated_at` DATETIME(3) NULL,
-    `created_by` VARCHAR(50) NULL,
-    `updated_by` VARCHAR(50) NULL,
+    `session_id` VARCHAR(191) NOT NULL,
+    `term_id` VARCHAR(191) NOT NULL,
+    `class_id` VARCHAR(191) NOT NULL,
+    `class_arm_id` VARCHAR(191) NOT NULL,
+    `result_type_id` VARCHAR(191) NOT NULL,
+    `resultScope` ENUM('mid', 'terminal') NOT NULL,
+    `school_id` VARCHAR(191) NOT NULL,
+    `marking_scheme_structure` JSON NOT NULL,
+    `title` VARCHAR(191) NOT NULL,
+    `description` VARCHAR(191) NULL,
+    `isApproved` BOOLEAN NOT NULL DEFAULT false,
+    `approved_by` VARCHAR(191) NULL,
+    `approved_at` DATETIME(3) NULL,
+    `total_students` INTEGER NOT NULL,
+    `total_subjects` INTEGER NOT NULL,
+    `class_average` DOUBLE NULL,
+    `unique_hash` VARCHAR(64) NOT NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+    `created_by` VARCHAR(191) NOT NULL,
+    `updated_by` VARCHAR(191) NULL,
 
-    INDEX `Result_school_id_student_id_session_id_session_term_id_idx`(`school_id`, `student_id`, `session_id`, `session_term_id`),
-    UNIQUE INDEX `Result_student_id_subject_id_session_id_session_term_id_key`(`student_id`, `subject_id`, `session_id`, `session_term_id`),
+    UNIQUE INDEX `result_batches_unique_hash_key`(`unique_hash`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `student_results` (
+    `id` VARCHAR(191) NOT NULL,
+    `result_batch_id` VARCHAR(191) NOT NULL,
+    `student_id` VARCHAR(191) NOT NULL,
+    `subject_id` VARCHAR(191) NOT NULL,
+    `component_scores` JSON NOT NULL,
+    `totalScore` DOUBLE NOT NULL,
+    `grade_id` VARCHAR(191) NULL,
+    `position` INTEGER NULL,
+    `teacher_comment` VARCHAR(191) NULL,
+    `school_id` VARCHAR(191) NOT NULL,
+
+    UNIQUE INDEX `student_results_result_batch_id_student_id_subject_id_key`(`result_batch_id`, `student_id`, `subject_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -729,14 +758,14 @@ CREATE TABLE `configurations` (
     `color` VARCHAR(191) NULL,
     `school_head_name` VARCHAR(191) NULL,
     `school_head_contact` VARCHAR(191) NULL,
-    `school_head_signature` VARCHAR(191) NULL,
+    `school_head_signature` JSON NULL,
     `principal_name` VARCHAR(191) NULL,
     `principal_contact` VARCHAR(191) NULL,
-    `principal_signature` VARCHAR(191) NULL,
+    `principal_signature` JSON NULL,
     `bursar_name` VARCHAR(191) NULL,
     `bursar_contact` VARCHAR(191) NULL,
-    `bursar_signature` VARCHAR(191) NULL,
-    `school_id` VARCHAR(191) NULL,
+    `bursar_signature` JSON NULL,
+    `school_id` VARCHAR(191) NOT NULL,
     `isDeleted` BOOLEAN NOT NULL DEFAULT false,
     `created_at` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` DATETIME(3) NULL,
@@ -744,6 +773,29 @@ CREATE TABLE `configurations` (
     `updated_by` VARCHAR(191) NULL,
 
     UNIQUE INDEX `configurations_school_id_key`(`school_id`),
+    INDEX `configurations_school_id_idx`(`school_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `ReportSheetSetting` (
+    `id` VARCHAR(191) NOT NULL,
+    `class_id` VARCHAR(50) NOT NULL,
+    `padding` VARCHAR(50) NOT NULL,
+    `header_font` VARCHAR(50) NOT NULL,
+    `subject_font` VARCHAR(50) NOT NULL,
+    `value_font` VARCHAR(50) NOT NULL,
+    `class_teacher_compute` BOOLEAN NOT NULL DEFAULT false,
+    `show_age` BOOLEAN NOT NULL DEFAULT false,
+    `show_position` BOOLEAN NOT NULL DEFAULT false,
+    `show_next_fee` BOOLEAN NOT NULL DEFAULT false,
+    `school_id` VARCHAR(50) NOT NULL,
+    `isDeleted` BOOLEAN NOT NULL DEFAULT false,
+    `created_at` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NULL,
+    `created_by` VARCHAR(50) NULL,
+    `updated_by` VARCHAR(50) NULL,
+
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -1033,7 +1085,7 @@ ALTER TABLE `student_score_assignments` ADD CONSTRAINT `student_score_assignment
 ALTER TABLE `student_score_assignments` ADD CONSTRAINT `student_score_assignments_session_id_fkey` FOREIGN KEY (`session_id`) REFERENCES `sessions`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `student_score_assignments` ADD CONSTRAINT `student_score_assignments_session_term_id_fkey` FOREIGN KEY (`session_term_id`) REFERENCES `session_terms`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `student_score_assignments` ADD CONSTRAINT `student_score_assignments_term_definition_id_fkey` FOREIGN KEY (`term_definition_id`) REFERENCES `term_definitions`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `student_score_assignments` ADD CONSTRAINT `student_score_assignments_marking_scheme_component_id_fkey` FOREIGN KEY (`marking_scheme_component_id`) REFERENCES `marking_scheme_components`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
@@ -1048,31 +1100,43 @@ ALTER TABLE `student_score_assignments` ADD CONSTRAINT `student_score_assignment
 ALTER TABLE `student_score_assignments` ADD CONSTRAINT `student_score_assignments_school_id_fkey` FOREIGN KEY (`school_id`) REFERENCES `schools`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `Result` ADD CONSTRAINT `Result_student_id_fkey` FOREIGN KEY (`student_id`) REFERENCES `students`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `result_batches` ADD CONSTRAINT `result_batches_session_id_fkey` FOREIGN KEY (`session_id`) REFERENCES `sessions`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `Result` ADD CONSTRAINT `Result_subject_id_fkey` FOREIGN KEY (`subject_id`) REFERENCES `subjects`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `result_batches` ADD CONSTRAINT `result_batches_term_id_fkey` FOREIGN KEY (`term_id`) REFERENCES `term_definitions`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `Result` ADD CONSTRAINT `Result_class_id_fkey` FOREIGN KEY (`class_id`) REFERENCES `classes`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `result_batches` ADD CONSTRAINT `result_batches_class_id_fkey` FOREIGN KEY (`class_id`) REFERENCES `classes`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `Result` ADD CONSTRAINT `Result_class_arm_id_fkey` FOREIGN KEY (`class_arm_id`) REFERENCES `class_arms`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `result_batches` ADD CONSTRAINT `result_batches_class_arm_id_fkey` FOREIGN KEY (`class_arm_id`) REFERENCES `class_arms`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `Result` ADD CONSTRAINT `Result_session_id_fkey` FOREIGN KEY (`session_id`) REFERENCES `sessions`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `result_batches` ADD CONSTRAINT `result_batches_result_type_id_fkey` FOREIGN KEY (`result_type_id`) REFERENCES `marking_scheme_components`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `Result` ADD CONSTRAINT `Result_session_term_id_fkey` FOREIGN KEY (`session_term_id`) REFERENCES `session_terms`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `result_batches` ADD CONSTRAINT `result_batches_school_id_fkey` FOREIGN KEY (`school_id`) REFERENCES `schools`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `Result` ADD CONSTRAINT `Result_school_id_fkey` FOREIGN KEY (`school_id`) REFERENCES `schools`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `student_results` ADD CONSTRAINT `student_results_result_batch_id_fkey` FOREIGN KEY (`result_batch_id`) REFERENCES `result_batches`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `Result` ADD CONSTRAINT `Result_grading_system_id_fkey` FOREIGN KEY (`grading_system_id`) REFERENCES `grading_systems`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `student_results` ADD CONSTRAINT `student_results_student_id_fkey` FOREIGN KEY (`student_id`) REFERENCES `students`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `Result` ADD CONSTRAINT `Result_grade_id_fkey` FOREIGN KEY (`grade_id`) REFERENCES `grades`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `student_results` ADD CONSTRAINT `student_results_subject_id_fkey` FOREIGN KEY (`subject_id`) REFERENCES `subjects`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `configurations` ADD CONSTRAINT `configurations_school_id_fkey` FOREIGN KEY (`school_id`) REFERENCES `schools`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `student_results` ADD CONSTRAINT `student_results_grade_id_fkey` FOREIGN KEY (`grade_id`) REFERENCES `grades`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `student_results` ADD CONSTRAINT `student_results_school_id_fkey` FOREIGN KEY (`school_id`) REFERENCES `schools`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `configurations` ADD CONSTRAINT `configurations_school_id_fkey` FOREIGN KEY (`school_id`) REFERENCES `schools`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `ReportSheetSetting` ADD CONSTRAINT `ReportSheetSetting_class_id_fkey` FOREIGN KEY (`class_id`) REFERENCES `classes`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `ReportSheetSetting` ADD CONSTRAINT `ReportSheetSetting_school_id_fkey` FOREIGN KEY (`school_id`) REFERENCES `schools`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;

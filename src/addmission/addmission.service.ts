@@ -302,6 +302,182 @@ export class AdmissionsService {
     }
   }
 
+  async createAdmissionPublic(
+    dto: CreateAdmissionDto,
+    schoolId: string,
+    image?: Express.Multer.File,
+  ) {
+    // console.log(schoolId, dto);
+    const {
+      student,
+      parent,
+      formerSchool,
+      otherInfo,
+      sessionId,
+      presentClassId,
+      classApplyingTo,
+      imageBase64,
+    } = dto;
+
+    // Validate session and school
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+    });
+    if (!session || session.schoolId !== schoolId) {
+      throw new ForbiddenException('Invalid session or school');
+    }
+
+    // Find subroles
+    const studentSubRole = await this.prisma.subRole.findFirst({
+      where: { name: 'student', isGlobal: true },
+    });
+    const parentSubRole = await this.prisma.subRole.findFirst({
+      where: { name: 'parent', isGlobal: true },
+    });
+    if (!studentSubRole || !parentSubRole) {
+      throw new ForbiddenException('Student or Parent subrole not found');
+    }
+
+    // Generate usernames and passwords
+    const studentUsername = await generateUniqueUsername(student.firstname);
+    const parentUsername = await generateUniqueUsername(parent.firstname);
+    const studentPassword = await generateRandomPassword();
+    const parentPassword = await generateRandomPassword();
+    const studentHashedPassword = await bcrypt.hash(studentPassword, 10);
+    const parentHashedPassword = await bcrypt.hash(parentPassword, 10);
+
+    // Upload image to Cloudinary - handle both file upload and base64 string
+    let imageUrl: string | undefined;
+    let pubId: string | undefined;
+    try {
+      if (image) {
+        // Use the reusable Cloudinary upload function with file buffer
+        const uploadResult = await uploadToCloudinary(image.buffer, {
+          folder: 'admissions',
+          transformation: { width: 800, height: 800, crop: 'limit' },
+        });
+        imageUrl = uploadResult.imageUrl;
+        pubId = uploadResult.pubId;
+      } else if (imageBase64) {
+        // Use the reusable Cloudinary upload function with base64 string
+        const uploadResult = await uploadToCloudinary(imageBase64, {
+          folder: 'admissions',
+          transformation: { width: 800, height: 800, crop: 'limit' },
+        });
+        imageUrl = uploadResult.imageUrl;
+        pubId = uploadResult.pubId;
+      }
+    } catch (error) {
+      console.error('Image upload error:', error);
+      throw new BadRequestException('Failed to upload image to Cloudinary');
+    }
+
+    // Create users outside the transaction
+    const studentUser = await this.prisma.user.create({
+      data: {
+        firstname: student.firstname,
+        lastname: student.lastname,
+        username: studentUsername,
+        email: student.email,
+        contact: student.contact,
+        gender: student.gender,
+        address: student.homeAddress,
+        password: studentHashedPassword,
+        plainPassword: studentPassword,
+        role: 'admin',
+        subRoleId: studentSubRole.id,
+        schoolId,
+        avatar: { imageUrl, pubId },
+        createdBy: schoolId,
+      },
+    });
+
+    const parentUser = await this.prisma.user.create({
+      data: {
+        firstname: parent.firstname,
+        lastname: parent.lastname,
+        othername: parent.othername,
+        username: parentUsername,
+        email: parent.email,
+        contact: parent.contact,
+        address: parent.address,
+        password: parentHashedPassword,
+        plainPassword: parentPassword,
+        role: 'admin',
+        subRoleId: parentSubRole.id,
+        schoolId,
+        createdBy: schoolId,
+      },
+    });
+
+    try {
+      return await this.prisma.$transaction(
+        async (tx) => {
+          // Create student
+          const studentRecord = await tx.student.create({
+            data: {
+              userId: studentUser.id,
+              studentRegNo: student.studentRegNo,
+              dateOfBirth: student.dateOfBirth,
+              religion: student.religion,
+              nationality: student.nationality,
+              stateOfOrigin: student.stateOfOrigin,
+              lga: student.lga,
+              admissionStatus: AdmissionStatus.pending,
+              createdBy: schoolId,
+            },
+          });
+
+          // Create parent
+          const parentRecord = await tx.parent.create({
+            data: {
+              userId: parentUser.id,
+              relationship: parent.relationship,
+              occupation: parent.occupation,
+              createdBy: schoolId,
+            },
+          });
+
+          // Create admission with image URL
+          const admission = await tx.admission.create({
+            data: {
+              sessionId,
+              schoolId,
+              studentId: studentRecord.id,
+              parentId: parentRecord.id,
+              presentClassId,
+              classApplyingTo,
+              formerSchoolName: formerSchool.name,
+              formerSchoolAddress: formerSchool.address,
+              formerSchoolContact: formerSchool.contact,
+              healthProblems: otherInfo.healthProblems,
+              howHeardAboutUs: otherInfo.howHeardAboutUs,
+              createdBy: schoolId,
+            },
+          });
+
+          // Update student with parent link
+          await tx.student.update({
+            where: { id: studentRecord.id },
+            data: { parentId: parentRecord.id },
+          });
+
+          return { admission, studentPassword, parentPassword };
+        },
+        { timeout: 30000 },
+      );
+    } catch (error) {
+      // Clean up users if transaction fails
+      await this.prisma.user.deleteMany({
+        where: { id: { in: [studentUser.id, parentUser.id] } },
+      });
+      if (pubId) {
+        await cloudinary.uploader.destroy(pubId);
+      }
+      throw error;
+    }
+  }
+
   async updateAdmissionStatus(
     id: string,
     dto: UpdateAdmissionStatusDto,
@@ -384,6 +560,8 @@ export class AdmissionsService {
           where: { id: admission.studentId },
           data: {
             admissionStatus: AdmissionStatus.accepted,
+            classId,
+            classArmId,
             admissionDate: new Date(),
             updatedBy: requester.id,
           },
@@ -416,8 +594,6 @@ export class AdmissionsService {
           const studentSubjectAssignments = subjects.map((subj) => ({
             studentId: admission.studentId,
             subjectId: subj.subjectId,
-            classId,
-            classArmId,
             sessionId: admission.sessionId,
             schoolId: admission.schoolId,
             classArmSubjectId: subj.id,
@@ -465,6 +641,8 @@ export class AdmissionsService {
           data: {
             admissionStatus: AdmissionStatus.rejected,
             admissionDate: null,
+            classId: null,
+            classArmId: null,
             updatedBy: requester.id,
           },
         });

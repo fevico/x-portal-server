@@ -10,6 +10,7 @@ import {
   AssignMarkingSchemeDto,
   CreateGradingSystemDto,
   CreateMarkingSchemeDto,
+  UpdateContinuousAssessmentDto,
   UpdateSchoolInfoDto,
 } from './dto/configuration';
 import { AuthenticatedUser } from '@/types/express';
@@ -1296,10 +1297,282 @@ export class ConfigurationService {
     }
   }
 
-  async createReportSetting(dto: any, req:any){
+  // fution to get all contuous assessment
+  async getContinuousAssessments(req: any) {
+    const user = req.user as AuthenticatedUser;
+
+    if (!user.schoolId) {
+      throw new NotFoundException('User must be associated with a school');
+    }
+
+    try {
+      const continuousAssessments =
+        await this.prisma.continuousAssessment.findMany({
+          where: { schoolId: user.schoolId, isDeleted: false },
+          include: {
+            markingSchemeComponent: {
+              select: { id: true, name: true, score: true },
+            },
+            components: {
+              where: { isDeleted: false },
+              select: { id: true, name: true, score: true },
+            },
+          },
+        });
+
+      return {
+        statusCode: 200,
+        message: 'Continuous assessments retrieved successfully',
+        data: continuousAssessments,
+      };
+    } catch (error) {
+      console.error('Error fetching continuous assessments:', error);
+      throw new HttpException('Failed to fetch continuous assessments', 500);
+    }
+  }
+
+  // update continuous Assessment
+  async updateContinuousAssessment(
+    id: string,
+    dto: UpdateContinuousAssessmentDto,
+    req: any,
+  ) {
+    const user = req.user as AuthenticatedUser;
+
+    if (!user.schoolId) {
+      throw new NotFoundException('User must be associated with a school');
+    }
+
+    try {
+      // Check if the continuous assessment exists and belongs to the school
+      const existingContinuousAssessment =
+        await this.prisma.continuousAssessment.findFirst({
+          where: {
+            id,
+            schoolId: user.schoolId,
+            isDeleted: false,
+          },
+          include: {
+            markingSchemeComponent: {
+              select: { id: true, name: true, score: true },
+            },
+          },
+        });
+
+      if (!existingContinuousAssessment) {
+        throw new NotFoundException(
+          'Continuous assessment not found or does not belong to your school',
+        );
+      }
+
+      // Validate that the total score of components matches the marking scheme component score
+      const totalComponentScore = dto.components.reduce(
+        (sum, component) => sum + component.score,
+        0,
+      );
+      const expectedScore =
+        existingContinuousAssessment.markingSchemeComponent.score;
+
+      if (totalComponentScore !== expectedScore) {
+        throw new BadRequestException(
+          `Total score of components (${totalComponentScore}) must equal the marking scheme component score (${expectedScore})`,
+        );
+      }
+
+      // Validate component names are unique
+      const componentNames = dto.components.map((c) => c.name);
+      const uniqueNames = new Set(componentNames);
+      if (componentNames.length !== uniqueNames.size) {
+        throw new BadRequestException('Component names must be unique');
+      }
+
+      // Update continuous assessment components in a transaction
+      const result = await this.prisma.$transaction(async (tx) => {
+        // Delete existing components
+        await tx.continuousAssessmentComponent.deleteMany({
+          where: {
+            continuousAssessmentId: id,
+            schoolId: user.schoolId,
+          },
+        });
+
+        // Create new components
+        const newComponents = await Promise.all(
+          dto.components.map((component) =>
+            tx.continuousAssessmentComponent.create({
+              data: {
+                continuousAssessmentId: id,
+                name: component.name,
+                score: component.score,
+                schoolId: user.schoolId,
+                createdBy: user.id,
+              },
+            }),
+          ),
+        );
+
+        // Get updated continuous assessment with new components
+        const updatedContinuousAssessment =
+          await tx.continuousAssessment.findUnique({
+            where: { id },
+            include: {
+              markingSchemeComponent: {
+                select: { id: true, name: true, score: true },
+              },
+              components: {
+                where: { isDeleted: false },
+                select: { id: true, name: true, score: true },
+              },
+            },
+          });
+
+        return { updatedContinuousAssessment, newComponents };
+      });
+
+      // Log action
+      await this.loggingService.logAction(
+        'update_continuous_assessment',
+        'ContinuousAssessment',
+        id,
+        user.id,
+        user.schoolId,
+        {
+          markingSchemeComponent:
+            existingContinuousAssessment.markingSchemeComponent.name,
+          components: dto.components,
+        },
+        req,
+      );
+
+      return {
+        statusCode: 200,
+        message: 'Continuous assessment updated successfully',
+        data: {
+          id: result.updatedContinuousAssessment.id,
+          markingSchemeComponent:
+            result.updatedContinuousAssessment.markingSchemeComponent,
+          components: result.updatedContinuousAssessment.components,
+          totalComponents: result.newComponents.length,
+        },
+      };
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+      console.error('Error updating continuous assessment:', error);
+      throw new HttpException('Failed to update continuous assessment', 500);
+    }
+  }
+
+  // get marking scheme with schoolId classId and termDefinitionId from ClassTermMarkingSchemeAssignment
+  async getMarkingSchemeByClassAndTerm(
+    classId: string,
+    termDefinitionId: string,
+    req: any,
+  ) {
+    const user = req.user as AuthenticatedUser;
+
+    if (!user.schoolId) {
+      throw new NotFoundException('User must be associated with a school');
+    }
+
+    try {
+      // Find the marking scheme assignment for the given class and term
+      const assignment =
+        await this.prisma.classTermMarkingSchemeAssignment.findFirst({
+          where: {
+            classId,
+            termDefinitionId,
+            schoolId: user.schoolId,
+            isDeleted: false,
+          },
+          include: {
+            markingScheme: {
+              include: {
+                components: {
+                  where: { isDeleted: false },
+                  include: {
+                    continuousAssessments: {
+                      where: { isDeleted: false },
+                      include: {
+                        components: {
+                          where: { isDeleted: false },
+                          select: {
+                            id: true,
+                            name: true,
+                            score: true,
+                          },
+                        },
+                      },
+                    },
+                  },
+                  orderBy: { createdAt: 'asc' },
+                },
+              },
+            },
+            class: {
+              select: { id: true, name: true },
+            },
+            termDefinition: {
+              select: { id: true, name: true },
+            },
+          },
+        });
+
+      if (!assignment) {
+        throw new NotFoundException(
+          'No marking scheme found for this class and term combination',
+        );
+      }
+
+      return {
+        statusCode: 200,
+        message: 'Marking scheme retrieved successfully',
+        data: {
+          assignmentId: assignment.id,
+          class: assignment.class,
+          termDefinition: assignment.termDefinition,
+          markingScheme: {
+            id: assignment.markingScheme.id,
+            name: assignment.markingScheme.name,
+            components: assignment.markingScheme.components.map(
+              (component) => ({
+                id: component.id,
+                name: component.name,
+                score: component.score,
+                type: component.type,
+                subComponents:
+                  component.continuousAssessments[0]?.components || [],
+              }),
+            ),
+          },
+        },
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      console.error('Error fetching marking scheme:', error);
+      throw new HttpException('Failed to fetch marking scheme', 500);
+    }
+  }
+  async createReportSetting(dto: any, req: any) {
     const schoolId = req.user.schoolId;
     const userId = req.user.id;
-    const {classId, padding, headerFont, subjectFont, valueFont, classTeacherCompute, showAge, showPosition, showNextFee} = dto;
+    const {
+      classId,
+      padding,
+      headerFont,
+      subjectFont,
+      valueFont,
+      classTeacherCompute,
+      showAge,
+      showPosition,
+      showNextFee,
+    } = dto;
     try {
       const reportSetting = await this.prisma.reportSheetSetting.create({
         data: {
@@ -1313,7 +1586,7 @@ export class ConfigurationService {
           showAge: showAge ? true : false,
           showPosition: showPosition ? true : false,
           showNextFee: showNextFee ? true : false,
-          createdBy: userId
+          createdBy: userId,
         },
       });
 
@@ -1321,13 +1594,13 @@ export class ConfigurationService {
         statusCode: 200,
         message: 'Report setting created successfully',
         data: reportSetting,
+      };
+    } catch (error) {
+      throw new HttpException('Failed to create report setting', 500);
     }
-  }catch(error){
-    throw new HttpException('Failed to create report setting', 500);
-  }
   }
 
-  async getReportSetting(req:any){
+  async getReportSetting(req: any) {
     const schoolId = req.user.schoolId;
     try {
       const reportSetting = await this.prisma.reportSheetSetting.findFirst({
@@ -1340,10 +1613,9 @@ export class ConfigurationService {
         statusCode: 200,
         message: 'Report setting retrieved successfully',
         data: reportSetting,
+      };
+    } catch (error) {
+      throw new HttpException('Failed to retrieve report setting', 500);
     }
-  }catch(error){
-    throw new HttpException('Failed to retrieve report setting', 500);
   }
-  }
- 
 }

@@ -30,17 +30,97 @@ model User {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
   createdBy     String?  @map("created_by") // Added
+  createdByUser User?    @relation("UserCreatedBy", fields: [createdBy], references: [id])
+  usersCreated  User[]   @relation("UserCreatedBy")
 
-  updatedBy  String?    @map("updated_by") // Added
-  schoolSlug String?    @map("school_slug") // New: For multi-school support
-  schoolId   String?    @map("school_id")
-  school     School?    @relation(fields: [schoolId], references: [id])
-  subRoleId  String?    @map("sub_role_id")
-  subRole    SubRole?   @relation("UserRoles", fields: [subRoleId], references: [id])
-  logEntries LogEntry[]
-  staff      Staff?     @relation("UserToStaff")
-  student    Student?   @relation("UserToStudent")
-  parent     Parent?    @relation("UserToParent")
+  updatedBy     String?    @map("updated_by") // Added
+  updatedByUser User?      @relation("UserUpdatedBy", fields: [updatedBy], references: [id])
+  usersUpdated  User[]     @relation("UserUpdatedBy")
+  schoolSlug    String?    @map("school_slug") // New: For multi-school support
+  schoolId      String?    @map("school_id")
+  school        School?    @relation(fields: [schoolId], references: [id])
+  subRoleId     String?    @map("sub_role_id")
+  subRole       SubRole?   @relation("UserRoles", fields: [subRoleId], references: [id])
+  logEntries    LogEntry[]
+  staff         Staff?     @relation("UserToStaff")
+  student       Student?   @relation("UserToStudent")
+  parent        Parent?    @relation("UserToParent")
+
+  // Audit trail relations - created records
+  createdSchools                          School[]                             @relation("SchoolCreatedBy")
+  createdStaff                            Staff[]                              @relation("StaffCreatedBy")
+  createdStudents                         Student[]                            @relation("StudentCreatedBy")
+  createdParents                          Parent[]                             @relation("ParentCreatedBy")
+  createdClasses                          Class[]                              @relation("ClassCreatedBy")
+  createdClassCategories                  ClassCategory[]                      @relation("ClassCategoryCreatedBy")
+  createdClassArms                        ClassArm[]                           @relation("ClassArmCreatedBy")
+  createdAdmissions                       Admission[]                          @relation("AdmissionCreatedBy")
+  createdSessions                         Session[]                            @relation("SessionCreatedBy")
+  createdTermDefinitions                  TermDefinition[]                     @relation("TermDefinitionCreatedBy")
+  createdSessionTerms                     SessionTerm[]                        @relation("SessionTermCreatedBy")
+  createdSessionClassAssignments          SessionClassAssignment[]             @relation("SessionClassAssignmentCreatedBy")
+  createdSubjects                         Subject[]                            @relation("SubjectCreatedBy")
+  createdStudentSubjectAssignments        StudentSubjectAssignment[]           @relation("StudentSubjectAssignmentCreatedBy")
+  createdClassArmSubjectAssignments       ClassArmSubjectAssignment[]          @relation("ClassArmSubjectAssignmentCreatedBy")
+  createdPermissions                      Permission[]                         @relation("PermissionCreatedBy")
+  createdSubRoles                         SubRole[]                            @relation("SubRoleCreatedBy")
+  createdSubRolePermissions               SubRolePermission[]                  @relation("SubRolePermissionCreatedBy")
+  createdSubscriptions                    Subscription[]                       @relation("SubscriptionCreatedBy")
+  createdAttendanceRecords                Attendance[]                         @relation("AttendanceCreatedBy")
+  createdStudentClassAssignments          StudentClassAssignment[]             @relation("StudentClassAssignmentCreatedBy")
+  createdSubscriptionPayments             SubscriptionPayment[]                @relation("SubscriptionPaymentCreatedBy")
+  createdInvoices                         Invoice[]                            @relation("InvoiceCreatedBy")
+  createdMarkingSchemes                   MarkingScheme[]                      @relation("MarkingSchemeCreatedBy")
+  createdMarkingSchemeComponents          MarkingSchemeComponent[]             @relation("MarkingSchemeComponentCreatedBy")
+  createdContinuousAssessments            ContinuousAssessment[]               @relation("ContinuousAssessmentCreatedBy")
+  createdContinuousAssessmentComponents   ContinuousAssessmentComponent[]      @relation("ContinuousAssessmentComponentCreatedBy")
+  createdGradingSystems                   GradingSystem[]                      @relation("GradingSystemCreatedBy")
+  createdGrades                           Grade[]                              @relation("GradeCreatedBy")
+  createdClassGradingSystems              ClassGradingSystem[]                 @relation("ClassGradingSystemCreatedBy")
+  createdClassTermMarkingSchemeAssignments ClassTermMarkingSchemeAssignment[] @relation("ClassTermMarkingSchemeAssignmentCreatedBy")
+  createdTeacherSubjectAssignments        TeacherSubjectAssignment[]           @relation("TeacherSubjectAssignmentCreatedBy")
+  createdStudentScoreAssignments          StudentScoreAssignment[]             @relation("StudentScoreAssignmentCreatedBy")
+  createdResultBatches                    ResultBatch[]                        @relation("ResultBatchCreatedBy")
+  createdConfigurations                   Configuration[]                      @relation("ConfigurationCreatedBy")
+  createdReportSheetSettings              ReportSheetSetting[]                 @relation("ReportSheetSettingCreatedBy")
+
+  // Audit trail relations - updated records
+  updatedSchools                          School[]                             @relation("SchoolUpdatedBy")
+  updatedStaff                            Staff[]                              @relation("StaffUpdatedBy")
+  updatedStudents                         Student[]                            @relation("StudentUpdatedBy")
+  updatedParents                          Parent[]                             @relation("ParentUpdatedBy")
+  updatedClasses                          Class[]                              @relation("ClassUpdatedBy")
+  updatedClassCategories                  ClassCategory[]                      @relation("ClassCategoryUpdatedBy")
+  updatedClassArms                        ClassArm[]                           @relation("ClassArmUpdatedBy")
+  updatedAdmissions                       Admission[]                          @relation("AdmissionUpdatedBy")
+  updatedSessions                         Session[]                            @relation("SessionUpdatedBy")
+  updatedTermDefinitions                  TermDefinition[]                     @relation("TermDefinitionUpdatedBy")
+  updatedSessionTerms                     SessionTerm[]                        @relation("SessionTermUpdatedBy")
+  updatedSubjects                         Subject[]                            @relation("SubjectUpdatedBy")
+  updatedStudentSubjectAssignments        StudentSubjectAssignment[]           @relation("StudentSubjectAssignmentUpdatedBy")
+  updatedClassArmSubjectAssignments       ClassArmSubjectAssignment[]          @relation("ClassArmSubjectAssignmentUpdatedBy")
+  updatedPermissions                      Permission[]                         @relation("PermissionUpdatedBy")
+  updatedSubRoles                         SubRole[]                            @relation("SubRoleUpdatedBy")
+  updatedSubRolePermissions               SubRolePermission[]                  @relation("SubRolePermissionUpdatedBy")
+  updatedSubscriptions                    Subscription[]                       @relation("SubscriptionUpdatedBy")
+  updatedAttendanceRecords                Attendance[]                         @relation("AttendanceUpdatedBy")
+  updatedStudentClassAssignments          StudentClassAssignment[]             @relation("StudentClassAssignmentUpdatedBy")
+  updatedMarkingSchemes                   MarkingScheme[]                      @relation("MarkingSchemeUpdatedBy")
+  updatedMarkingSchemeComponents          MarkingSchemeComponent[]             @relation("MarkingSchemeComponentUpdatedBy")
+  updatedContinuousAssessments            ContinuousAssessment[]               @relation("ContinuousAssessmentUpdatedBy")
+  updatedContinuousAssessmentComponents   ContinuousAssessmentComponent[]      @relation("ContinuousAssessmentComponentUpdatedBy")
+  updatedGradingSystems                   GradingSystem[]                      @relation("GradingSystemUpdatedBy")
+  updatedGrades                           Grade[]                              @relation("GradeUpdatedBy")
+  updatedClassGradingSystems              ClassGradingSystem[]                 @relation("ClassGradingSystemUpdatedBy")
+  updatedClassTermMarkingSchemeAssignments ClassTermMarkingSchemeAssignment[] @relation("ClassTermMarkingSchemeAssignmentUpdatedBy")
+  updatedTeacherSubjectAssignments        TeacherSubjectAssignment[]           @relation("TeacherSubjectAssignmentUpdatedBy")
+  updatedStudentScoreAssignments          StudentScoreAssignment[]             @relation("StudentScoreAssignmentUpdatedBy")
+  updatedResultBatches                    ResultBatch[]                        @relation("ResultBatchUpdatedBy")
+  updatedConfigurations                   Configuration[]                      @relation("ConfigurationUpdatedBy")
+  updatedReportSheetSettings              ReportSheetSetting[]                 @relation("ReportSheetSettingUpdatedBy")
+
+  // Approval relations
+  approvedResultBatches                   ResultBatch[]                        @relation("ResultBatchApprovedBy")
 
   @@index([schoolId, email])
   @@index([schoolId, username])
@@ -63,7 +143,9 @@ model School {
   subscriptionStatus             Boolean?                        @default(false) @map("subscription_status")
   createdAt                      DateTime                        @default(now()) @map("created_at")
   createdBy                      String?
+  createdByUser                  User?                           @relation("SchoolCreatedBy", fields: [createdBy], references: [id])
   updatedBy                      String?
+  updatedByUser                  User?                           @relation("SchoolUpdatedBy", fields: [updatedBy], references: [id])
   updatedAt                      DateTime                        @updatedAt @map("updated_at")
   users                          User[]
   subRoles                       SubRole[]
@@ -122,8 +204,9 @@ model Staff {
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
   createdBy      String?   @map("created_by") // Added
-
-  updatedBy          String?                    @map("updated_by") // Added
+  createdByUser  User?     @relation("StaffCreatedBy", fields: [createdBy], references: [id])
+  updatedBy      String?   @map("updated_by") // Added
+  updatedByUser  User?     @relation("StaffUpdatedBy", fields: [updatedBy], references: [id])
   teacherAssignments TeacherSubjectAssignment[]
   // @@index([userId, schoolId]) 
 
@@ -150,12 +233,13 @@ model Student {
   classArm          ClassArm?                  @relation("ArmStudents", fields: [classArmId], references: [id])
   subjects          StudentSubjectAssignment[] // Updated relation name
   admission         Admission?                 @relation("StudentToAdmission") // New: Link to admission
-  admissionStatus   AdmissionStatus            @default(pending) @map("admission_status")
-  admissionDate     DateTime?                  @map("admission_date") // Date of admission  createdAt         DateTime                   @default(now()) @map("created_at")
+  admissionStatus   AdmissionStatus            @default(pending) @map("admission_status")  admissionDate     DateTime?                  @map("admission_date") // Date of admission  createdAt         DateTime                   @default(now()) @map("created_at")
   isAlumni          Boolean                    @map("is_alumni") @default(false)
   updatedAt         DateTime                   @updatedAt @map("updated_at")
   createdBy         String?                    @map("created_by")
+  createdByUser     User?                      @relation("StudentCreatedBy", fields: [createdBy], references: [id])
   updatedBy         String?                    @map("updated_by")
+  updatedByUser     User?                      @relation("StudentUpdatedBy", fields: [updatedBy], references: [id])
   attendanceRecords Attendance[]               @relation("StudentAttendance")
   classAssignments  StudentClassAssignment[]   @relation("StudentClassAssignment")
   invoices          Invoice[] // New: Links to invoices
@@ -171,12 +255,12 @@ model Parent {
   user         User      @relation("UserToParent", fields: [userId], references: [id])
   occupation   String?
   relationship String? // e.g., Father, Mother, Guardian
-  students     Student[] // Links to students they are responsible for
-  createdAt    DateTime  @default(now()) @map("created_at")
+  students     Student[] // Links to students they are responsible for  createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
   createdBy    String?   @map("created_by") // Added
-
-  updatedBy String?     @map("updated_by") // Added
+  createdByUser User?    @relation("ParentCreatedBy", fields: [createdBy], references: [id])
+  updatedBy    String?   @map("updated_by") // Added
+  updatedByUser User?    @relation("ParentUpdatedBy", fields: [updatedBy], references: [id])
   Admission Admission[]
   // @@index([userId]) 
 
@@ -191,13 +275,14 @@ model Class {
   school                  School                             @relation(fields: [schoolId], references: [id])
   classCategoryId         String?                            @map("class_category_id")
   classCategory           ClassCategory?                     @relation(fields: [classCategoryId], references: [id])
-  students                Student[]                          @relation("StudentClass")
-  isDeleted               Boolean                            @default(false)
+  students                Student[]                          @relation("StudentClass")  isDeleted               Boolean                            @default(false)
   isActive                Boolean                            @default(true)
   createdAt               DateTime                           @default(now()) @map("created_at")
   updatedAt               DateTime                           @updatedAt @map("updated_at")
   createdBy               String?                            @map("created_by")
+  createdByUser           User?                              @relation("ClassCreatedBy", fields: [createdBy], references: [id])
   updatedBy               String?                            @map("updated_by")
+  updatedByUser           User?                              @relation("ClassUpdatedBy", fields: [updatedBy], references: [id])
   admissionsPresentClass  Admission[]                        @relation("PresentClass")
   admissionsClassToApply  Admission[]                        @relation("ClassToApply")
   admissionsAssignedClass Admission[]                        @relation("AssignedClass")

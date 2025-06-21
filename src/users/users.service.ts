@@ -29,7 +29,7 @@ export class UsersService {
         OR: [{ email: identifier }, { username: identifier }],
       },
       include: {
-        school: { select: { id: true, name: true } },
+        school: { select: { id: true, name: true, slug: true } },
         subRole: {
           include: {
             permissions: {
@@ -236,7 +236,7 @@ export class UsersService {
     req,
   ): Promise<User> {
     const requester = req.user as AuthenticatedUser;
-    console.log(data, requester, 'Creating user with data:');
+    // console.log(data, requester, 'Creating user with data:');
     // Validate subRoleId for non-superAdmin users
     let subRole: SubRole | null = null;
     if (data.role !== 'superAdmin') {
@@ -323,6 +323,7 @@ export class UsersService {
       password: hashedPassword,
       plainPassword,
       role: data.role || 'admin',
+      schoolSlug: requester.schoolSlug,
       school:
         requester && requester.schoolId
           ? { connect: { id: requester.schoolId } }
@@ -345,8 +346,9 @@ export class UsersService {
               data: {
                 user: { connect: { id: createdUser.id } },
                 staffRegNo: data.staffRegNo,
-                department: data.department,
-                position: data.position,
+                // department: data.department,
+                // position: data.position,
+                // qualifications: data.qualifications,
                 createdBy: requester.id,
               },
             });
@@ -354,8 +356,14 @@ export class UsersService {
             await tx.student.create({
               data: {
                 user: { connect: { id: createdUser.id } },
-                studentRegNo: data.studentRegNo,
+                studentRegNo: data.studentRegNo || null,
                 dateOfBirth: data.dateOfBirth || null,
+                class: data.classId
+                  ? { connect: { id: data.classId } }
+                  : undefined,
+                classArm: data.classArmId
+                  ? { connect: { id: data.classArmId } }
+                  : undefined,
                 admissionStatus: AdmissionStatus.accepted, // Default to accepted
                 religion: data.religion || null,
                 nationality: data.nationality || null,
@@ -518,16 +526,17 @@ export class UsersService {
               where: { userId: id },
               update: {
                 staffRegNo: data.staffRegNo,
-                department: data.department,
-                position: data.position,
+                // qualifications: data.qualifications,
+                // department: data.department,
+                // position: data.position,
                 updatedBy: requester.id,
               },
               create: {
                 // id: uuidv4(),
                 userId: id,
                 staffRegNo: data.staffRegNo,
-                department: data.department,
-                position: data.position,
+                // department: data.department,
+                // position: data.position,
                 createdBy: requester.id,
               },
             });
@@ -796,6 +805,7 @@ export class UsersService {
           // School information
           schoolId: user.schoolId || '',
           schoolName: user.school?.name || '',
+          schoolSlug: user.school?.slug || '',
           currentSessionId: user.school?.currentSessionId || '',
           currentSessionName: user.school?.currentSession?.name || '',
           currentTermId: user.school?.currentTermId || '',
@@ -826,8 +836,8 @@ export class UsersService {
           isStaff: !!user.staff,
           staffId: user.staff?.id || '',
           staffRegNo: user.staff?.staffRegNo || '',
-          department: user.staff?.department || '',
-          position: user.staff?.position || '',
+          // department: user.staff?.department || '',
+          // position: user.staff?.position || '',
 
           // Parent-specific fields (if user is a parent)
           isParent: !!user.parent,

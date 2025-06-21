@@ -57,3 +57,9 @@ fetch stduents for attendance form student classassignmentn this should be updat
 to assing teavhers to subject and class or class arms fetch all in the school not session, same for assigning subjetcs to clasa and class arms because it is not session dependent
 
 already set in admission accept srill set in create student and on promotion, the studentclassArmsubject and classassignment
+
+update student currentclass on promote on admission and on create student
+on create student as in new user cerate session assignment with class and subject
+
+if session starts and student is assigned to class and class arm cannot remove that class or class arm for that session until all students are moved, if u assign subject to class we check to make sure students in that class gets the subject immediately and if u remove subject from class we check to make sure students in that class are not assigned to that subject immediately
+approved by cerwated and updated by needs to connect to user model

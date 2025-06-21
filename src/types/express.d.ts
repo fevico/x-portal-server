@@ -7,6 +7,7 @@ type UserWithoutPassword = Omit<User, 'password'>;
 export interface AuthenticatedUser extends UserWithoutPassword {
   view_as?: 'admin' | 'superAdmin';
   schoolId?: string;
+  schoolSlug?: string;
   permissions: string[];
 }
 

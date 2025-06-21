@@ -121,6 +121,27 @@ export class ClassesService {
     }
   }
 
+  async findAllPublic(schoolId: string) {
+    try {
+      return await this.prisma.class.findMany({
+        where: {
+          schoolId,
+          isDeleted: false,
+        },
+        orderBy: { name: 'asc' },
+        select: {
+          id: true,
+          name: true,
+        },
+      });
+    } catch (error) {
+      throw new HttpException(
+        'Failed to fetch classes',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   async findOne(id: string, schoolId: string) {
     const classRecord = await this.prisma.class.findFirst({
       where: {
@@ -497,23 +518,252 @@ export class ClassesService {
     }
   }
 
+  async getClassesBySession(sessionId: string, user: AuthenticatedUser) {
+    try {
+      // Validate session exists and belongs to the school
+      const session = await this.prisma.session.findFirst({
+        where: {
+          id: sessionId,
+          schoolId: user.schoolId,
+          isDeleted: false,
+        },
+        select: { id: true, name: true },
+      });
+
+      if (!session) {
+        throw new NotFoundException('Session not found for this school');
+      }
+
+      // Get all class assignments for the session
+      const classAssignments =
+        await this.prisma.sessionClassAssignment.findMany({
+          where: {
+            sessionId,
+            schoolId: user.schoolId,
+            isDeleted: false,
+          },
+          include: {
+            class: {
+              select: {
+                id: true,
+                name: true,
+                classCategory: {
+                  select: { id: true, name: true },
+                },
+              },
+            },
+            classArm: {
+              select: { id: true, name: true },
+            },
+          },
+          orderBy: [{ class: { name: 'asc' } }, { classArm: { name: 'asc' } }],
+        });
+
+      // Group class arms by class
+      const classesMap = new Map();
+
+      classAssignments.forEach((assignment) => {
+        const classId = assignment.class.id;
+
+        if (!classesMap.has(classId)) {
+          classesMap.set(classId, {
+            id: assignment.class.id,
+            name: assignment.class.name,
+            category: assignment.class.classCategory,
+            classArms: [],
+          });
+        }
+
+        classesMap.get(classId).classArms.push({
+          id: assignment.classArm.id,
+          name: assignment.classArm.name,
+        });
+      });
+
+      // Convert map to array and sort
+      const classes = Array.from(classesMap.values()).sort((a, b) =>
+        a.name.localeCompare(b.name),
+      );
+
+      return {
+        statusCode: 200,
+        message: 'Classes and arms retrieved successfully',
+        data: {
+          session: {
+            id: session.id,
+            name: session.name,
+          },
+          classes,
+          totalClasses: classes.length,
+          totalAssignments: classAssignments.length,
+        },
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      console.error('Error fetching classes by session:', error);
+      throw new HttpException(
+        'Failed to fetch classes and arms',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
   async getStudentClassAssignment(user: AuthenticatedUser, body: any) {
     const { classId, classArmId, sessionId } = body;
     const schoolId = user.schoolId;
+
     try {
-      const studentClassAssignment = await this.prisma.studentClassAssignment.findMany({
+      // Validate session exists and belongs to the school
+      const session = await this.prisma.session.findFirst({
         where: {
+          id: sessionId,
           schoolId,
-          classId,
-          classArmId,
-          sessionId,
+          isDeleted: false,
         },
-        include: {
-          class: { select: {name: true } },
+        select: { id: true, name: true },
+      });
+
+      if (!session) {
+        throw new HttpException(
+          'Session not found for this school',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      // Validate class exists and belongs to the school
+      const classExists = await this.prisma.class.findFirst({
+        where: {
+          id: classId,
+          schoolId,
+          isDeleted: false,
         },
-      })
-      return studentClassAssignment;   
-    }catch(error) {
+        select: { id: true, name: true },
+      });
+
+      if (!classExists) {
+        throw new HttpException(
+          'Class not found for this school',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      // Validate class arm exists and belongs to the school
+      const classArmExists = await this.prisma.classArm.findFirst({
+        where: {
+          id: classArmId,
+          schoolId,
+          isDeleted: false,
+        },
+        select: { id: true, name: true },
+      });
+
+      if (!classArmExists) {
+        throw new HttpException(
+          'Class arm not found for this school',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      const studentClassAssignments =
+        await this.prisma.studentClassAssignment.findMany({
+          where: {
+            schoolId,
+            classId,
+            classArmId,
+            sessionId,
+            isActive: true,
+          },
+          include: {
+            class: {
+              select: {
+                id: true,
+                name: true,
+                classCategory: {
+                  select: { id: true, name: true },
+                },
+              },
+            },
+            classArm: {
+              select: { id: true, name: true },
+            },
+            session: {
+              select: { id: true, name: true },
+            },
+            student: {
+              select: {
+                id: true,
+                studentRegNo: true,
+                user: {
+                  select: {
+                    id: true,
+                    firstname: true,
+                    lastname: true,
+                    othername: true,
+                    email: true,
+                    username: true,
+                    gender: true,
+                    avatar: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: {
+            student: {
+              user: {
+                lastname: 'asc',
+              },
+            },
+          },
+        });
+
+      // Format the response
+      const students = studentClassAssignments.map((assignment) => ({
+        assignmentId: assignment.id,
+        student: {
+          id: assignment.student.id,
+          regNo: assignment.student.studentRegNo,
+          fullName: `${assignment.student.user.lastname || ''} ${
+            assignment.student.user.firstname || ''
+          } ${assignment.student.user.othername || ''}`.trim(),
+          firstname: assignment.student.user.firstname,
+          lastname: assignment.student.user.lastname,
+          othername: assignment.student.user.othername,
+          email: assignment.student.user.email,
+          username: assignment.student.user.username,
+          gender: assignment.student.user.gender,
+          avatar: (assignment.student.user.avatar as any)?.imageUrl || null,
+        },
+        assignedAt: new Date(), // Current timestamp
+        isActive: assignment.isActive,
+      }));
+
+      return {
+        statusCode: 200,
+        message: 'Students in class arm retrieved successfully',
+        data: {
+          session: {
+            id: session.id,
+            name: session.name,
+          },
+          class: {
+            id: classExists.id,
+            name: classExists.name,
+          },
+          classArm: {
+            id: classArmExists.id,
+            name: classArmExists.name,
+          },
+          totalStudents: students.length,
+          students,
+        },
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      console.error('Error fetching student class assignments:', error);
       throw new HttpException(
         'Failed to fetch student class assignment',
         HttpStatus.INTERNAL_SERVER_ERROR,

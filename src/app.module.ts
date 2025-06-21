@@ -17,8 +17,7 @@ import { LoggingModule } from './log/loggging.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { PingService } from './ping/ping.service';
 import { SubjectModule } from './subject/subject.module';
-
-// import { ResultsModule } from './results/results.module';
+import { ResultsModule } from './results/results.module';
 import { SessionModule } from './session/session.module';
 import { AdmissionsModule } from './addmission/addmission.module';
 import { AttendanceModule } from './attendance/attendance.module';
@@ -55,7 +54,7 @@ import { ScoreModule } from './score/score.module';
     CommunicationModule,
     ConfigurationModule,
     ScoreModule,
-    // ResultsModule,
+    ResultsModule,
   ],
   controllers: [AppController],
   providers: [AppService, PingService],

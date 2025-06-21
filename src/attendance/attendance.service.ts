@@ -638,10 +638,10 @@ export class AttendanceService {
         });
       });
 
-      return {   
+      return {
         message: 'Students promoted successfully',
         promotedCount: students.length,
-      };          
+      };
     } catch (error) {
       console.error(error);
       throw error instanceof HttpException
