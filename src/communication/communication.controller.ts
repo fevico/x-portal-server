@@ -12,8 +12,8 @@ import {
 import { CommunicationService } from './communication.service';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guards';
 import { AuthenticatedUser } from '@/types/express';
-import { Request as RequestExpress, Response } from 'express';
-import { CreateEvent, updateEvent } from './dto/event.dto';
+import { Request as RequestExpress } from 'express';
+import { CreateEvent, updateEvent as updateEventDto } from './dto/event.dto';
 
 @Controller('communication')
 export class CommunicationController {
@@ -51,7 +51,7 @@ export class CommunicationController {
   async updateEvent(
     @Request() req: RequestExpress,
     @Param('eventId') eventId: string,
-    @Body() updateEvent: updateEvent,
+    @Body() updateEvent: updateEventDto,
   ): Promise<any> {
     const user = req.user as AuthenticatedUser;
     const event = await this.communicationService.getEventById(eventId, user);
