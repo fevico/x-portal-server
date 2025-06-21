@@ -51,10 +51,11 @@ export class AuthService {
     userId: string,
     viewAs: 'admin' | 'superAdmin',
     schoolId: string,
+    schoolSlug: string,
   ) {
     const user = await this.usersService.findById(userId);
     // console.log(user);
-    const payload = { sub: user.id, view_as: viewAs, schoolId };
+    const payload = { sub: user.id, view_as: viewAs, schoolId, schoolSlug };
     return this.jwtService.sign(payload, {
       secret: process.env.VIEW_AS_SECRET,
       expiresIn: '24h',

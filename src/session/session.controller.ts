@@ -8,6 +8,7 @@ import {
   Param,
   Request,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 
 import { SessionsService } from './session.service';
@@ -19,7 +20,6 @@ import { PermissionsGuard } from '@/auth/guards/permissions.guard';
 import { AuthenticatedUser } from '@/types/express';
 import { Request as RequestExpress } from 'express';
 
-@UseGuards(JwtAuthGuard)
 @Controller('sessions')
 export class SessionsController {
   constructor(private readonly sessionsService: SessionsService) {}
@@ -36,6 +36,17 @@ export class SessionsController {
       req,
     );
     return result;
+  }
+
+  @Get('public')
+  async getSessionsBySchoolPublic(@Query('schoolId') schoolId: string) {
+    const sessions =
+      await this.sessionsService.getSessionsBySchoolPublic(schoolId);
+    return {
+      statusCode: 200,
+      message: 'Sessions retrieved successfully',
+      data: sessions,
+    };
   }
 
   @Get('fetch-class-class-arm/:sessionId')
@@ -56,6 +67,7 @@ export class SessionsController {
     };
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get()
   async getSessionsBySchool(@Request() req: Request) {
     const sessions = await this.sessionsService.getSessionsBySchool(req);
@@ -66,6 +78,7 @@ export class SessionsController {
     };
   }
 
+  @UseGuards(JwtAuthGuard)
   @Patch(':id')
   async updateSession(
     @Param('id') id: string,
@@ -80,6 +93,7 @@ export class SessionsController {
     return result;
   }
 
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
   async deleteSession(@Param('id') id: string, @Request() req: Request) {
     const result = await this.sessionsService.deleteSession(id, req);

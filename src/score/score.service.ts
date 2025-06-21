@@ -1,588 +1,735 @@
 import {
   Injectable,
-  // BadRequestException,
-  // NotFoundException,
+  HttpException,
+  HttpStatus,
+  BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
-// import {
-//   FetchClassArmResultsDto,
-//   FetchStudentResultDto,
-//   FetchStudentScoresDto,
-//   SaveStudentScoresDto,
-// } from './dto/score.dto';
+import { SaveScoresDto, FetchScoresDto, StudentScore } from './dto/score.dto';
 import { PrismaService } from '@/prisma/prisma.service';
 import { LoggingService } from '@/log/logging.service';
+import { AuthenticatedUser } from '@/types/express';
+import { AssessmentType } from '@prisma/client';
+import { generateScoreUniqueHash } from '@/utils/hash.util';
 
 @Injectable()
 export class ScoreService {
   constructor(
     private prisma: PrismaService,
-    private loggingService: LoggingService, // Adjust type based on your LoggingService
+    private loggingService: LoggingService,
   ) {}
 
-  //   // Save Student Scores
-  //   async saveStudentScores(data: SaveStudentScoresDto, req: any) {
-  //     const requester = req.user;
+  /**
+   * Save or update scores for students
+   * Handles both single student multiple subjects and multiple students single subject
+   */
+  // async saveScores(data: SaveScoresDto, req: any) {
+  //   try {
+  //     const user = req.user as AuthenticatedUser;
+  //     const schoolId = user.schoolId;
 
-  //     try {
-  //       // Validate inputs
-  //       const studentClass = await this.prisma.studentClassAssignment.findFirst({
-  //         where: {
-  //           studentId: data.studentId,
-  //           classId: data.classId,
-  //           classArmId: data.classArmId,
-  //           sessionId: data.sessionId,
-  //           schoolId: data.schoolId,
-  //           isActive: true,
-  //         },
-  //       });
-  //       if (!studentClass) {
-  //         throw new BadRequestException('Invalid student class assignment');
-  //       }
+  //     // Validate school association
+  //     if (!schoolId) {
+  //       throw new BadRequestException('User must be associated with a school');
+  //     }
 
-  //       const subject = await this.prisma.subject.findUnique({
-  //         where: { id: data.subjectId, schoolId: data.schoolId },
-  //       });
-  //       if (!subject) {
-  //         throw new BadRequestException('Invalid subject');
-  //       }
+  //     // Validate session exists and belongs to the school
+  //     const session = await this.prisma.session.findFirst({
+  //       where: {
+  //         id: data.sessionId,
+  //         schoolId,
+  //         isDeleted: false,
+  //       },
+  //     });
 
-  //       const sessionTerm = await this.prisma.sessionTerm.findUnique({
-  //         where: { id: data.termDefinitionId, schoolId: data.schoolId },
-  //       });
-  //       if (!sessionTerm) {
-  //         throw new BadRequestException('Invalid session term');
-  //       }
+  //     if (!session) {
+  //       throw new NotFoundException('Session not found for this school');
+  //     }
 
-  //       // Resolve marking scheme for the class and term
-  //       const markingSchemeAssignment =
-  //         await this.prisma.classTermMarkingSchemeAssignment.findFirst({
-  //           where: {
-  //             classId: data.classId,
-  //             termDefinitionId: sessionTerm.termDefinitionId,
-  //             schoolId: data.schoolId,
-  //             isDeleted: false,
-  //           },
-  //           include: { markingScheme: { include: { components: true } } },
-  //         });
-  //       if (!markingSchemeAssignment) {
-  //         throw new BadRequestException(
-  //           'No marking scheme assigned to this class and term',
-  //         );
-  //       }
+  //     // Validate term exists and belongs to the school
+  //     const termDefinition = await this.prisma.termDefinition.findFirst({
+  //       where: {
+  //         id: data.termId,
+  //         schoolId,
+  //       },
+  //     });
 
-  //       // Save scores
-  //       const scoreRecords = await this.prisma.$transaction(async (prisma) =>
-  //         Promise.all(
-  //           data.scores.map(async (score) => {
-  //             let markingSchemeComponentId = score.markingSchemeComponentId;
+  //     if (!termDefinition) {
+  //       throw new NotFoundException('Term not found for this school');
+  //     }
 
-  //             // If continuousAssessmentComponentId is provided, find the parent MarkingSchemeComponent
-  //             if (score.continuousAssessmentComponentId) {
+  //     // Validate class exists and belongs to the school
+  //     const classExists = await this.prisma.class.findFirst({
+  //       where: {
+  //         id: data.classId,
+  //         schoolId,
+  //         isDeleted: false,
+  //       },
+  //     });
+
+  //     if (!classExists) {
+  //       throw new NotFoundException('Class not found for this school');
+  //     }
+
+  //     // Validate class arm exists and belongs to the school
+  //     const classArmExists = await this.prisma.classArm.findFirst({
+  //       where: {
+  //         id: data.classArmId,
+  //         schoolId,
+  //         isDeleted: false,
+  //       },
+  //     });
+
+  //     if (!classArmExists) {
+  //       throw new NotFoundException('Class arm not found for this school');
+  //     }
+
+  //     // Validate subject exists and belongs to the school
+  //     const subject = await this.prisma.subject.findFirst({
+  //       where: {
+  //         id: data.subjectId,
+  //         schoolId,
+  //         isDeleted: false,
+  //       },
+  //     });
+
+  //     if (!subject) {
+  //       throw new NotFoundException('Subject not found for this school');
+  //     }
+
+  //     // Process scores in transaction to ensure data consistency
+  //     const result = await this.prisma.$transaction(async (tx) => {
+  //       const processedScores = [];
+  //       const errors = [];
+
+  //       for (const scoreEntry of data.scores) {
+  //         try {
+  //           // Validate student exists and is assigned to the class
+  //           const studentAssignment = await tx.studentClassAssignment.findFirst(
+  //             {
+  //               where: {
+  //                 studentId: scoreEntry.studentId,
+  //                 sessionId: data.sessionId,
+  //                 classId: data.classId,
+  //                 classArmId: data.classArmId,
+  //                 schoolId,
+  //                 isActive: true,
+  //               },
+  //             },
+  //           );
+
+  //           if (!studentAssignment) {
+  //             errors.push(
+  //               `Student ${scoreEntry.studentId} is not assigned to this class`,
+  //             );
+  //             continue;
+  //           }
+
+  //           // Determine component IDs based on score type and data structure
+  //           let markingSchemeComponentId: string | null = null;
+  //           let continuousAssessmentComponentId: string | null = null;
+
+  //           if (scoreEntry.type === AssessmentType.EXAM) {
+  //             // For EXAM, componentId is the markingSchemeComponentId
+  //             markingSchemeComponentId = scoreEntry.componentId;
+  //           } else if (scoreEntry.type === AssessmentType.CA) {
+  //             if (scoreEntry.subComponentId) {
+  //               // For CA with sub-component, subComponentId is the continuousAssessmentComponentId
+  //               continuousAssessmentComponentId = scoreEntry.subComponentId;
+
+  //               // Verify the sub-component exists and get parent component
   //               const caComponent =
-  //                 await this.prisma.continuousAssessmentComponent.findUnique({
-  //                   where: { id: score.continuousAssessmentComponentId },
+  //                 await tx.continuousAssessmentComponent.findFirst({
+  //                   where: {
+  //                     id: scoreEntry.subComponentId,
+  //                     schoolId,
+  //                   },
   //                   include: {
   //                     continuousAssessment: {
-  //                       include: { markingSchemeComponent: true },
+  //                       include: {
+  //                         markingSchemeComponent: true,
+  //                       },
   //                     },
   //                   },
   //                 });
+
   //               if (!caComponent) {
-  //                 throw new BadRequestException(
-  //                   'Invalid continuous assessment component',
+  //                 errors.push(
+  //                   `Continuous assessment component ${scoreEntry.subComponentId} not found`,
   //                 );
+  //                 continue;
   //               }
+
   //               markingSchemeComponentId =
   //                 caComponent.continuousAssessment.markingSchemeComponentId;
+  //             } else {
+  //               // For CA without sub-component, componentId is the markingSchemeComponentId
+  //               markingSchemeComponentId = scoreEntry.componentId;
   //             }
+  //           }
 
-  //             // Validate component exists in the marking scheme
-  //             if (markingSchemeComponentId) {
-  //               const componentExists =
-  //                 markingSchemeAssignment.markingScheme.components.some(
-  //                   (c) => c.id === markingSchemeComponentId,
-  //                 );
-  //               if (!componentExists) {
-  //                 throw new BadRequestException(
-  //                   'Invalid marking scheme component',
-  //                 );
-  //               }
-  //             }
-
-  //             return this.prisma.studentScoreAssignment.upsert({
-  //               where: {
-  //                 studentId_subjectId_sessionId_termDefinitionId: {
-  //                   studentId: data.studentId,
-  //                   subjectId: data.subjectId,
-  //                   sessionId: data.sessionId,
-  //                   termDefinitionId: data.termDefinitionId,
-  //                 },
-  //               },
-  //               update: { score: score.score, updatedBy: data.recordedBy },
-  //               create: {
-  //                 studentId: data.studentId,
-  //                 subjectId: data.subjectId,
-  //                 classId: data.classId,
-  //                 classArmId: data.classArmId,
-  //                 sessionId: data.sessionId,
-  //                 termDefinitionId: data.termDefinitionId,
-  //                 schoolId: data.schoolId,
-  //                 markingSchemeComponentId: markingSchemeComponentId,
-  //                 continuousAssessmentComponentId:
-  //                   score.continuousAssessmentComponentId,
-  //                 score: score.score,
-  //                 recordedBy: data.recordedBy,
-  //                 createdBy: data.recordedBy,
-  //               },
-  //             });
-  //           }),
-  //         ),
-  //       );
-
-  //       // Calculate component-level scores
-  //       const allScores = await this.prisma.studentScoreAssignment.findMany({
-  //         where: {
-  //           studentId: data.studentId,
-  //           subjectId: data.subjectId,
-  //           sessionId: data.sessionId,
-  //           termDefinitionId: data.termDefinitionId,
-  //           schoolId: data.schoolId,
-  //           isDeleted: false,
-  //         },
-  //         include: {
-  //           markingSchemeComponent: { select: { id: true, name: true } },
-  //           continuousAssessmentComponent: { select: { id: true, name: true } },
-  //         },
-  //       });
-
-  //       const componentScores = allScores.reduce((acc, s) => {
-  //         const componentId = s.markingSchemeComponentId;
-  //         if (componentId) {
-  //           acc[componentId] = {
-  //             id: componentId,
-  //             name: s.markingSchemeComponent?.name || '',
-  //             score: (acc[componentId]?.score || 0) + s.score,
-  //           };
-  //         }
-  //         return acc;
-  //       }, {});
-
-  //       // Total score
-  //       const totalScore: number = Object.values(
-  //         componentScores as { [key: string]: { score: number } },
-  //       ).reduce((sum: number, comp) => sum + comp.score, 0);
-
-  //       // Get grading system
-  //       const gradingSystem = await this.prisma.classGradingSystem.findFirst({
-  //         where: {
-  //           classId: data.classId,
-  //           schoolId: data.schoolId,
-  //           isDeleted: false,
-  //         },
-  //         include: {
-  //           gradingSystem: {
-  //             include: { grades: { where: { isDeleted: false } } },
-  //           },
-  //         },
-  //       });
-
-  //       const grade = gradingSystem?.gradingSystem.grades.find(
-  //         (g) => totalScore >= g.scoreStartPoint && totalScore <= g.scoreEndPoint,
-  //       );
-
-  //       // Update or create Result
-  //       const result = await this.prisma.result.upsert({
-  //         where: {
-  //           studentId_subjectId_sessionId_termDefinitionId: {
-  //             studentId: data.studentId,
+  //           const uniqueHash = generateScoreUniqueHash({
+  //             schoolId,
+  //             studentId: scoreEntry.studentId,
   //             subjectId: data.subjectId,
   //             sessionId: data.sessionId,
-  //             termDefinitionId: data.termDefinitionId,
-  //           },
-  //         },
-  //         update: {
-  //           totalScore,
-  //           componentScores,
-  //           gradeId: grade?.id,
-  //           remark: grade?.remark,
-  //           updatedBy: data.recordedBy,
-  //         },
-  //         create: {
-  //           studentId: data.studentId,
-  //           subjectId: data.subjectId,
-  //           classId: data.classId,
-  //           classArmId: data.classArmId,
-  //           sessionId: data.sessionId,
-  //           termDefinitionId: data.termDefinitionId,
-  //           schoolId: data.schoolId,
-  //           gradingSystemId: gradingSystem?.gradingSystemId,
-  //           totalScore,
-  //           componentScores,
-  //           gradeId: grade?.id,
-  //           remark: grade?.remark,
-  //           createdBy: data.recordedBy,
-  //         },
-  //       });
+  //             termDefinitionId: data.termId,
+  //             markingSchemeComponentId: scoreEntry.componentId,
+  //             continuousAssessmentComponentId: scoreEntry.subComponentId,
+  //           });
 
-  //       // Log action
-  //       await this.loggingService.logAction(
-  //         'save_student_scores',
-  //         'StudentScoreAssignment',
-  //         data.studentId,
-  //         requester.id,
-  //         data.schoolId,
-  //         {
-  //           subjectId: data.subjectId,
-  //           termDefinitionId: data.termDefinitionId,
-  //           scores: data.scores,
-  //         },
-  //         req,
-  //       );
-
-  //       return {
-  //         statusCode: 200,
-  //         message: 'Scores saved successfully',
-  //         data: { scores: scoreRecords, result },
-  //       };
-  //     } catch (error) {
-  //       console.error('Error saving student scores:', error);
-  //       throw new Error(
-  //         'Failed to save student scores: ' + (error.message || 'Unknown error'),
-  //       );
-  //     }
-  //   }
-
-  //   // Fetch Student Scores
-  //   async fetchStudentScores(dto: FetchStudentScoresDto) {
-  //     try {
-  //       const scores = await this.prisma.studentScoreAssignment.findMany({
-  //         where: {
-  //           studentId: dto.studentId,
-  //           subjectId: dto.subjectId,
-  //           sessionId: dto.sessionId,
-  //           termDefinitionId: dto.termDefinitionId,
-  //           schoolId: dto.schoolId,
-  //           isDeleted: false,
-  //         },
-  //         include: {
-  //           markingSchemeComponent: {
-  //             select: { id: true, name: true, score: true, type: true },
-  //           },
-  //           continuousAssessmentComponent: {
-  //             select: { id: true, name: true, score: true },
-  //           },
-  //         },
-  //       });
-
-  //       const result = scores.reduce((acc, score) => {
-  //         const id =
-  //           score.continuousAssessmentComponentId ||
-  //           score.markingSchemeComponentId;
-  //         acc[id] = {
-  //           id,
-  //           name:
-  //             score.continuousAssessmentComponent?.name ||
-  //             score.markingSchemeComponent?.name,
-  //           score: score.score,
-  //           markingSchemeComponentId: score.markingSchemeComponentId,
-  //           continuousAssessmentComponentId:
-  //             score.continuousAssessmentComponentId,
-  //           type: score.markingSchemeComponent?.type,
-  //         };
-  //         return acc;
-  //       }, {});
-
-  //       return {
-  //         statusCode: 200,
-  //         message: 'Scores fetched successfully',
-  //         data: result,
-  //       };
-  //     } catch (error) {
-  //       console.error('Error fetching student scores:', error);
-  //       throw new Error(
-  //         'Failed to fetch student scores: ' + (error.message || 'Unknown error'),
-  //       );
-  //     }
-  //   }
-
-  //   // Fetch Student Result
-  //   async fetchStudentResult(dto: FetchStudentResultDto) {
-  //     try {
-  //       // Fetch student class assignment to get classId and classArmId
-  //       const studentClass = await this.prisma.studentClassAssignment.findFirst({
-  //         where: {
-  //           studentId: dto.studentId,
-  //           sessionId: dto.sessionId,
-  //           schoolId: dto.schoolId,
-  //           isActive: true,
-  //         },
-  //       });
-  //       if (!studentClass) {
-  //         throw new BadRequestException('Student not assigned to a class');
-  //       }
-
-  //       // Fetch the Result
-  //       const result = await this.prisma.result.findUnique({
-  //         where: {
-  //           studentId_subjectId_sessionId_termDefinitionId: {
-  //             studentId: dto.studentId,
-  //             subjectId: dto.subjectId,
-  //             sessionId: dto.sessionId,
-  //             termDefinitionId: dto.termDefinitionId,
-  //           },
-  //         },
-  //         include: {
-  //           student: {
-  //             include: {
-  //               user: {
-  //                 select: {
-  //                   id: true,
-  //                   firstname: true,
-  //                   lastname: true,
-  //                   email: true,
-  //                 },
-  //               },
+  //           // Check if score record already exists
+  //           const existingScore = await tx.studentScoreAssignment.findFirst({
+  //             where: {
+  //               // studentId: scoreEntry.studentId,
+  //               // subjectId: data.subjectId,
+  //               // sessionId: data.sessionId,
+  //               // termDefinitionId: data.termId,
+  //               // markingSchemeComponentId,
+  //               // continuousAssessmentComponentId,
+  //               // schoolId,
+  //               uniqueHash,
   //             },
-  //           },
-  //         },
-  //       });
+  //           });
 
-  //       if (!result) {
-  //         throw new NotFoundException('Result not found');
-  //       }
-
-  //       // Fetch MarkingSchemeComponents
-  //       const markingSchemeAssignment =
-  //         await this.prisma.classTermMarkingSchemeAssignment.findFirst({
-  //           where: {
-  //             classId: result.classId,
-  //             termDefinitionId: {
-  //               in: [
-  //                 await this.prisma.sessionTerm
-  //                   .findUnique({
-  //                     where: { id: dto.termDefinitionId },
-  //                     select: { termDefinitionId: true },
-  //                   })
-  //                   .then((t) => t.termDefinitionId),
-  //               ].flat(),
-  //             },
-  //             schoolId: dto.schoolId,
-  //             isDeleted: false,
-  //           },
-  //           include: {
-  //             markingScheme: {
-  //               include: {
-  //                 components: {
-  //                   select: { id: true, name: true },
-  //                   where: { isDeleted: false },
-  //                 },
-  //               },
-  //             },
-  //           },
-  //         });
-
-  //       if (!markingSchemeAssignment) {
-  //         throw new BadRequestException(
-  //           'No matching marking scheme found for the term',
-  //         );
-  //       }
-
-  //       // Map componentScores to include names
-  //       const componentScoresWithNames = Object.entries(
-  //         result.componentScores || [],
-  //       ).reduce((acc: any, [componentId, comp]: [string, any]) => {
-  //         const component = markingSchemeAssignment.markingScheme.components.find(
-  //           (c) => c.id === componentId,
-  //         );
-  //         if (component) {
-  //           acc[componentId] = {
-  //             id: comp.id,
-  //             name: comp.name,
-  //             score: comp.score,
+  //           const scoreData = {
+  //             studentId: scoreEntry.studentId,
+  //             subjectId: data.subjectId,
+  //             classId: data.classId,
+  //             classArmId: data.classArmId,
+  //             sessionId: data.sessionId,
+  //             termDefinitionId: data.termId,
+  //             markingSchemeComponentId,
+  //             continuousAssessmentComponentId,
+  //             score: scoreEntry.score,
+  //             recordedBy: user.id,
+  //             schoolId,
+  //             uniqueHash,
+  //             updatedBy: user.id,
   //           };
-  //         }
-  //         return acc;
-  //       }, {});
 
-  //       return {
-  //         statusCode: 200,
-  //         message: 'Result fetched successfully',
-  //         data: {
-  //           id: result.id,
-  //           student: {
-  //             id: result.student.id,
-  //             user: result.student.user,
-  //           },
-  //           subjectId: result.subjectId,
-  //           classId: result.classId,
-  //           classArmId: result.classArmId,
-  //           sessionId: result.sessionId,
-  //           termDefinitionId: result.termDefinitionId,
-  //           schoolId: result.schoolId,
-  //           gradingSystemId: result.gradingSystemId,
-  //           totalScore: result.totalScore,
-  //           componentScores: componentScoresWithNames,
-  //           gradeId: result.gradeId,
-  //           remark: result.remark,
-  //           createdBy: result.createdBy,
-  //           updatedBy: result.updatedBy,
-  //         },
-  //       };
-  //     } catch (error) {
-  //       console.error('Error fetching student result:', error);
-  //       throw new Error(
-  //         'Failed to fetch student result: ' + (error.message || 'Unknown error'),
-  //       );
-  //     }
-  //   }
+  //           let savedScore;
 
-  //   // Fetch All Student Results in a Class Arm
-  //   async fetchClassArmResults(dto: FetchClassArmResultsDto) {
-  //     try {
-  //       // Validate inputs
-  //       const classArm = await this.prisma.classArm.findUnique({
-  //         where: { id: dto.classArmId, schoolId: dto.schoolId },
-  //       });
-  //       if (!classArm) {
-  //         throw new BadRequestException('Invalid class arm');
-  //       }
-
-  //       const sessionTerm = await this.prisma.sessionTerm.findUnique({
-  //         where: { id: dto.termDefinitionId, schoolId: dto.schoolId },
-  //       });
-  //       if (!sessionTerm) {
-  //         throw new BadRequestException('Invalid session term');
-  //       }
-
-  //       // Fetch results
-  //       const results = await this.prisma.result.findMany({
-  //         where: {
-  //           classArmId: dto.classArmId,
-  //           sessionId: dto.sessionId,
-  //           termDefinitionId: dto.termDefinitionId,
-  //           schoolId: dto.schoolId,
-  //         },
-  //         include: {
-  //           student: {
-  //             include: {
-  //               user: {
-  //                 select: {
-  //                   id: true,
-  //                   firstname: true,
-  //                   lastname: true,
-  //                   email: true,
-  //                 },
+  //           if (existingScore) {
+  //             // Update existing score
+  //             savedScore = await tx.studentScoreAssignment.update({
+  //               where: { id: existingScore.id },
+  //               data: {
+  //                 ...scoreData,
+  //                 updatedAt: new Date(),
   //               },
-  //             },
-  //           },
-  //           subject: { select: { id: true, name: true } },
-  //         },
-  //       });
-
-  //       // Fetch marking scheme for the class and term
-  //       const markingSchemeAssignment =
-  //         await this.prisma.classTermMarkingSchemeAssignment.findFirst({
-  //           where: {
-  //             classId: {
-  //               in: [
-  //                 await this.prisma.classArm
-  //                   .findUnique({
-  //                     where: { id: dto.classArmId },
-  //                     select: { id: true },
-  //                   })
-  //                   .then(() =>
-  //                     this.prisma.sessionClassAssignment
-  //                       .findFirst({
-  //                         where: {
-  //                           classArmId: dto.classArmId,
-  //                           sessionId: dto.sessionId,
-  //                         },
-  //                         select: { classId: true },
-  //                       })
-  //                       .then((a) => a.classId),
-  //                   ),
-  //             },
-  //             termDefinitionId: sessionTerm.termDefinitionId,
-  //             schoolId: dto.schoolId,
-  //             isDeleted: false,
-  //           },
-  //           include: {
-  //             markingScheme: {
-  //               include: {
-  //                 components: {
-  //                   select: { id: true, name: true },
-  //                   where: { isDeleted: false },
-  //                 },
+  //             });
+  //           } else {
+  //             // Create new score
+  //             savedScore = await tx.studentScoreAssignment.create({
+  //               data: {
+  //                 ...scoreData,
+  //                 createdBy: user.id,
   //               },
-  //             },
-  //           },
-  //         });
-
-  //       if (!markingSchemeAssignment) {
-  //         throw new BadRequestException(
-  //           'No marking scheme assigned to this class and term',
-  //         );
-  //       }
-
-  //       // Map results with component scores
-  //       const formattedResults = results.map((result) => {
-  //         const componentScoresWithNames = Object.entries(
-  //           result.componentScores || [],
-  //         ).reduce((acc: any, [componentId, comp]: [string, any]) => {
-  //           const component =
-  //             markingSchemeAssignment.markingScheme.components.find(
-  //               (c) => c.id === componentId,
-  //             );
-  //           if (component) {
-  //             acc[componentId] = {
-  //               id: comp.id,
-  //               name: comp.name,
-  //               score: comp.score,
-  //             };
+  //             });
   //           }
-  //           return acc;
-  //         }, {});
 
-  //         return {
-  //           id: result.id,
-  //           student: {
-  //             id: result.student.id,
-  //             user: result.student.user,
-  //           },
-  //           subject: {
-  //             id: result.subject.id,
-  //             name: result.subject.name,
-  //           },
-  //           classId: result.classId,
-  //           classArmId: result.classArmId,
-  //           sessionId: result.sessionId,
-  //           termDefinitionId: result.termDefinitionId,
-  //           schoolId: result.schoolId,
-  //           gradingSystemId: result.gradingSystemId,
-  //           totalScore: result.totalScore,
-  //           componentScores: componentScoresWithNames,
-  //           gradeId: result.gradeId,
-  //           remark: result.remark,
-  //           createdBy: result.createdBy,
-  //           updatedBy: result.updatedBy,
-  //         };
-  //       });
+  //           processedScores.push({
+  //             id: savedScore.id,
+  //             studentId: scoreEntry.studentId,
+  //             componentId: scoreEntry.componentId,
+  //             score: scoreEntry.score,
+  //             action: existingScore ? 'updated' : 'created',
+  //           });
+  //         } catch (error) {
+  //           errors.push(
+  //             `Error processing score for student ${scoreEntry.studentId}: ${error.message}`,
+  //           );
+  //         }
+  //       }
 
-  //       return {
-  //         statusCode: 200,
-  //         message: 'Class arm results fetched successfully',
-  //         data: formattedResults,
-  //       };
-  //     } catch (error) {
-  //       console.error('Error fetching class arm results:', error);
-  //       throw new Error(
-  //         'Failed to fetch class arm results: ' +
-  //           (error.message || 'Unknown error'),
-  //       );
+  //       return { processedScores, errors };
+  //     });
+
+  //     // Log the action
+  //     await this.loggingService.logAction(
+  //       'SAVE_SCORES',
+  //       'StudentScoreAssignment',
+  //       data.subjectId,
+  //       user.id,
+  //       schoolId,
+  //       {
+  //         sessionId: data.sessionId,
+  //         classId: data.classId,
+  //         subjectId: data.subjectId,
+  //         totalScores: data.scores.length,
+  //         processedScores: result.processedScores.length,
+  //         errors: result.errors.length,
+  //       },
+  //       req,
+  //     );
+
+  //     return {
+  //       statusCode: 200,
+  //       message: 'Scores processed successfully',
+  //       data: {
+  //         session: { id: session.id, name: session.name },
+  //         class: { id: classExists.id, name: classExists.name },
+  //         classArm: { id: classArmExists.id, name: classArmExists.name },
+  //         subject: { id: subject.id, name: subject.name, code: subject.code },
+  //         summary: {
+  //           totalSubmitted: data.scores.length,
+  //           successful: result.processedScores.length,
+  //           failed: result.errors.length,
+  //         },
+  //         processedScores: result.processedScores,
+  //         errors: result.errors,
+  //       },
+  //     };
+  //   } catch (error) {
+  //     if (error instanceof HttpException) {
+  //       throw error;
   //     }
+  //     console.error('Error saving scores:', error);
+  //     throw new HttpException(
+  //       'Failed to save scores: ' + (error.message || 'Unknown error'),
+  //       HttpStatus.INTERNAL_SERVER_ERROR,
+  //     );
   //   }
+  // }
 
-  // Fetch scores with flexible filtering
+  // In your score service, update the saveScores method:
+
+  async saveScores(data: SaveScoresDto, req: any) {
+    try {
+      const user = req.user as AuthenticatedUser;
+      const schoolId = user.schoolId;
+
+      // Validate school association
+      if (!schoolId) {
+        throw new BadRequestException('User must be associated with a school');
+      }
+
+      // Move all validations OUTSIDE the transaction to reduce transaction time
+      const [session, termDefinition, classExists, classArmExists, subject] =
+        await Promise.all([
+          // Validate session
+          this.prisma.session.findFirst({
+            where: { id: data.sessionId, schoolId, isDeleted: false },
+          }),
+          // Validate term
+          this.prisma.termDefinition.findFirst({
+            where: { id: data.termId, schoolId },
+          }),
+          // Validate class
+          this.prisma.class.findFirst({
+            where: { id: data.classId, schoolId, isDeleted: false },
+          }),
+          // Validate class arm
+          this.prisma.classArm.findFirst({
+            where: { id: data.classArmId, schoolId, isDeleted: false },
+          }),
+          // Validate subject
+          this.prisma.subject.findFirst({
+            where: { id: data.subjectId, schoolId, isDeleted: false },
+          }),
+        ]);
+
+      // Throw errors if any validation fails
+      if (!session)
+        throw new NotFoundException('Session not found for this school');
+      if (!termDefinition)
+        throw new NotFoundException('Term not found for this school');
+      if (!classExists)
+        throw new NotFoundException('Class not found for this school');
+      if (!classArmExists)
+        throw new NotFoundException('Class arm not found for this school');
+      if (!subject)
+        throw new NotFoundException('Subject not found for this school');
+
+      // Pre-validate all students in one query
+      const studentIds = [
+        ...new Set(data.scores.map((score) => score.studentId)),
+      ];
+      const validStudentAssignments =
+        await this.prisma.studentClassAssignment.findMany({
+          where: {
+            studentId: { in: studentIds },
+            sessionId: data.sessionId,
+            classId: data.classId,
+            classArmId: data.classArmId,
+            schoolId,
+            isActive: true,
+          },
+          select: { studentId: true },
+        });
+
+      const validStudentIds = new Set(
+        validStudentAssignments.map((sa) => sa.studentId),
+      );
+
+      // Pre-validate continuous assessment components if needed
+      const caComponentIds = data.scores
+        .filter((score) => score.subComponentId)
+        .map((score) => score.subComponentId!);
+
+      const caComponentsMap = new Map();
+      if (caComponentIds.length > 0) {
+        const caComponents =
+          await this.prisma.continuousAssessmentComponent.findMany({
+            where: {
+              id: { in: caComponentIds },
+              schoolId,
+            },
+            include: {
+              continuousAssessment: {
+                select: { markingSchemeComponentId: true },
+              },
+            },
+          });
+
+        caComponents.forEach((comp) => {
+          caComponentsMap.set(comp.id, comp);
+        });
+      }
+
+      // Prepare all score operations with hashes
+      const scoreOperations = [];
+      const errors = [];
+
+      for (const scoreEntry of data.scores) {
+        // Validate student assignment
+        if (!validStudentIds.has(scoreEntry.studentId)) {
+          errors.push(
+            `Student ${scoreEntry.studentId} is not assigned to this class`,
+          );
+          continue;
+        }
+
+        // Determine component IDs
+        let markingSchemeComponentId: string | null = null;
+        let continuousAssessmentComponentId: string | null = null;
+
+        if (scoreEntry.type === AssessmentType.EXAM) {
+          markingSchemeComponentId = scoreEntry.componentId;
+        } else if (scoreEntry.type === AssessmentType.CA) {
+          if (scoreEntry.subComponentId) {
+            const caComponent = caComponentsMap.get(scoreEntry.subComponentId);
+            if (!caComponent) {
+              errors.push(
+                `Continuous assessment component ${scoreEntry.subComponentId} not found`,
+              );
+              continue;
+            }
+            continuousAssessmentComponentId = scoreEntry.subComponentId;
+            markingSchemeComponentId =
+              caComponent.continuousAssessment.markingSchemeComponentId;
+          } else {
+            markingSchemeComponentId = scoreEntry.componentId;
+          }
+        }
+
+        const uniqueHash = generateScoreUniqueHash({
+          schoolId,
+          studentId: scoreEntry.studentId,
+          subjectId: data.subjectId,
+          sessionId: data.sessionId,
+          termDefinitionId: data.termId,
+          markingSchemeComponentId: scoreEntry.componentId,
+          continuousAssessmentComponentId: scoreEntry.subComponentId,
+        });
+
+        scoreOperations.push({
+          uniqueHash,
+          scoreEntry,
+          markingSchemeComponentId,
+          continuousAssessmentComponentId,
+        });
+      }
+
+      // Check for existing scores in batch
+      const existingHashes = scoreOperations.map((op) => op.uniqueHash);
+      const existingScores = await this.prisma.studentScoreAssignment.findMany({
+        where: { uniqueHash: { in: existingHashes } },
+        select: { id: true, uniqueHash: true },
+      });
+
+      const existingScoresMap = new Map();
+      existingScores.forEach((score) => {
+        existingScoresMap.set(score.uniqueHash, score);
+      });
+
+      // Process scores in transaction with increased timeout
+      const result = await this.prisma.$transaction(
+        async (tx) => {
+          const processedScores = [];
+
+          // Batch operations: separate updates and creates
+          const updateOperations = [];
+          const createOperations = [];
+
+          for (const operation of scoreOperations) {
+            const {
+              uniqueHash,
+              scoreEntry,
+              markingSchemeComponentId,
+              continuousAssessmentComponentId,
+            } = operation;
+
+            const scoreData = {
+              studentId: scoreEntry.studentId,
+              subjectId: data.subjectId,
+              classId: data.classId,
+              classArmId: data.classArmId,
+              sessionId: data.sessionId,
+              termDefinitionId: data.termId,
+              markingSchemeComponentId,
+              continuousAssessmentComponentId,
+              score: scoreEntry.score,
+              recordedBy: user.id,
+              schoolId,
+              uniqueHash,
+              updatedBy: user.id,
+            };
+
+            const existingScore = existingScoresMap.get(uniqueHash);
+
+            if (existingScore) {
+              updateOperations.push({
+                where: { id: existingScore.id },
+                data: { ...scoreData, updatedAt: new Date() },
+                scoreEntry,
+              });
+            } else {
+              createOperations.push({
+                data: { ...scoreData, createdBy: user.id },
+                scoreEntry,
+              });
+            }
+          }
+
+          // Execute batch updates
+          for (const updateOp of updateOperations) {
+            const updatedScore = await tx.studentScoreAssignment.update({
+              where: updateOp.where,
+              data: updateOp.data, // Only pass data, not the entire updateOp
+            });
+            processedScores.push({
+              id: updatedScore.id,
+              studentId: updateOp.scoreEntry.studentId,
+              componentId: updateOp.scoreEntry.componentId,
+              score: updateOp.scoreEntry.score,
+              action: 'updated',
+            });
+          }
+
+          // Execute batch creates
+          for (const createOp of createOperations) {
+            const createdScore = await tx.studentScoreAssignment.create({
+              data: createOp.data, // Only pass data, not the entire createOp
+            });
+            processedScores.push({
+              id: createdScore.id,
+              studentId: createOp.scoreEntry.studentId,
+              componentId: createOp.scoreEntry.componentId,
+              score: createOp.scoreEntry.score,
+              action: 'created',
+            });
+          }
+
+          return { processedScores, errors };
+        },
+        {
+          maxWait: 10000, // 10 seconds max wait
+          timeout: 15000, // 15 seconds timeout
+        },
+      );
+
+      // Log the action (outside transaction)
+      await this.loggingService.logAction(
+        'SAVE_SCORES',
+        'StudentScoreAssignment',
+        data.subjectId,
+        user.id,
+        schoolId,
+        {
+          sessionId: data.sessionId,
+          classId: data.classId,
+          subjectId: data.subjectId,
+          totalScores: data.scores.length,
+          processedScores: result.processedScores.length,
+          errors: result.errors.length,
+        },
+        req,
+      );
+
+      return {
+        statusCode: 200,
+        message: 'Scores processed successfully',
+        data: {
+          session: { id: session.id, name: session.name },
+          class: { id: classExists.id, name: classExists.name },
+          classArm: { id: classArmExists.id, name: classArmExists.name },
+          subject: { id: subject.id, name: subject.name, code: subject.code },
+          summary: {
+            totalSubmitted: data.scores.length,
+            successful: result.processedScores.length,
+            failed: result.errors.length,
+          },
+          processedScores: result.processedScores,
+          errors: result.errors,
+        },
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      console.error('Error saving scores:', error);
+      throw new HttpException(
+        'Failed to save scores: ' + (error.message || 'Unknown error'),
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Fetch scores for a class arm with optional subject filtering
+   * Returns scores grouped by student and component
+   */
+  async fetchScores(filters: FetchScoresDto, req: any) {
+    try {
+      const user = req.user as AuthenticatedUser;
+      const schoolId = user.schoolId;
+
+      // Validate school association
+      if (!schoolId) {
+        throw new BadRequestException('User must be associated with a school');
+      }
+
+      // Build where clause for score fetching
+      const whereClause: any = {
+        sessionId: filters.sessionId,
+        classId: filters.classId,
+        classArmId: filters.classArmId,
+        termDefinitionId: filters.termId,
+        schoolId,
+        isDeleted: false,
+      };
+
+      // Add subject filter if provided
+      if (filters.subjectId) {
+        whereClause.subjectId = filters.subjectId;
+      }
+      if (filters.studentId) {
+        whereClause.studentId = filters.studentId;
+      }
+
+      // Fetch scores with related data
+      const scores = await this.prisma.studentScoreAssignment.findMany({
+        where: whereClause,
+        include: {
+          student: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  firstname: true,
+                  lastname: true,
+                  othername: true,
+                  username: true,
+                },
+              },
+            },
+          },
+          subject: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+            },
+          },
+          markingSchemeComponent: {
+            select: {
+              id: true,
+              name: true,
+              type: true,
+              score: true,
+            },
+          },
+          continuousAssessmentComponent: {
+            select: {
+              id: true,
+              name: true,
+              score: true,
+            },
+          },
+        },
+        orderBy: [
+          { student: { user: { lastname: 'asc' } } },
+          { subject: { name: 'asc' } },
+          { markingSchemeComponent: { name: 'asc' } },
+        ],
+      });
+
+      // Transform scores to the required format
+      const studentScores: StudentScore[] = scores.map((score) => ({
+        id: score.id,
+        studentId: score.studentId,
+        subjectId: score.subjectId,
+        componentId:
+          score.markingSchemeComponentId ||
+          score.continuousAssessmentComponentId ||
+          '',
+        subComponentId: score.continuousAssessmentComponentId || undefined,
+        score: score.score,
+        maxScore:
+          score.continuousAssessmentComponent?.score ||
+          score.markingSchemeComponent?.score ||
+          0,
+        type:
+          (score.markingSchemeComponent?.type as AssessmentType) ||
+          AssessmentType.CA,
+        student: {
+          id: score.student.id,
+          regNo: score.student.studentRegNo || '',
+          fullName: `${score.student.user.lastname || ''} ${
+            score.student.user.firstname || ''
+          } ${score.student.user.othername || ''}`.trim(),
+        },
+        subject: score.subject,
+      }));
+
+      // Log the action
+      await this.loggingService.logAction(
+        'FETCH_SCORES',
+        'StudentScoreAssignment',
+        filters.subjectId || 'ALL_SUBJECTS',
+        user.id,
+        schoolId,
+        {
+          filters,
+          totalRecords: studentScores.length,
+        },
+        req,
+      );
+
+      return {
+        statusCode: 200,
+        message: 'Scores retrieved successfully',
+        data: {
+          filters,
+          totalRecords: studentScores.length,
+          scores: studentScores,
+        },
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      console.error('Error fetching scores:', error);
+      throw new HttpException(
+        'Failed to fetch scores: ' + (error.message || 'Unknown error'),
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  // Fetch scores with flexible filtering (existing method)
   async fetchScoresWithFilters(filters: any, req: any) {
     try {
       const user = req.user;

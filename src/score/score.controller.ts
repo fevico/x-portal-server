@@ -1,58 +1,65 @@
 import {
   Controller,
   Get,
+  Post,
   Query,
+  Body,
   UseGuards,
   Request,
-  // Post,
-  // Body,
-  // Req,
 } from '@nestjs/common';
 import { ScoreService } from './score.service';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guards';
 import { PermissionsGuard } from '@/auth/guards/permissions.guard';
 import { Permissions } from '@/auth/decorators/permissions.decorator';
 import { Request as RequestExpress } from 'express';
-// import {
-//   FetchClassArmResultsDto,
-//   FetchStudentResultDto,
-//   FetchStudentScoresDto,
-//   SaveStudentScoresDto,
-// } from './dto/score.dto';
+import { SaveScoresDto, FetchScoresDto } from './dto/score.dto';
 
 @Controller('scores')
 export class ScoreController {
   constructor(private scoreService: ScoreService) {}
 
-  //   // Save Student Scores
-  //   @UseGuards(JwtAuthGuard)
-  //   @Post()
-  //   async saveStudentScores(@Body() dto: SaveStudentScoresDto, @Req() req: any) {
-  //     return await this.scoreService.saveStudentScores(dto, req);
-  //   }
+  /**
+   * Save or update scores for students
+   * Handles both multi-student single subject and single student multi-subject scenarios
+   */
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('scores:manage')
+  @Post('save')
+  async saveScores(
+    @Body() saveScoresDto: SaveScoresDto,
+    @Request() req: RequestExpress,
+  ) {
+    return await this.scoreService.saveScores(saveScoresDto, req);
+  }
 
-  //   // Fetch Student Scores
-  //   @UseGuards(JwtAuthGuard)
-  //   @Get()
-  //   async fetchStudentScores(@Query() dto: FetchStudentScoresDto) {
-  //     return await this.scoreService.fetchStudentScores(dto);
-  //   }
+  /**
+   * Fetch scores for a class arm with optional subject filtering
+   */
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('scores:read')
+  @Get('fetch')
+  async fetchScores(
+    @Request() req: RequestExpress,
+    @Query('sessionId') sessionId: string,
+    @Query('classId') classId: string,
+    @Query('classArmId') classArmId: string,
+    @Query('termId') termId: string,
+    @Query('subjectId') subjectId?: string,
+    @Query('studentId') studentId?: string, // Optional for fetching specific student's scores
+  ) {
+    const filters: FetchScoresDto = {
+      sessionId,
+      classId,
+      classArmId,
+      termId,
+      subjectId,
+      studentId,
+    };
 
-  //   // Fetch Student Result
-  //   @UseGuards(JwtAuthGuard)
-  //   @Get('result')
-  //   async fetchStudentResult(@Query() dto: FetchStudentResultDto) {
-  //     return await this.scoreService.fetchStudentResult(dto);
-  //   }
+    return await this.scoreService.fetchScores(filters, req);
+  }
 
-  //   // Fetch All Student Results in a Class Arm
-  //   @UseGuards(JwtAuthGuard)
-  //   @Get('class-arm')
-  //   async fetchClassArmResults(@Query() dto: FetchClassArmResultsDto) {
-  //     return await this.scoreService.fetchClassArmResults(dto);
-  //   }
-
-  // Fetch scores with flexible filtering
+  // Fetch scores with flexible filtering (existing method)
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('scores:read')
   @Get('filter')

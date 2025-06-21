@@ -121,6 +121,27 @@ export class ClassesService {
     }
   }
 
+  async findAllPublic(schoolId: string) {
+    try {
+      return await this.prisma.class.findMany({
+        where: {
+          schoolId,
+          isDeleted: false,
+        },
+        orderBy: { name: 'asc' },
+        select: {
+          id: true,
+          name: true,
+        },
+      });
+    } catch (error) {
+      throw new HttpException(
+        'Failed to fetch classes',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   async findOne(id: string, schoolId: string) {
     const classRecord = await this.prisma.class.findFirst({
       where: {
@@ -682,6 +703,7 @@ export class ClassesService {
                     email: true,
                     username: true,
                     gender: true,
+                    avatar: true,
                   },
                 },
               },
@@ -711,6 +733,7 @@ export class ClassesService {
           email: assignment.student.user.email,
           username: assignment.student.user.username,
           gender: assignment.student.user.gender,
+          avatar: (assignment.student.user.avatar as any)?.imageUrl || null,
         },
         assignedAt: new Date(), // Current timestamp
         isActive: assignment.isActive,

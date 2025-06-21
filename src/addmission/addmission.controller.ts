@@ -60,7 +60,6 @@ export class AdmissionsController {
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('admission:create')
-  @Permissions('admission:create')
   @Post()
   @UseInterceptors(FileInterceptor('image')) // 'image' is the field name in the form-data
   async createAdmission(
@@ -71,6 +70,20 @@ export class AdmissionsController {
     return this.admissionsService.createAdmission(
       createAdmissionDto,
       req,
+      image,
+    );
+  }
+
+  @Post('public')
+  @UseInterceptors(FileInterceptor('image')) // 'image' is the field name in the form-data
+  async createAdmissionPublic(
+    @Body() createAdmissionDto: CreateAdmissionDto,
+    @Query('schoolId') schoolId: string,
+    @UploadedFile() image?: Express.Multer.File,
+  ) {
+    return this.admissionsService.createAdmissionPublic(
+      createAdmissionDto,
+      schoolId,
       image,
     );
   }

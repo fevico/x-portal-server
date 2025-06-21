@@ -30,16 +30,97 @@ model User {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
   createdBy     String?  @map("created_by") // Added
+  createdByUser User?    @relation("UserCreatedBy", fields: [createdBy], references: [id])
+  usersCreated  User[]   @relation("UserCreatedBy")
 
-  updatedBy  String?    @map("updated_by") // Added
-  schoolId   String?    @map("school_id")
-  school     School?    @relation(fields: [schoolId], references: [id])
-  subRoleId  String?    @map("sub_role_id")
-  subRole    SubRole?   @relation("UserRoles", fields: [subRoleId], references: [id])
-  logEntries LogEntry[]
-  staff      Staff?     @relation("UserToStaff")
-  student    Student?   @relation("UserToStudent")
-  parent     Parent?    @relation("UserToParent")
+  updatedBy     String?    @map("updated_by") // Added
+  updatedByUser User?      @relation("UserUpdatedBy", fields: [updatedBy], references: [id])
+  usersUpdated  User[]     @relation("UserUpdatedBy")
+  schoolSlug    String?    @map("school_slug") // New: For multi-school support
+  schoolId      String?    @map("school_id")
+  school        School?    @relation(fields: [schoolId], references: [id])
+  subRoleId     String?    @map("sub_role_id")
+  subRole       SubRole?   @relation("UserRoles", fields: [subRoleId], references: [id])
+  logEntries    LogEntry[]
+  staff         Staff?     @relation("UserToStaff")
+  student       Student?   @relation("UserToStudent")
+  parent        Parent?    @relation("UserToParent")
+
+  // Audit trail relations - created records
+  createdSchools                          School[]                             @relation("SchoolCreatedBy")
+  createdStaff                            Staff[]                              @relation("StaffCreatedBy")
+  createdStudents                         Student[]                            @relation("StudentCreatedBy")
+  createdParents                          Parent[]                             @relation("ParentCreatedBy")
+  createdClasses                          Class[]                              @relation("ClassCreatedBy")
+  createdClassCategories                  ClassCategory[]                      @relation("ClassCategoryCreatedBy")
+  createdClassArms                        ClassArm[]                           @relation("ClassArmCreatedBy")
+  createdAdmissions                       Admission[]                          @relation("AdmissionCreatedBy")
+  createdSessions                         Session[]                            @relation("SessionCreatedBy")
+  createdTermDefinitions                  TermDefinition[]                     @relation("TermDefinitionCreatedBy")
+  createdSessionTerms                     SessionTerm[]                        @relation("SessionTermCreatedBy")
+  createdSessionClassAssignments          SessionClassAssignment[]             @relation("SessionClassAssignmentCreatedBy")
+  createdSubjects                         Subject[]                            @relation("SubjectCreatedBy")
+  createdStudentSubjectAssignments        StudentSubjectAssignment[]           @relation("StudentSubjectAssignmentCreatedBy")
+  createdClassArmSubjectAssignments       ClassArmSubjectAssignment[]          @relation("ClassArmSubjectAssignmentCreatedBy")
+  createdPermissions                      Permission[]                         @relation("PermissionCreatedBy")
+  createdSubRoles                         SubRole[]                            @relation("SubRoleCreatedBy")
+  createdSubRolePermissions               SubRolePermission[]                  @relation("SubRolePermissionCreatedBy")
+  createdSubscriptions                    Subscription[]                       @relation("SubscriptionCreatedBy")
+  createdAttendanceRecords                Attendance[]                         @relation("AttendanceCreatedBy")
+  createdStudentClassAssignments          StudentClassAssignment[]             @relation("StudentClassAssignmentCreatedBy")
+  createdSubscriptionPayments             SubscriptionPayment[]                @relation("SubscriptionPaymentCreatedBy")
+  createdInvoices                         Invoice[]                            @relation("InvoiceCreatedBy")
+  createdMarkingSchemes                   MarkingScheme[]                      @relation("MarkingSchemeCreatedBy")
+  createdMarkingSchemeComponents          MarkingSchemeComponent[]             @relation("MarkingSchemeComponentCreatedBy")
+  createdContinuousAssessments            ContinuousAssessment[]               @relation("ContinuousAssessmentCreatedBy")
+  createdContinuousAssessmentComponents   ContinuousAssessmentComponent[]      @relation("ContinuousAssessmentComponentCreatedBy")
+  createdGradingSystems                   GradingSystem[]                      @relation("GradingSystemCreatedBy")
+  createdGrades                           Grade[]                              @relation("GradeCreatedBy")
+  createdClassGradingSystems              ClassGradingSystem[]                 @relation("ClassGradingSystemCreatedBy")
+  createdClassTermMarkingSchemeAssignments ClassTermMarkingSchemeAssignment[] @relation("ClassTermMarkingSchemeAssignmentCreatedBy")
+  createdTeacherSubjectAssignments        TeacherSubjectAssignment[]           @relation("TeacherSubjectAssignmentCreatedBy")
+  createdStudentScoreAssignments          StudentScoreAssignment[]             @relation("StudentScoreAssignmentCreatedBy")
+  createdResultBatches                    ResultBatch[]                        @relation("ResultBatchCreatedBy")
+  createdConfigurations                   Configuration[]                      @relation("ConfigurationCreatedBy")
+  createdReportSheetSettings              ReportSheetSetting[]                 @relation("ReportSheetSettingCreatedBy")
+
+  // Audit trail relations - updated records
+  updatedSchools                          School[]                             @relation("SchoolUpdatedBy")
+  updatedStaff                            Staff[]                              @relation("StaffUpdatedBy")
+  updatedStudents                         Student[]                            @relation("StudentUpdatedBy")
+  updatedParents                          Parent[]                             @relation("ParentUpdatedBy")
+  updatedClasses                          Class[]                              @relation("ClassUpdatedBy")
+  updatedClassCategories                  ClassCategory[]                      @relation("ClassCategoryUpdatedBy")
+  updatedClassArms                        ClassArm[]                           @relation("ClassArmUpdatedBy")
+  updatedAdmissions                       Admission[]                          @relation("AdmissionUpdatedBy")
+  updatedSessions                         Session[]                            @relation("SessionUpdatedBy")
+  updatedTermDefinitions                  TermDefinition[]                     @relation("TermDefinitionUpdatedBy")
+  updatedSessionTerms                     SessionTerm[]                        @relation("SessionTermUpdatedBy")
+  updatedSubjects                         Subject[]                            @relation("SubjectUpdatedBy")
+  updatedStudentSubjectAssignments        StudentSubjectAssignment[]           @relation("StudentSubjectAssignmentUpdatedBy")
+  updatedClassArmSubjectAssignments       ClassArmSubjectAssignment[]          @relation("ClassArmSubjectAssignmentUpdatedBy")
+  updatedPermissions                      Permission[]                         @relation("PermissionUpdatedBy")
+  updatedSubRoles                         SubRole[]                            @relation("SubRoleUpdatedBy")
+  updatedSubRolePermissions               SubRolePermission[]                  @relation("SubRolePermissionUpdatedBy")
+  updatedSubscriptions                    Subscription[]                       @relation("SubscriptionUpdatedBy")
+  updatedAttendanceRecords                Attendance[]                         @relation("AttendanceUpdatedBy")
+  updatedStudentClassAssignments          StudentClassAssignment[]             @relation("StudentClassAssignmentUpdatedBy")
+  updatedMarkingSchemes                   MarkingScheme[]                      @relation("MarkingSchemeUpdatedBy")
+  updatedMarkingSchemeComponents          MarkingSchemeComponent[]             @relation("MarkingSchemeComponentUpdatedBy")
+  updatedContinuousAssessments            ContinuousAssessment[]               @relation("ContinuousAssessmentUpdatedBy")
+  updatedContinuousAssessmentComponents   ContinuousAssessmentComponent[]      @relation("ContinuousAssessmentComponentUpdatedBy")
+  updatedGradingSystems                   GradingSystem[]                      @relation("GradingSystemUpdatedBy")
+  updatedGrades                           Grade[]                              @relation("GradeUpdatedBy")
+  updatedClassGradingSystems              ClassGradingSystem[]                 @relation("ClassGradingSystemUpdatedBy")
+  updatedClassTermMarkingSchemeAssignments ClassTermMarkingSchemeAssignment[] @relation("ClassTermMarkingSchemeAssignmentUpdatedBy")
+  updatedTeacherSubjectAssignments        TeacherSubjectAssignment[]           @relation("TeacherSubjectAssignmentUpdatedBy")
+  updatedStudentScoreAssignments          StudentScoreAssignment[]             @relation("StudentScoreAssignmentUpdatedBy")
+  updatedResultBatches                    ResultBatch[]                        @relation("ResultBatchUpdatedBy")
+  updatedConfigurations                   Configuration[]                      @relation("ConfigurationUpdatedBy")
+  updatedReportSheetSettings              ReportSheetSetting[]                 @relation("ReportSheetSettingUpdatedBy")
+
+  // Approval relations
+  approvedResultBatches                   ResultBatch[]                        @relation("ResultBatchApprovedBy")
 
   @@index([schoolId, email])
   @@index([schoolId, username])
@@ -51,6 +132,7 @@ model School {
   id                             String                          @id @default(uuid())
   name                           String                          @unique
   email                          String                          @unique
+  slug                           String                          @unique
   contact                        String                          @unique
   isActive                       Boolean                         @default(true)
   isDeleted                      Boolean                         @default(false)
@@ -61,7 +143,9 @@ model School {
   subscriptionStatus             Boolean?                        @default(false) @map("subscription_status")
   createdAt                      DateTime                        @default(now()) @map("created_at")
   createdBy                      String?
+  createdByUser                  User?                           @relation("SchoolCreatedBy", fields: [createdBy], references: [id])
   updatedBy                      String?
+  updatedByUser                  User?                           @relation("SchoolUpdatedBy", fields: [updatedBy], references: [id])
   updatedAt                      DateTime                        @updatedAt @map("updated_at")
   users                          User[]
   subRoles                       SubRole[]
@@ -96,11 +180,12 @@ model School {
   classTermMarkingSchemeAssignments ClassTermMarkingSchemeAssignment[] // Added: Links to marking scheme assignments 
   teacherAssignments                TeacherSubjectAssignment[]
   scoresAssignment                  StudentScoreAssignment[]
-  results                           Result[]
-  configuration                    Configuration?                  @relation("SchoolConfiguration") // One-to-one
+resultBatches             ResultBatch[]
+  studentResults            StudentResult[]
+    configuration                     Configuration?                     @relation("SchoolConfiguration") // One-to-one
   studentSubjectAssignments         StudentSubjectAssignment[]
   classArmSubjectAssignments        ClassArmSubjectAssignment[]
-  reportSheetSettings            ReportSheetSetting[]
+  reportSheetSettings               ReportSheetSetting[]
 
   @@index([email])
   @@map("schools")
@@ -112,15 +197,16 @@ model Staff {
   userId         String    @unique @map("user_id")
   user           User      @relation("UserToStaff", fields: [userId], references: [id])
   staffRegNo     String?   @unique @map("staff_reg_no") // School-assigned staff ID
-  department     String? // e.g., Mathematics, Administration
-  position       String? // e.g., Teacher, Head of Department
+  // department     String? // e.g., Mathematics, Administration
+  // position       String? // e.g., Teacher, Head of Department
   hireDate       DateTime? @map("hire_date")
   qualifications String? // e.g., B.Ed, M.Sc
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
   createdBy      String?   @map("created_by") // Added
-
-  updatedBy          String?                    @map("updated_by") // Added
+  createdByUser  User?     @relation("StaffCreatedBy", fields: [createdBy], references: [id])
+  updatedBy      String?   @map("updated_by") // Added
+  updatedByUser  User?     @relation("StaffUpdatedBy", fields: [updatedBy], references: [id])
   teacherAssignments TeacherSubjectAssignment[]
   // @@index([userId, schoolId]) 
 
@@ -147,17 +233,18 @@ model Student {
   classArm          ClassArm?                  @relation("ArmStudents", fields: [classArmId], references: [id])
   subjects          StudentSubjectAssignment[] // Updated relation name
   admission         Admission?                 @relation("StudentToAdmission") // New: Link to admission
-  admissionStatus   AdmissionStatus            @default(pending) @map("admission_status")
-  admissionDate     DateTime?                  @map("admission_date") // Date of admission  createdAt         DateTime                   @default(now()) @map("created_at")
+  admissionStatus   AdmissionStatus            @default(pending) @map("admission_status")  admissionDate     DateTime?                  @map("admission_date") // Date of admission  createdAt         DateTime                   @default(now()) @map("created_at")
+  isAlumni          Boolean                    @map("is_alumni") @default(false)
   updatedAt         DateTime                   @updatedAt @map("updated_at")
   createdBy         String?                    @map("created_by")
+  createdByUser     User?                      @relation("StudentCreatedBy", fields: [createdBy], references: [id])
   updatedBy         String?                    @map("updated_by")
+  updatedByUser     User?                      @relation("StudentUpdatedBy", fields: [updatedBy], references: [id])
   attendanceRecords Attendance[]               @relation("StudentAttendance")
   classAssignments  StudentClassAssignment[]   @relation("StudentClassAssignment")
   invoices          Invoice[] // New: Links to invoices
   scores            StudentScoreAssignment[]
-  results           Result[] // Added: Links to results
-
+studentResults     StudentResult[]
   @@map("students")
 }
 
@@ -168,12 +255,12 @@ model Parent {
   user         User      @relation("UserToParent", fields: [userId], references: [id])
   occupation   String?
   relationship String? // e.g., Father, Mother, Guardian
-  students     Student[] // Links to students they are responsible for
-  createdAt    DateTime  @default(now()) @map("created_at")
+  students     Student[] // Links to students they are responsible for  createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
   createdBy    String?   @map("created_by") // Added
-
-  updatedBy String?     @map("updated_by") // Added
+  createdByUser User?    @relation("ParentCreatedBy", fields: [createdBy], references: [id])
+  updatedBy    String?   @map("updated_by") // Added
+  updatedByUser User?    @relation("ParentUpdatedBy", fields: [updatedBy], references: [id])
   Admission Admission[]
   // @@index([userId]) 
 
@@ -188,13 +275,14 @@ model Class {
   school                  School                             @relation(fields: [schoolId], references: [id])
   classCategoryId         String?                            @map("class_category_id")
   classCategory           ClassCategory?                     @relation(fields: [classCategoryId], references: [id])
-  students                Student[]                          @relation("StudentClass")
-  isDeleted               Boolean                            @default(false)
+  students                Student[]                          @relation("StudentClass")  isDeleted               Boolean                            @default(false)
   isActive                Boolean                            @default(true)
   createdAt               DateTime                           @default(now()) @map("created_at")
   updatedAt               DateTime                           @updatedAt @map("updated_at")
   createdBy               String?                            @map("created_by")
+  createdByUser           User?                              @relation("ClassCreatedBy", fields: [createdBy], references: [id])
   updatedBy               String?                            @map("updated_by")
+  updatedByUser           User?                              @relation("ClassUpdatedBy", fields: [updatedBy], references: [id])
   admissionsPresentClass  Admission[]                        @relation("PresentClass")
   admissionsClassToApply  Admission[]                        @relation("ClassToApply")
   admissionsAssignedClass Admission[]                        @relation("AssignedClass")
@@ -207,8 +295,8 @@ model Class {
   teacherAssignments      TeacherSubjectAssignment[]
   classAssignments        StudentClassAssignment[]
   scores                  StudentScoreAssignment[]
-  results                 Result[]
-  reportSheetSetting         ReportSheetSetting[]
+ resultBatches          ResultBatch[]
+   reportSheetSetting      ReportSheetSetting[]
 
   @@unique([name, schoolId])
   @@index([schoolId, classCategoryId])
@@ -254,8 +342,7 @@ model ClassArm {
   teacherAssignments         TeacherSubjectAssignment[]
   classAssignments           StudentClassAssignment[]
   scores                     StudentScoreAssignment[]
-  results                    Result[]
-
+ resultBatches          ResultBatch[]
   @@unique([name, schoolId])
   @@index([schoolId])
   @@map("class_arms")
@@ -323,8 +410,8 @@ model Session {
   attendanceRecords      Attendance[]
   scores                 StudentScoreAssignment[]   @relation("SessionScores")
   studentSubjects        StudentSubjectAssignment[]
-  results                Result[]
-  StudentClassAssignment StudentClassAssignment[]
+ resultBatches          ResultBatch[]
+   StudentClassAssignment StudentClassAssignment[]
 
   @@unique([name, schoolId])
   @@index([schoolId])
@@ -344,33 +431,32 @@ model TermDefinition {
   updatedAt                     DateTime?                          @updatedAt @map("updated_at")
   createdBy                     String?                            @map("created_by")
   updatedBy                     String?                            @map("updated_by")
-  scores            StudentScoreAssignment[] @relation("TermScores")
-
+  scores                        StudentScoreAssignment[]           @relation("TermScores")
+ resultBatches          ResultBatch[]
   @@unique([name, schoolId])
   @@index([schoolId])
   @@map("term_definitions")
 }
 
 // SessionTerm model - Links sessions to term definitions with dates
-model SessionTerm { 
-  id                String                   @id @default(uuid())
-  termDefinitionId  String                   @map("term_definition_id")
-  termDefinition    TermDefinition           @relation(fields: [termDefinitionId], references: [id])
-  sessionId         String                   @map("session_id")
-  session           Session                  @relation(fields: [sessionId], references: [id])
+model SessionTerm {
+  id                String         @id @default(uuid())
+  termDefinitionId  String         @map("term_definition_id")
+  termDefinition    TermDefinition @relation(fields: [termDefinitionId], references: [id])
+  sessionId         String         @map("session_id")
+  session           Session        @relation(fields: [sessionId], references: [id])
   startDate         DateTime
   endDate           DateTime
-  schoolId          String                   @map("school_id")
-  school            School                   @relation(fields: [schoolId], references: [id])
-  isActive         Boolean                  @default(false)
-  isDeleted         Boolean                  @default(false)
-  createdAt         DateTime                 @default(now()) @map("created_at")
-  updatedAt         DateTime                 @updatedAt @map("updated_at")
-  createdBy         String?                  @map("created_by")
-  updatedBy         String?                  @map("updated_by") // Relations
-  attendanceRecords Attendance[]             @relation("TermAttendance")
-  results           Result[]
-  currentSchools    School[]                 @relation("SchoolCurrentTerm") // Back-reference for School.currentTerm
+  schoolId          String         @map("school_id")
+  school            School         @relation(fields: [schoolId], references: [id])
+  isActive          Boolean        @default(false)
+  isDeleted         Boolean        @default(false)
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime       @updatedAt @map("updated_at")
+  createdBy         String?        @map("created_by")
+  updatedBy         String?        @map("updated_by") // Relations
+  attendanceRecords Attendance[]   @relation("TermAttendance")
+  currentSchools    School[]       @relation("SchoolCurrentTerm") // Back-reference for School.currentTerm
 
   @@unique([sessionId, termDefinitionId])
   @@index([schoolId, sessionId, termDefinitionId])
@@ -392,6 +478,7 @@ model SessionClassAssignment {
   updatedAt  DateTime? @updatedAt @map("updated_at")
   createdBy  String?   @map("created_by") @db.VarChar(50)
   updatedBy  String?   @map("updated_by") @db.VarChar(50)
+
   @@unique([sessionId, classId, classArmId, schoolId])
   @@index([schoolId, sessionId])
 }
@@ -412,8 +499,7 @@ model Subject {
   classArmSubjects   ClassArmSubjectAssignment[] @relation("SubjectAssignments")
   teacherAssignments TeacherSubjectAssignment[]
   scores             StudentScoreAssignment[]
-  results            Result[]
-
+studentResults     StudentResult[]
   @@unique([name, schoolId])
   @@index([schoolId])
   @@map("subjects")
@@ -450,7 +536,7 @@ model ClassArmSubjectAssignment {
   schoolId                  String                     @map("school_id")
   class                     Class                      @relation(fields: [classId], references: [id])
   classArm                  ClassArm                   @relation(fields: [classArmId], references: [id])
-  subject                  Subject                    @relation("SubjectAssignments", fields: [subjectId], references: [id])
+  subject                   Subject                    @relation("SubjectAssignments", fields: [subjectId], references: [id])
   school                    School                     @relation(fields: [schoolId], references: [id])
   isActive                  Boolean                    @default(true)
   createdAt                 DateTime?                  @default(now()) @map("created_at")
@@ -561,6 +647,7 @@ model Attendance {
   term       SessionTerm      @relation("TermAttendance", fields: [termId], references: [id])
   class      Class            @relation(fields: [classId], references: [id])
   classArm   ClassArm         @relation(fields: [classArmId], references: [id])
+
   @@unique([studentId, date, schoolId, sessionId, termId])
   @@index([studentId, date])
   @@index([schoolId, sessionId, termId])
@@ -714,7 +801,7 @@ model MarkingSchemeComponent {
   createdBy             String?                  @map("created_by")
   updatedBy             String?                  @map("updated_by")
   isDeleted             Boolean                  @default(false)
-
+  resultBatches    ResultBatch[]   @relation("BatchResultType")
   @@unique([markingSchemeId, name])
   @@index([schoolId, markingSchemeId])
   @@map("marking_scheme_components")
@@ -774,7 +861,6 @@ model GradingSystem {
   updatedAt        DateTime?            @updatedAt @map("updated_at")
   createdBy        String?              @map("created_by")
   updatedBy        String?              @map("updated_by")
-  Result           Result[]
 
   @@unique([name, schoolId])
   @@index([schoolId])
@@ -799,8 +885,7 @@ model Grade {
   updatedAt        DateTime?     @updatedAt @map("updated_at")
   createdBy        String?       @map("created_by")
   updatedBy        String?       @map("updated_by")
-  results          Result[]      @relation("GradeResults")
-
+studentResults   StudentResult[]
   @@unique([gradingSystemId, name])
   @@index([schoolId, gradingSystemId])
   @@map("grades")
@@ -852,22 +937,23 @@ model ClassTermMarkingSchemeAssignment {
 model TeacherSubjectAssignment {
   id                String                     @id @default(uuid())
   staffId           String                     @map("staff_id") @db.VarChar(50)
-  subjectId              String                @map("subject_id") @db.VarChar(50)
+  subjectId         String                     @map("subject_id") @db.VarChar(50)
   classId           String                     @map("class_id") @db.VarChar(50)
   classArmId        String                     @map("class_arm_id") @db.VarChar(50)
   schoolId          String                     @map("school_id") @db.VarChar(50)
   staff             Staff                      @relation(fields: [staffId], references: [id])
   subject           Subject                    @relation(fields: [subjectId], references: [id])
   class             Class                      @relation(fields: [classId], references: [id])
-  classArm          ClassArm                   @relation(fields: [classArmId], references:[id])
+  classArm          ClassArm                   @relation(fields: [classArmId], references: [id])
   school            School                     @relation(fields: [schoolId], references: [id])
-  classArmSubjectId     String?                @map("class_arm_subject_id") @db.VarChar(50)
+  classArmSubjectId String?                    @map("class_arm_subject_id") @db.VarChar(50)
   classArmSubject   ClassArmSubjectAssignment? @relation(fields: [classArmSubjectId], references: [id])
   isDeleted         Boolean                    @default(false)
   createdAt         DateTime?                  @default(now()) @map("created_at")
   updatedAt         DateTime?                  @updatedAt @map("updated_at")
   createdBy         String?                    @map("created_by") @db.VarChar(50)
   updatedBy         String?                    @map("updated_by") @db.VarChar(50)
+
   @@unique([staffId, subjectId, classId, classArmId])
   @@index([schoolId, staffId])
 }
@@ -895,6 +981,7 @@ model StudentScoreAssignment {
   continuousAssessmentComponent   ContinuousAssessmentComponent? @relation("ComponentScores", fields: [continuousAssessmentComponentId], references: [id])
   score                           Float // Score for the component or exam
   recordedBy                      String                         @map("recorded_by") // Teacher who recorded the score
+  uniqueHash                      String                         @unique @map("unique_hash") @db.VarChar(64)
   schoolId                        String                         @map("school_id")
   school                          School                         @relation(fields: [schoolId], references: [id])
   isDeleted                       Boolean                        @default(false)
@@ -903,94 +990,132 @@ model StudentScoreAssignment {
   createdBy                       String?                        @map("created_by")
   updatedBy                       String?                        @map("updated_by")
 
-  // @@unique([studentId, subjectId, classId, classArmId, sessionId, sessionTermId, markingSchemeComponentId, continuousAssessmentId, continuousAssessmentComponentId])
-  @@unique([studentId, subjectId, sessionId, termDefinitionId])
-
+  // Allow multiple scores per student/subject/term for different components
+  // @@unique([studentId, subjectId, sessionId, termDefinitionId, markingSchemeComponentId, continuousAssessmentComponentId])
   @@index([schoolId, studentId, sessionId, termDefinitionId])
   @@map("student_score_assignments")
 }
 
-model Result {
-  id               String        @id @default(uuid())
-  studentId        String        @map("student_id") @db.VarChar(50)
-  student          Student       @relation(fields: [studentId], references: [id])
-  subjectId        String        @map("subject_id") @db.VarChar(50)
-  subject          Subject       @relation(fields: [subjectId], references: [id])
-  classId          String        @map("class_id") @db.VarChar(50)
-  class            Class         @relation(fields: [classId], references: [id])
-  classArmId       String        @map("class_arm_id") @db.VarChar(50)
-  classArm         ClassArm      @relation(fields: [classArmId], references: [id])
-  sessionId        String        @map("session_id") @db.VarChar(50)
-  session          Session       @relation(fields: [sessionId], references: [id])
-  sessionTermId    String        @map("session_term_id") @db.VarChar(50)
-  sessionTerm      SessionTerm   @relation(fields: [sessionTermId], references: [id])
-  schoolId         String        @map("school_id") @db.VarChar(50)
-  school           School        @relation(fields: [schoolId], references: [id])
-  gradingSystemId  String        @map("grading_system_id") @db.VarChar(50)
-  gradingSystem    GradingSystem @relation(fields: [gradingSystemId], references: [id])
-  totalScore       Float
-  gradeId          String?       @map("grade_id") @db.VarChar(50)
-  grade            Grade?        @relation("GradeResults", fields: [gradeId], references: [id])
-  remark           String?       @db.VarChar(191)
-  teacherComment   String?       @map("teacher_comment") @db.VarChar(191)
-  principalComment String?       @map("principal_comment") @db.VarChar(191)
-  isDeleted        Boolean       @default(false)
-  componentScores   Json?          // New: { "ca1-component-uuid": 15, "exam-component-uuid": 50 }
-  createdAt        DateTime?     @default(now()) @map("created_at")
-  updatedAt        DateTime?     @updatedAt @map("updated_at")
-  createdBy        String?       @map("created_by") @db.VarChar(50)
-  updatedBy        String?       @map("updated_by") @db.VarChar(50) 
-  @@unique([studentId, subjectId, sessionId, sessionTermId])
-  @@index([schoolId, studentId, sessionId, sessionTermId])
-}  
+// Main Result Batch - One record per computation request
+model ResultBatch {
+  id            String        @id @default(uuid())
+  sessionId     String        @map("session_id")
+  session       Session       @relation(fields: [sessionId], references: [id])
+  termId        String        @map("term_id") // termDefinitionId
+  termDefinition TermDefinition @relation(fields: [termId], references: [id])
+  classId       String        @map("class_id")
+  class         Class         @relation(fields: [classId], references: [id])
+  classArmId    String        @map("class_arm_id")
+  classArm      ClassArm      @relation(fields: [classArmId], references: [id])
+  resultTypeId  String        @map("result_type_id") // markingSchemeComponentId
+  resultType    MarkingSchemeComponent @relation("BatchResultType", fields: [resultTypeId], references: [id])
+  resultScope   AssessmentType   // CA or EXAM
+  schoolId      String        @map("school_id")
+  school        School        @relation(fields: [schoolId], references: [id])
+  
+  // Store the marking scheme structure used for this computation
+  markingSchemeStructure Json  @map("marking_scheme_structure") // Dynamic structure
+  
+  // Batch metadata
+  title         String        // e.g., "First Term Terminal Results - Class 10A"
+  description   String?
+  isApproved    Boolean       @default(false)
+  approvedBy    String?       @map("approved_by")
+  approvedAt    DateTime?     @map("approved_at")
+  
+  // Statistics
+  totalStudents Int           @map("total_students")
+  totalSubjects Int           @map("total_subjects")
+  classAverage  Float?        @map("class_average")
+  uniqueHash   String        @unique @map("unique_hash") @db.VarChar(64) // Unique hash for this batch
+  
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  createdBy     String        @map("created_by")
+  updatedBy     String?       @map("updated_by")
+  
+  // Relations
+  studentResults StudentResult[] @relation("BatchResults")
+  
+  // @@unique([sessionId, termId, classId, classArmId, resultTypeId, resultScope, schoolId])
+  @@map("result_batches")
+}
+
+// Individual student results within a batch
+model StudentResult {
+  id            String        @id @default(uuid())
+  resultBatchId String        @map("result_batch_id")
+  resultBatch   ResultBatch   @relation("BatchResults", fields: [resultBatchId], references: [id])
+  studentId     String        @map("student_id")
+  student       Student       @relation(fields: [studentId], references: [id])
+  subjectId     String        @map("subject_id")
+  subject       Subject       @relation(fields: [subjectId], references: [id])
+  
+  // Dynamic scores based on marking scheme
+  componentScores Json         @map("component_scores") // Dynamic breakdown
+  totalScore      Float
+  gradeId         String?      @map("grade_id")
+  grade           Grade?       @relation(fields: [gradeId], references: [id])
+  position        Int?         // Position in subject within class arm
+  
+  // Comments
+  teacherComment  String?      @map("teacher_comment")
+  
+  schoolId        String       @map("school_id")
+  school          School       @relation(fields: [schoolId], references: [id])
+  
+  @@unique([resultBatchId, studentId, subjectId])
+  @@map("student_results")
+}
 
 model Configuration {
-  id                  String    @id @default(uuid())
-  logo                Json?     @map("logo")
-  country             String?   @map("country") // New: For school country
-  state               String?   @map("state") // New: For school state
-  color               String?   @map("color") // New: For school color
-  schoolHeadName      String?   @map("school_head_name") // New: For school head name
-  schoolHeadContact   String?   @map("school_head_contact") // New: For school head email
-  schoolHeadSignature Json?     @map("school_head_signature") // New: For school head signature
-  principalName       String?   @map("principal_name") // New: For principal name
-  principalContact    String?   @map("principal_contact") // New: For principal contact
-  principalSignature  Json?     @map("principal_signature") // New: For principal signature
-  bursarName          String?   @map("bursar_name") // New: For bursar name
-  bursarContact       String?   @map("bursar_contact") // New: For bursar contact
-  bursarSignature     Json?     @map("bursar_signature") // New: For bursar signature
-  schoolId            String    @unique @map("school_id")
-  school              School    @relation("SchoolConfiguration", fields: [schoolId], references: [id])
-  isDeleted           Boolean   @default(false)
-  createdAt           DateTime? @default(now()) @map("created_at")
-  updatedAt           DateTime? @updatedAt @map("updated_at")
-  createdBy           String?   @map("created_by")
-  updatedBy           String?   @map("updated_by")
+  id                  String  @id @default(uuid())
+  logo                Json?   @map("logo")
+  country             String? @map("country") // New: For school country
+  state               String? @map("state") // New: For school state
+  color               String? @map("color") // New: For school color
+  schoolHeadName      String? @map("school_head_name") // New: For school head name
+  schoolHeadContact   String? @map("school_head_contact") // New: For school head email
+  schoolHeadSignature Json?   @map("school_head_signature") // New: For school head signature
+  principalName       String? @map("principal_name") // New: For principal name
+  principalContact    String? @map("principal_contact") // New: For principal contact
+  principalSignature  Json?   @map("principal_signature") // New: For principal signature
+  bursarName          String? @map("bursar_name") // New: For bursar name
+  bursarContact       String? @map("bursar_contact") // New: For bursar contact
+  bursarSignature     Json?   @map("bursar_signature") // New: For bursar signature
+  schoolId            String  @unique @map("school_id")
+  school              School  @relation("SchoolConfiguration", fields: [schoolId], references: [id])
+  isDeleted           Boolean @default(false)
 
+  createdAt DateTime? @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  createdBy String?   @map("created_by")
+  updatedBy String?   @map("updated_by")
+
+  @@index([schoolId])
   @@map("configurations")
 }
 
-model ReportSheetSetting{
-  id                      String    @id @default(uuid())
-  classId                 String    @map("class_id") @db.VarChar(50)
-  class                   Class     @relation(fields: [classId], references: [id])
-  padding                 String  @map("padding") @db.VarChar(50)
-  headerFont              String   @map("header_font") @db.VarChar(50)
-  subjectFont             String   @map("subject_font") @db.VarChar(50)
-  valueFont               String   @map("value_font") @db.VarChar(50)
-  classTeacherCompute     Boolean  @map("class_teacher_compute") @default(false)
-  showAge                 Boolean  @map("show_age") @default(false)
-  showPosition            Boolean  @map("show_position") @default(false)
-  showNextFee             Boolean   @map("show_next_fee") @default(false)
-  schoolId                String    @map("school_id") @db.VarChar(50)
-  school                  School    @relation(fields: [schoolId], references: [id])
-  isDeleted               Boolean   @default(false)
-  createdAt               DateTime? @default(now()) @map("created_at")
-  updatedAt               DateTime? @updatedAt @map("updated_at")
-  createdBy               String?   @map("created_by") @db.VarChar(50)
-  updatedBy               String?   @map("updated_by") @db.VarChar(50)
+model ReportSheetSetting {
+  id                  String    @id @default(uuid())
+  classId             String    @map("class_id") @db.VarChar(50)
+  class               Class     @relation(fields: [classId], references: [id])
+  padding             String    @map("padding") @db.VarChar(50)
+  headerFont          String    @map("header_font") @db.VarChar(50)
+  subjectFont         String    @map("subject_font") @db.VarChar(50)
+  valueFont           String    @map("value_font") @db.VarChar(50)
+  classTeacherCompute Boolean   @default(false) @map("class_teacher_compute")
+  showAge             Boolean   @default(false) @map("show_age")
+  showPosition        Boolean   @default(false) @map("show_position")
+  showNextFee         Boolean   @default(false) @map("show_next_fee")
+  schoolId            String    @map("school_id") @db.VarChar(50)
+  school              School    @relation(fields: [schoolId], references: [id])
+  isDeleted           Boolean   @default(false)
+  createdAt           DateTime? @default(now()) @map("created_at")
+  updatedAt           DateTime? @updatedAt @map("updated_at")
+  createdBy           String?   @map("created_by") @db.VarChar(50)
+  updatedBy           String?   @map("updated_by") @db.VarChar(50)
 }
-
 
 // Enums
 enum Gender {
@@ -1043,3 +1168,5 @@ enum TermEnum {
   Second_Term
   Third_Term
 }
+
+

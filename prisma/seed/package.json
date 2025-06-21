@@ -1,0 +1,15 @@
+{
+    "name": "seed-grading-systems",
+    "version": "1.0.0",
+    "description": "Seed grading systems for a specific school",
+    "main": "seed-grading-systems.ts",
+    "scripts": {
+        "seed": "npx tsx seed-grading-systems.ts",
+        "dev": "npx tsx seed-grading-systems.ts"
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0",
+        "tsx": "^4.0.0",
+        "typescript": "^5.0.0"
+    }
+}

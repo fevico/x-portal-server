@@ -12,6 +12,7 @@ import { generateRandomPassword, generateUniqueUsername } from '@/utils/';
 
 import { LoggingService } from '@/log/logging.service';
 import { Prisma } from '@prisma/client';
+import slugify from 'slugify';
 
 @Injectable()
 export class SchoolsService {
@@ -90,11 +91,18 @@ export class SchoolsService {
   }
 
   async getSchoolById(id: string) {
-    const school = await this.prisma.school.findUnique({
-      where: { id },
+    const school = await this.prisma.school.findFirst({
+      where: {
+        OR: [
+          { id },
+          { slug: id }, // Assuming 'id' parameter could be a slug
+        ],
+        isDeleted: false,
+      },
       select: {
         id: true,
         name: true,
+        slug: true,
         email: true,
         contact: true,
         isActive: true,
@@ -104,6 +112,26 @@ export class SchoolsService {
         subscriptionId: true,
         subscriptionStatus: true,
         subscriptionExpiresAt: true,
+        configuration: {
+          select: {
+            id: true,
+            logo: true,
+            country: true,
+            state: true,
+            color: true,
+            schoolHeadName: true,
+            schoolHeadContact: true,
+            schoolHeadSignature: true,
+            principalName: true,
+            principalContact: true,
+            principalSignature: true,
+            bursarName: true,
+            bursarContact: true,
+            bursarSignature: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
         subscription: {
           select: {
             id: true,
@@ -113,6 +141,10 @@ export class SchoolsService {
         },
       },
     });
+
+    if (!school) {
+      throw new NotFoundException('School not found');
+    }
     return school;
   }
 
@@ -131,6 +163,22 @@ export class SchoolsService {
         throw new ForbiddenException('Admin subrole not found');
       }
 
+      // generate slug usig the school name iwth slugify
+      // Import slugify
+
+      // Generate slug from school name
+      const slug = slugify(dto.name, { lower: true, strict: true });
+
+      // Check if slug already exists (to ensure uniqueness)
+      const existingSchool = await this.prisma.school.findFirst({
+        where: { slug },
+      });
+
+      // If slug already exists, make it unique by adding a timestamp
+      const finalSlug = existingSchool
+        ? `${slug}-${Date.now().toString().slice(-6)}`
+        : slug;
+
       // Generate admin user details
       const adminPassword = generateRandomPassword();
       const adminUsername = await generateUniqueUsername(dto.name);
@@ -144,6 +192,7 @@ export class SchoolsService {
             data: {
               name: dto.name,
               email: dto.email,
+              slug: finalSlug,
               contact: dto.contact,
               address: dto.address,
               createdBy: requester.id,

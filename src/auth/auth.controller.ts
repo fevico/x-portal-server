@@ -120,7 +120,12 @@ export class AuthController {
   async setViewAs(
     @Req() req: RequestExpress,
     @Res({ passthrough: true }) res: Response,
-    @Body() body: { view_as: 'admin' | 'superAdmin'; schoolId: string },
+    @Body()
+    body: {
+      view_as: 'admin' | 'superAdmin';
+      schoolId: string;
+      schoolSlug: string;
+    },
   ) {
     const user = req.user as AuthenticatedUser;
     if (user.role !== 'superAdmin') {
@@ -133,6 +138,7 @@ export class AuthController {
       user.id,
       body.view_as,
       body.schoolId,
+      body.schoolSlug,
     );
     res.cookie('view_as_token', viewAsToken, {
       httpOnly: true,
@@ -144,7 +150,11 @@ export class AuthController {
       path: '/', // send on every request
       maxAge: 24 * 60 * 60 * 1000,
     });
-    return { view_as: body.view_as, schoolId: body.schoolId };
+    return {
+      view_as: body.view_as,
+      schoolId: body.schoolId,
+      schoolSlug: body.schoolSlug,
+    };
   }
 
   @UseGuards(JwtAuthGuard)

@@ -9,6 +9,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Request,
   UnauthorizedException,
   UseGuards,
@@ -20,7 +21,7 @@ import { AuthenticatedUser } from '@/types/express';
 
 @Controller('classes')
 export class ClassesController {
-  constructor(private readonly classesService: ClassesService) { }
+  constructor(private readonly classesService: ClassesService) {}
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('configuration:manage')
@@ -37,6 +38,11 @@ export class ClassesController {
   @Get()
   async findAll(@Request() req) {
     return this.classesService.findAll(req);
+  }
+
+  @Get('public')
+  async findAllPublic(@Query('schoolId') schoolId: string) {
+    return this.classesService.findAllPublic(schoolId);
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
