@@ -62,6 +62,7 @@ export class AuthController {
   getProfile(@Request() req) {
     const safeUser = { ...req.user } as User;
     delete safeUser.password;
+    console.log('User profile:', safeUser);
     return safeUser;
   }
 

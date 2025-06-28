@@ -4,7 +4,7 @@ import { hash } from 'bcrypt';
 const prisma = new PrismaClient();
 
 // Target school ID
-const TARGET_SCHOOL_ID = '4fa4c69b-b7f2-40ea-95c8-4b5c12343f55';
+const TARGET_SCHOOL_ID = '2e7ac74c-6f8e-47b6-ba5c-c28c234325ce';
 
 // Helper functions
 function generateRandomEmail(firstName: string, lastName: string): string {

@@ -8,6 +8,7 @@ import {
   UseGuards,
   Param,
   Patch,
+  BadRequestException,
 } from '@nestjs/common';
 import { ResultsService } from './results.service';
 import { Request as RequestExpress } from 'express';
@@ -48,8 +49,85 @@ export class ResultsController {
     return this.resultsService.getResultBatchById(id, req);
   }
 
+  @Get(':id/:type')
+  async getResultByIdWithType(
+    @Param('id') id: string,
+    @Param('type') type: string,
+    @Request() req: RequestExpress,
+  ) {
+    // Validate the type parameter
+    if (type !== 'grades' && type !== 'scores') {
+      throw new BadRequestException('Type must be either "grades" or "scores"');
+    }
+
+    return this.resultsService.getResultBatchByIdWithType(
+      id,
+      type as 'grades' | 'scores',
+      req,
+    );
+  }
+
   @Patch(':id/approve')
   async approveResult(@Param('id') id: string, @Request() req: RequestExpress) {
     return this.resultsService.approveResult(id, req);
+  }
+
+  @Get('transcript/:classCategoryId/:studentIdentifier')
+  async getStudentTranscript(
+    @Param('classCategoryId') classCategoryId: string,
+    @Param('studentIdentifier') studentIdentifier: string,
+    @Request() req: RequestExpress,
+  ) {
+    return this.resultsService.getStudentTranscriptByCategory(
+      classCategoryId,
+      decodeURIComponent(studentIdentifier), // Decode in case name has spaces
+      req,
+    );
+  }
+
+  @Get('promotion/:sessionId/:classId/:classArmId')
+  async getStudentsForPromotion(
+    @Param('sessionId') sessionId: string,
+    @Param('classId') classId: string,
+    @Param('classArmId') classArmId: string,
+    @Request() req: RequestExpress,
+  ) {
+    return this.resultsService.getStudentsForPromotion(
+      sessionId,
+      classId,
+      classArmId,
+      req,
+    );
+  }
+
+  @Post('promotion/promote')
+  async promoteStudents(
+    @Body()
+    promotionData: {
+      studentPromotions: Array<{
+        studentId: string;
+        promoteAction: boolean;
+      }>;
+      newSessionId: string;
+      newClassId: string;
+      newClassArmId: string;
+      currentSessionId: string;
+      currentClassId: string;
+      currentClassArmId: string;
+      graduatingClass?: boolean;
+    },
+    @Request() req: RequestExpress,
+  ) {
+    return this.resultsService.promoteStudents(
+      promotionData.studentPromotions,
+      promotionData.newSessionId,
+      promotionData.newClassId,
+      promotionData.newClassArmId,
+      promotionData.currentSessionId,
+      promotionData.currentClassId,
+      promotionData.currentClassArmId,
+      promotionData.graduatingClass || false,
+      req,
+    );
   }
 }
