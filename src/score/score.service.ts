@@ -5,12 +5,20 @@ import {
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
-import { SaveScoresDto, FetchScoresDto, StudentScore } from './dto/score.dto';
+import {
+  SaveScoresDto,
+  FetchScoresDto,
+  StudentScore,
+  StudentAdditionalData,
+} from './dto/score.dto';
 import { PrismaService } from '@/prisma/prisma.service';
 import { LoggingService } from '@/log/logging.service';
 import { AuthenticatedUser } from '@/types/express';
 import { AssessmentType } from '@prisma/client';
-import { generateScoreUniqueHash } from '@/utils/hash.util';
+import {
+  generateScoreUniqueHash,
+  generateStudentTermRecordUniqueHash,
+} from '@/utils/hash.util';
 
 @Injectable()
 export class ScoreService {
@@ -20,280 +28,135 @@ export class ScoreService {
   ) {}
 
   /**
-   * Save or update scores for students
-   * Handles both single student multiple subjects and multiple students single subject
+   * Helper method to compute attendance record for a student in a class/session/term
    */
-  // async saveScores(data: SaveScoresDto, req: any) {
-  //   try {
-  //     const user = req.user as AuthenticatedUser;
-  //     const schoolId = user.schoolId;
+  private async computeAttendanceRecord(
+    studentId: string,
+    classId: string,
+    classArmId: string,
+    sessionId: string,
+    termDefinitionId: string,
+    schoolId: string,
+  ): Promise<{ total: number; present: number; absent: number }> {
+    try {
+      // First, find the SessionTerm that corresponds to the termDefinitionId
+      const sessionTerm = await this.prisma.sessionTerm.findFirst({
+        where: {
+          sessionId,
+          termDefinitionId,
+          schoolId,
+        },
+      });
 
-  //     // Validate school association
-  //     if (!schoolId) {
-  //       throw new BadRequestException('User must be associated with a school');
-  //     }
+      if (!sessionTerm) {
+        console.warn(
+          `No SessionTerm found for termDefinitionId: ${termDefinitionId}, sessionId: ${sessionId}`,
+        );
+        return { total: 0, present: 0, absent: 0 };
+      }
 
-  //     // Validate session exists and belongs to the school
-  //     const session = await this.prisma.session.findFirst({
-  //       where: {
-  //         id: data.sessionId,
-  //         schoolId,
-  //         isDeleted: false,
-  //       },
-  //     });
+      // Get all attendance records for the student in the specified context
+      const attendanceRecords = await this.prisma.attendance.findMany({
+        where: {
+          studentId,
+          classId,
+          classArmId,
+          sessionId,
+          termId: sessionTerm.id, // Use SessionTerm id, not termDefinitionId
+          schoolId,
+        },
+        select: {
+          status: true,
+        },
+      });
 
-  //     if (!session) {
-  //       throw new NotFoundException('Session not found for this school');
-  //     }
+      const total = attendanceRecords.length;
+      const present = attendanceRecords.filter(
+        (record) => record.status === 'present' || record.status === 'late',
+      ).length;
+      const absent = attendanceRecords.filter(
+        (record) => record.status === 'absent',
+      ).length;
 
-  //     // Validate term exists and belongs to the school
-  //     const termDefinition = await this.prisma.termDefinition.findFirst({
-  //       where: {
-  //         id: data.termId,
-  //         schoolId,
-  //       },
-  //     });
+      return { total, present, absent };
+    } catch (error) {
+      console.error('Error computing attendance record:', error);
+      // Return default values if computation fails
+      return { total: 0, present: 0, absent: 0 };
+    }
+  }
 
-  //     if (!termDefinition) {
-  //       throw new NotFoundException('Term not found for this school');
-  //     }
+  /**
+   * Helper method to create or update StudentTermRecord
+   */
+  private async upsertStudentTermRecord(
+    studentId: string,
+    classId: string,
+    classArmId: string,
+    sessionId: string,
+    termDefinitionId: string,
+    schoolId: string,
+    additionalData: any,
+    recordedBy: string,
+    tx: any,
+  ): Promise<void> {
+    const uniqueHash = generateStudentTermRecordUniqueHash({
+      studentId,
+      classId,
+      classArmId,
+      sessionId,
+      termDefinitionId,
+      schoolId,
+    });
 
-  //     // Validate class exists and belongs to the school
-  //     const classExists = await this.prisma.class.findFirst({
-  //       where: {
-  //         id: data.classId,
-  //         schoolId,
-  //         isDeleted: false,
-  //       },
-  //     });
+    // Check if record already exists
+    const existingRecord = await tx.studentTermRecord.findFirst({
+      where: { uniqueHash },
+    });
 
-  //     if (!classExists) {
-  //       throw new NotFoundException('Class not found for this school');
-  //     }
+    const recordData = {
+      studentId,
+      classId,
+      classArmId,
+      sessionId,
+      termDefinitionId,
+      schoolId,
+      uniqueHash,
+      recordedBy,
+      // Behavioral ratings
+      punctuality: additionalData?.punctuality || null,
+      attentiveness: additionalData?.attentiveness || null,
+      leadershipSkills: additionalData?.leadershipSkills || null,
+      neatness: additionalData?.neatness || null,
+      // Attendance data
+      attendanceTotal: additionalData?.attendanceTotal,
+      attendancePresent: additionalData?.attendancePresent,
+      attendanceAbsent: additionalData?.attendanceAbsent,
+      // Comments
+      classTeacherComment: additionalData?.classTeacherComment || null,
+      principalComment: additionalData?.principalComment || null,
+    };
 
-  //     // Validate class arm exists and belongs to the school
-  //     const classArmExists = await this.prisma.classArm.findFirst({
-  //       where: {
-  //         id: data.classArmId,
-  //         schoolId,
-  //         isDeleted: false,
-  //       },
-  //     });
-
-  //     if (!classArmExists) {
-  //       throw new NotFoundException('Class arm not found for this school');
-  //     }
-
-  //     // Validate subject exists and belongs to the school
-  //     const subject = await this.prisma.subject.findFirst({
-  //       where: {
-  //         id: data.subjectId,
-  //         schoolId,
-  //         isDeleted: false,
-  //       },
-  //     });
-
-  //     if (!subject) {
-  //       throw new NotFoundException('Subject not found for this school');
-  //     }
-
-  //     // Process scores in transaction to ensure data consistency
-  //     const result = await this.prisma.$transaction(async (tx) => {
-  //       const processedScores = [];
-  //       const errors = [];
-
-  //       for (const scoreEntry of data.scores) {
-  //         try {
-  //           // Validate student exists and is assigned to the class
-  //           const studentAssignment = await tx.studentClassAssignment.findFirst(
-  //             {
-  //               where: {
-  //                 studentId: scoreEntry.studentId,
-  //                 sessionId: data.sessionId,
-  //                 classId: data.classId,
-  //                 classArmId: data.classArmId,
-  //                 schoolId,
-  //                 isActive: true,
-  //               },
-  //             },
-  //           );
-
-  //           if (!studentAssignment) {
-  //             errors.push(
-  //               `Student ${scoreEntry.studentId} is not assigned to this class`,
-  //             );
-  //             continue;
-  //           }
-
-  //           // Determine component IDs based on score type and data structure
-  //           let markingSchemeComponentId: string | null = null;
-  //           let continuousAssessmentComponentId: string | null = null;
-
-  //           if (scoreEntry.type === AssessmentType.EXAM) {
-  //             // For EXAM, componentId is the markingSchemeComponentId
-  //             markingSchemeComponentId = scoreEntry.componentId;
-  //           } else if (scoreEntry.type === AssessmentType.CA) {
-  //             if (scoreEntry.subComponentId) {
-  //               // For CA with sub-component, subComponentId is the continuousAssessmentComponentId
-  //               continuousAssessmentComponentId = scoreEntry.subComponentId;
-
-  //               // Verify the sub-component exists and get parent component
-  //               const caComponent =
-  //                 await tx.continuousAssessmentComponent.findFirst({
-  //                   where: {
-  //                     id: scoreEntry.subComponentId,
-  //                     schoolId,
-  //                   },
-  //                   include: {
-  //                     continuousAssessment: {
-  //                       include: {
-  //                         markingSchemeComponent: true,
-  //                       },
-  //                     },
-  //                   },
-  //                 });
-
-  //               if (!caComponent) {
-  //                 errors.push(
-  //                   `Continuous assessment component ${scoreEntry.subComponentId} not found`,
-  //                 );
-  //                 continue;
-  //               }
-
-  //               markingSchemeComponentId =
-  //                 caComponent.continuousAssessment.markingSchemeComponentId;
-  //             } else {
-  //               // For CA without sub-component, componentId is the markingSchemeComponentId
-  //               markingSchemeComponentId = scoreEntry.componentId;
-  //             }
-  //           }
-
-  //           const uniqueHash = generateScoreUniqueHash({
-  //             schoolId,
-  //             studentId: scoreEntry.studentId,
-  //             subjectId: data.subjectId,
-  //             sessionId: data.sessionId,
-  //             termDefinitionId: data.termId,
-  //             markingSchemeComponentId: scoreEntry.componentId,
-  //             continuousAssessmentComponentId: scoreEntry.subComponentId,
-  //           });
-
-  //           // Check if score record already exists
-  //           const existingScore = await tx.studentScoreAssignment.findFirst({
-  //             where: {
-  //               // studentId: scoreEntry.studentId,
-  //               // subjectId: data.subjectId,
-  //               // sessionId: data.sessionId,
-  //               // termDefinitionId: data.termId,
-  //               // markingSchemeComponentId,
-  //               // continuousAssessmentComponentId,
-  //               // schoolId,
-  //               uniqueHash,
-  //             },
-  //           });
-
-  //           const scoreData = {
-  //             studentId: scoreEntry.studentId,
-  //             subjectId: data.subjectId,
-  //             classId: data.classId,
-  //             classArmId: data.classArmId,
-  //             sessionId: data.sessionId,
-  //             termDefinitionId: data.termId,
-  //             markingSchemeComponentId,
-  //             continuousAssessmentComponentId,
-  //             score: scoreEntry.score,
-  //             recordedBy: user.id,
-  //             schoolId,
-  //             uniqueHash,
-  //             updatedBy: user.id,
-  //           };
-
-  //           let savedScore;
-
-  //           if (existingScore) {
-  //             // Update existing score
-  //             savedScore = await tx.studentScoreAssignment.update({
-  //               where: { id: existingScore.id },
-  //               data: {
-  //                 ...scoreData,
-  //                 updatedAt: new Date(),
-  //               },
-  //             });
-  //           } else {
-  //             // Create new score
-  //             savedScore = await tx.studentScoreAssignment.create({
-  //               data: {
-  //                 ...scoreData,
-  //                 createdBy: user.id,
-  //               },
-  //             });
-  //           }
-
-  //           processedScores.push({
-  //             id: savedScore.id,
-  //             studentId: scoreEntry.studentId,
-  //             componentId: scoreEntry.componentId,
-  //             score: scoreEntry.score,
-  //             action: existingScore ? 'updated' : 'created',
-  //           });
-  //         } catch (error) {
-  //           errors.push(
-  //             `Error processing score for student ${scoreEntry.studentId}: ${error.message}`,
-  //           );
-  //         }
-  //       }
-
-  //       return { processedScores, errors };
-  //     });
-
-  //     // Log the action
-  //     await this.loggingService.logAction(
-  //       'SAVE_SCORES',
-  //       'StudentScoreAssignment',
-  //       data.subjectId,
-  //       user.id,
-  //       schoolId,
-  //       {
-  //         sessionId: data.sessionId,
-  //         classId: data.classId,
-  //         subjectId: data.subjectId,
-  //         totalScores: data.scores.length,
-  //         processedScores: result.processedScores.length,
-  //         errors: result.errors.length,
-  //       },
-  //       req,
-  //     );
-
-  //     return {
-  //       statusCode: 200,
-  //       message: 'Scores processed successfully',
-  //       data: {
-  //         session: { id: session.id, name: session.name },
-  //         class: { id: classExists.id, name: classExists.name },
-  //         classArm: { id: classArmExists.id, name: classArmExists.name },
-  //         subject: { id: subject.id, name: subject.name, code: subject.code },
-  //         summary: {
-  //           totalSubmitted: data.scores.length,
-  //           successful: result.processedScores.length,
-  //           failed: result.errors.length,
-  //         },
-  //         processedScores: result.processedScores,
-  //         errors: result.errors,
-  //       },
-  //     };
-  //   } catch (error) {
-  //     if (error instanceof HttpException) {
-  //       throw error;
-  //     }
-  //     console.error('Error saving scores:', error);
-  //     throw new HttpException(
-  //       'Failed to save scores: ' + (error.message || 'Unknown error'),
-  //       HttpStatus.INTERNAL_SERVER_ERROR,
-  //     );
-  //   }
-  // }
-
-  // In your score service, update the saveScores method:
+    if (existingRecord) {
+      // Update existing record
+      await tx.studentTermRecord.update({
+        where: { id: existingRecord.id },
+        data: {
+          ...recordData,
+          updatedBy: recordedBy,
+          updatedAt: new Date(),
+        },
+      });
+    } else {
+      // Create new record
+      await tx.studentTermRecord.create({
+        data: {
+          ...recordData,
+          createdBy: recordedBy,
+        },
+      });
+    }
+  }
 
   async saveScores(data: SaveScoresDto, req: any) {
     try {
@@ -392,6 +255,14 @@ export class ScoreService {
       const scoreOperations = [];
       const errors = [];
 
+      // Create a map of additional data by studentId for quick lookup
+      const additionalDataMap = new Map();
+      if (data.additionalData) {
+        data.additionalData.forEach((additionalData) => {
+          additionalDataMap.set(additionalData.studentId, additionalData);
+        });
+      }
+
       for (const scoreEntry of data.scores) {
         // Validate student assignment
         if (!validStudentIds.has(scoreEntry.studentId)) {
@@ -400,6 +271,11 @@ export class ScoreService {
           );
           continue;
         }
+
+        // Get additional data for this student
+        const studentAdditionalData = additionalDataMap.get(
+          scoreEntry.studentId,
+        );
 
         // Determine component IDs
         let markingSchemeComponentId: string | null = null;
@@ -437,6 +313,7 @@ export class ScoreService {
         scoreOperations.push({
           uniqueHash,
           scoreEntry,
+          studentAdditionalData,
           markingSchemeComponentId,
           continuousAssessmentComponentId,
         });
@@ -467,6 +344,7 @@ export class ScoreService {
             const {
               uniqueHash,
               scoreEntry,
+              studentAdditionalData,
               markingSchemeComponentId,
               continuousAssessmentComponentId,
             } = operation;
@@ -486,6 +364,44 @@ export class ScoreService {
               uniqueHash,
               updatedBy: user.id,
             };
+
+            // Handle StudentTermRecord separately if additional data exists
+            if (studentAdditionalData) {
+              // Compute attendance if not provided
+              if (
+                studentAdditionalData.attendanceTotal === undefined ||
+                studentAdditionalData.attendancePresent === undefined ||
+                studentAdditionalData.attendanceAbsent === undefined
+              ) {
+                const attendance = await this.computeAttendanceRecord(
+                  scoreEntry.studentId,
+                  data.classId,
+                  data.classArmId,
+                  data.sessionId,
+                  data.termId,
+                  schoolId,
+                );
+                studentAdditionalData.attendanceTotal =
+                  studentAdditionalData.attendanceTotal ?? attendance.total;
+                studentAdditionalData.attendancePresent =
+                  studentAdditionalData.attendancePresent ?? attendance.present;
+                studentAdditionalData.attendanceAbsent =
+                  studentAdditionalData.attendanceAbsent ?? attendance.absent;
+              }
+
+              // Create or update StudentTermRecord
+              await this.upsertStudentTermRecord(
+                scoreEntry.studentId,
+                data.classId,
+                data.classArmId,
+                data.sessionId,
+                data.termId,
+                schoolId,
+                studentAdditionalData,
+                user.id,
+                tx,
+              );
+            }
 
             const existingScore = existingScoresMap.get(uniqueHash);
 
@@ -666,7 +582,7 @@ export class ScoreService {
         ],
       });
 
-      // Transform scores to the required format
+      // Transform scores to the required format (without additional data)
       const studentScores: StudentScore[] = scores.map((score) => ({
         id: score.id,
         studentId: score.studentId,
@@ -694,6 +610,46 @@ export class ScoreService {
         subject: score.subject,
       }));
 
+      // Fetch additional data from StudentTermRecord separately
+      const studentIds = [...new Set(scores.map((score) => score.studentId))];
+      const termRecords = await this.prisma.studentTermRecord.findMany({
+        where: {
+          studentId: { in: studentIds },
+          classId: filters.classId,
+          classArmId: filters.classArmId,
+          sessionId: filters.sessionId,
+          termDefinitionId: filters.termId,
+          schoolId,
+        },
+      });
+
+      // Convert term records to additional data format
+      const additionalDataArray: StudentAdditionalData[] = termRecords
+        .filter(
+          (record) =>
+            record.punctuality ||
+            record.attentiveness ||
+            record.leadershipSkills ||
+            record.neatness ||
+            record.attendanceTotal !== null ||
+            record.attendancePresent !== null ||
+            record.attendanceAbsent !== null ||
+            record.classTeacherComment ||
+            record.principalComment,
+        )
+        .map((record) => ({
+          studentId: record.studentId,
+          punctuality: record.punctuality,
+          attentiveness: record.attentiveness,
+          leadershipSkills: record.leadershipSkills,
+          neatness: record.neatness,
+          attendanceTotal: record.attendanceTotal,
+          attendancePresent: record.attendancePresent,
+          attendanceAbsent: record.attendanceAbsent,
+          classTeacherComment: record.classTeacherComment,
+          principalComment: record.principalComment,
+        }));
+
       // Log the action
       await this.loggingService.logAction(
         'FETCH_SCORES',
@@ -708,14 +664,21 @@ export class ScoreService {
         req,
       );
 
+      const responseData: any = {
+        filters,
+        totalRecords: studentScores.length,
+        scores: studentScores,
+      };
+
+      // Only include additionalData if there's actual data
+      if (additionalDataArray.length > 0) {
+        responseData.additionalData = additionalDataArray;
+      }
+
       return {
         statusCode: 200,
         message: 'Scores retrieved successfully',
-        data: {
-          filters,
-          totalRecords: studentScores.length,
-          scores: studentScores,
-        },
+        data: responseData,
       };
     } catch (error) {
       if (error instanceof HttpException) {
@@ -853,6 +816,105 @@ export class ScoreService {
         ],
       });
 
+      // Build response data
+      const responseData: any = {
+        filters: {
+          sessionId: filters.sessionId || 'all',
+          classId: filters.classId || 'all',
+          classArmId: filters.classArmId || 'all',
+          termId: filters.termId || 'all',
+          subjectId: filters.subjectId || 'all',
+          studentId: filters.studentId || 'all',
+        },
+        totalRecords: scores.length,
+        scores: scores.map((score) => ({
+          id: score.id,
+          score: score.score,
+          recordedBy: score.recordedBy,
+          createdAt: score.createdAt,
+          updatedAt: score.updatedAt,
+          student: {
+            id: score.student.id,
+            regNo: score.student.studentRegNo,
+            fullName: `${score.student.user.lastname || ''} ${
+              score.student.user.firstname || ''
+            } ${score.student.user.othername || ''}`.trim(),
+            username: score.student.user.username,
+          },
+          subject: score.subject,
+          class: score.class,
+          classArm: score.classArm,
+          session: score.session,
+          term: score.termDefinition,
+          assessmentComponent: score.markingSchemeComponent
+            ? {
+                id: score.markingSchemeComponent.id,
+                name: score.markingSchemeComponent.name,
+                type: score.markingSchemeComponent.type,
+                maxScore: score.markingSchemeComponent.score,
+              }
+            : null,
+          continuousAssessmentComponent: score.continuousAssessmentComponent
+            ? {
+                id: score.continuousAssessmentComponent.id,
+                name: score.continuousAssessmentComponent.name,
+                maxScore: score.continuousAssessmentComponent.score,
+              }
+            : null,
+        })),
+      };
+
+      // Fetch additional data from StudentTermRecord if filters allow it
+      if (
+        filters.classId &&
+        filters.classArmId &&
+        filters.sessionId &&
+        filters.termId
+      ) {
+        const studentIds = [...new Set(scores.map((score) => score.studentId))];
+        const termRecords = await this.prisma.studentTermRecord.findMany({
+          where: {
+            studentId: { in: studentIds },
+            classId: filters.classId,
+            classArmId: filters.classArmId,
+            sessionId: filters.sessionId,
+            termDefinitionId: filters.termId,
+            schoolId: user.schoolId,
+          },
+        });
+
+        // Add additional data if any records exist
+        const additionalDataArray = termRecords
+          .filter(
+            (record) =>
+              record.punctuality ||
+              record.attentiveness ||
+              record.leadershipSkills ||
+              record.neatness ||
+              record.attendanceTotal !== null ||
+              record.attendancePresent !== null ||
+              record.attendanceAbsent !== null ||
+              record.classTeacherComment ||
+              record.principalComment,
+          )
+          .map((record) => ({
+            studentId: record.studentId,
+            punctuality: record.punctuality,
+            attentiveness: record.attentiveness,
+            leadershipSkills: record.leadershipSkills,
+            neatness: record.neatness,
+            attendanceTotal: record.attendanceTotal,
+            attendancePresent: record.attendancePresent,
+            attendanceAbsent: record.attendanceAbsent,
+            classTeacherComment: record.classTeacherComment,
+            principalComment: record.principalComment,
+          }));
+
+        if (additionalDataArray.length > 0) {
+          responseData.additionalData = additionalDataArray;
+        }
+      }
+
       // Log the action
       await this.loggingService.logAction(
         'FETCH_SCORES',
@@ -870,59 +932,7 @@ export class ScoreService {
       return {
         statusCode: 200,
         message: 'Scores retrieved successfully',
-        data: {
-          filters: {
-            sessionId: filters.sessionId || 'all',
-            classId: filters.classId || 'all',
-            classArmId: filters.classArmId || 'all',
-            termId: filters.termId || 'all',
-            subjectId: filters.subjectId || 'all',
-            studentId: filters.studentId || 'all',
-          },
-          totalRecords: scores.length,
-          scores: scores.map((score) => ({
-            id: score.id,
-            score: score.score,
-            recordedBy: score.recordedBy,
-            createdAt: score.createdAt,
-            updatedAt: score.updatedAt,
-            student: {
-              id: score.student.id,
-              regNo: score.student.studentRegNo,
-              fullName: `${score.student.user.lastname || ''} ${
-                score.student.user.firstname || ''
-              } ${score.student.user.othername || ''}`.trim(),
-              username: score.student.user.username,
-            },
-            subject: score.subject,
-            class: score.class,
-            classArm: score.classArm,
-            session: score.session,
-            term: score.termDefinition,
-            assessmentComponent: score.markingSchemeComponent
-              ? {
-                  id: score.markingSchemeComponent.id,
-                  name: score.markingSchemeComponent.name,
-                  type: score.markingSchemeComponent.type,
-                  maxScore: score.markingSchemeComponent.score,
-                }
-              : null,
-            continuousAssessment: score.continuousAssessment
-              ? {
-                  id: score.continuousAssessment.id,
-                  parentComponent:
-                    score.continuousAssessment.markingSchemeComponent,
-                }
-              : null,
-            continuousAssessmentComponent: score.continuousAssessmentComponent
-              ? {
-                  id: score.continuousAssessmentComponent.id,
-                  name: score.continuousAssessmentComponent.name,
-                  maxScore: score.continuousAssessmentComponent.score,
-                }
-              : null,
-          })),
-        },
+        data: responseData,
       };
     } catch (error) {
       console.error('Error fetching scores:', error);

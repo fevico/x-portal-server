@@ -1,6 +1,26 @@
-import { AssessmentType } from '@prisma/client';
+import { AssessmentType, BehavioralRating } from '@prisma/client';
 
-// Individual score entry interface
+// Separate interface for additional student data
+export interface StudentAdditionalData {
+  studentId: string;
+
+  // Behavioral ratings (optional)
+  punctuality?: BehavioralRating;
+  attentiveness?: BehavioralRating;
+  leadershipSkills?: BehavioralRating;
+  neatness?: BehavioralRating;
+
+  // Attendance data (optional)
+  attendanceTotal?: number;
+  attendancePresent?: number;
+  attendanceAbsent?: number;
+
+  // Comments (optional)
+  classTeacherComment?: string;
+  principalComment?: string;
+}
+
+// Individual score entry interface (kept simple)
 export interface ScoreEntry {
   studentId: string;
   componentId: string; // markingSchemeComponentId or continuousAssessmentComponentId
@@ -11,7 +31,7 @@ export interface ScoreEntry {
   type: AssessmentType;
 }
 
-// Main DTO for saving scores
+// Main DTO for saving scores (now with separate additional data)
 export interface SaveScoresDto {
   sessionId: string;
   classId: string;
@@ -19,9 +39,10 @@ export interface SaveScoresDto {
   termId: string; // termDefinitionId
   subjectId: string;
   scores: ScoreEntry[];
+  additionalData?: StudentAdditionalData[]; // New optional field
 }
 
-// Response interface for fetched scores
+// Response interface for fetched scores (without additional data)
 export interface StudentScore {
   id: string;
   studentId: string;
@@ -41,6 +62,25 @@ export interface StudentScore {
     name: string;
     code: string;
   };
+}
+
+// Additional data response interface (separate from scores)
+export interface AdditionalStudentData {
+  studentId: string;
+  // Behavioral ratings
+  punctuality?: BehavioralRating;
+  attentiveness?: BehavioralRating;
+  leadershipSkills?: BehavioralRating;
+  neatness?: BehavioralRating;
+
+  // Attendance data
+  attendanceTotal?: number;
+  attendancePresent?: number;
+  attendanceAbsent?: number;
+
+  // Comments
+  classTeacherComment?: string;
+  principalComment?: string;
 }
 
 // DTO for fetching scores

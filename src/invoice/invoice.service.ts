@@ -2,7 +2,7 @@ import { PrismaService } from '@/prisma/prisma.service';
 import { HttpException, Injectable, NotFoundException } from '@nestjs/common';
 import { InvoiceDto, UpdateInvoiceDto } from './dto/invoice.dto';
 import { AuthenticatedUser } from '@/types/express';
-import { UtilityService } from '@/utils/reference';
+// import { UtilityService } from '@/utils/reference';
 
 @Injectable()
 export class InvoiceService {
@@ -40,6 +40,7 @@ export class InvoiceService {
 
   async getInvoiceById(id: string, user: AuthenticatedUser): Promise<any> {
     try {
+      console.log(user);
       const invoice = await this.prisma.invoice.findUnique({
         where: { id },
       });

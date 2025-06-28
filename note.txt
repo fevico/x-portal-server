@@ -8,9 +8,9 @@ DROP COLUMN isAccepted,
 DROP COLUMN otherInfoId,
 DROP COLUMN schoolInformationId;
 DESCRIBE admissions;
-SELECT * FROM _prisma_migrations WHERE migration_name = '20250522111812_latest_admission';
-DELETE FROM _prisma_migrations WHERE migration_name = '20250522111812_latest_admission';
-exit
+SELECT * FROM _prisma_migrations WHERE migration_name = '20250626203524_add_student_term_record_table';
+DELETE FROM _prisma_migrations WHERE migration_name = '20250626203524_add_student_term_record_table';
+exit;
 
 
 npx prisma migrate dev --name modified-configuration

@@ -61,3 +61,30 @@ export function generateResultBatchUniqueHash({
 
   return createHash('sha256').update(combined).digest('hex').substring(0, 64);
 }
+
+export function generateStudentTermRecordUniqueHash({
+  studentId,
+  classId,
+  classArmId,
+  sessionId,
+  termDefinitionId,
+  schoolId,
+}: {
+  studentId: string;
+  classId: string;
+  classArmId: string;
+  sessionId: string;
+  termDefinitionId: string;
+  schoolId: string;
+}): string {
+  const combined = [
+    studentId,
+    classId,
+    classArmId,
+    sessionId,
+    termDefinitionId,
+    schoolId,
+  ].join('-');
+
+  return createHash('sha256').update(combined).digest('hex').substring(0, 64);
+}

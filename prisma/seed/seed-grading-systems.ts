@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-const targetSchoolId = '4fa4c69b-b7f2-40ea-95c8-4b5c12343f55';
+const targetSchoolId = '2e7ac74c-6f8e-47b6-ba5c-c28c234325ce';
 
 // A1-F9 Grading System Data
 const a1ToF9Grades = [
