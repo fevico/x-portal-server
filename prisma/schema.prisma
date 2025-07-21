@@ -97,6 +97,7 @@ model School {
   sessionTerms                      SessionTerm[] // Added: Links to term schedules 
   classTermMarkingSchemeAssignments ClassTermMarkingSchemeAssignment[] // Added: Links to marking scheme assignments 
   teacherAssignments                TeacherSubjectAssignment[]
+  classArmTeacherAssignments        ClassArmTeacherAssignment[]
   scoresAssignment                  StudentScoreAssignment[]
   termRecords                       StudentTermRecord[]                @relation("SchoolTermRecords")
   resultBatches                     ResultBatch[]
@@ -119,17 +120,22 @@ model Staff {
   // department     String? // e.g., Mathematics, Administration
   // position       String? // e.g., Teacher, Head of Department
   hireDate       DateTime? @map("hire_date")
-  qualifications String? // e.g., B.Ed, M.Sc
+  qualifications Json? // e.g., B.Ed, M.Sc
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
   createdBy      String?   @map("created_by") // Added
+  isDeleted      Boolean   @default(false) @map("is_deleted")
+
 
   updatedBy          String?                    @map("updated_by") // Added
   teacherAssignments TeacherSubjectAssignment[]
+  classArmTeacherAssignments ClassArmTeacherAssignment[]
   // @@index([userId, schoolId]) 
 
   @@map("staff")
 }
+
+
 
 // If you need to query a student’s “current” class and class arm, you can derive it from the StudentClassAssignment where sessionId matches the School.currentSessionId.
 // Student 
@@ -150,10 +156,12 @@ model Student {
   classArmId        String?                    @map("class_arm_id") // Added: Current class arm
   classArm          ClassArm?                  @relation("ArmStudents", fields: [classArmId], references: [id])
   subjects          StudentSubjectAssignment[] // Updated relation name
+  yearOfGraduation  DateTime?                  @map("year_of_graduation")
   admission         Admission?                 @relation("StudentToAdmission") // New: Link to admission
   admissionStatus   AdmissionStatus            @default(pending) @map("admission_status")
   admissionDate     DateTime?                  @map("admission_date") // Date of admission  createdAt         DateTime                   @default(now()) @map("created_at")
   isAlumni          Boolean                    @default(false) @map("is_alumni")
+  isDeleted         Boolean                    @default(false) @map("is_deleted")
   updatedAt         DateTime                   @updatedAt @map("updated_at")
   createdBy         String?                    @map("created_by")
   updatedBy         String?                    @map("updated_by")
@@ -178,6 +186,7 @@ model Parent {
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
   createdBy    String?   @map("created_by") // Added
+  isDeleted   Boolean   @default(false) @map("is_deleted")
 
   updatedBy String?     @map("updated_by") // Added
   Admission Admission[]
@@ -211,6 +220,7 @@ model Class {
   gradingSystems          ClassGradingSystem[]
   termAssignments         ClassTermMarkingSchemeAssignment[]
   teacherAssignments      TeacherSubjectAssignment[]
+  classArmTeacherAssignments ClassArmTeacherAssignment[]
   classAssignments        StudentClassAssignment[]
   scores                  StudentScoreAssignment[]
   termRecords             StudentTermRecord[]                @relation("ClassTermRecords")
@@ -259,6 +269,7 @@ model ClassArm {
   attendanceRecords          Attendance[]
   invoices                   Invoice[]
   teacherAssignments         TeacherSubjectAssignment[]
+  classArmTeacherAssignments ClassArmTeacherAssignment[]
   classAssignments           StudentClassAssignment[]
   scores                     StudentScoreAssignment[]
   termRecords                StudentTermRecord[]         @relation("ClassArmTermRecords")
@@ -883,6 +894,28 @@ model TeacherSubjectAssignment {
 
   @@unique([staffId, subjectId, classId, classArmId])
   @@index([schoolId, staffId])
+}
+
+/// Assignment of a class teacher to a class arm (school dependent, not session dependent)
+model ClassArmTeacherAssignment {
+  id         String   @id @default(uuid())
+  staffId    String   @map("staff_id")
+  staff      Staff    @relation(fields: [staffId], references: [id])
+  classId    String   @map("class_id")
+  class      Class    @relation(fields: [classId], references: [id])
+  classArmId String   @map("class_arm_id")
+  classArm   ClassArm @relation(fields: [classArmId], references: [id])
+  schoolId   String   @map("school_id")
+  school     School   @relation(fields: [schoolId], references: [id])
+  isDeleted  Boolean  @default(false)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  createdBy  String?  @map("created_by")
+  updatedBy  String?  @map("updated_by")
+
+  @@unique([classId, classArmId, schoolId])
+  @@index([schoolId, staffId])
+  // This model links a teacher (staff) to a class arm for a school.
 }
 
 // Added: StudentScoreAssignment for storing student scores

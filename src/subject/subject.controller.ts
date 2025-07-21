@@ -9,6 +9,7 @@ import {
   Body,
   UseGuards,
   Request,
+  Query,
 } from '@nestjs/common';
 import { SubjectService } from './subject.service';
 import { PermissionsGuard } from '@/auth/guards/permissions.guard';
@@ -35,6 +36,45 @@ export class SubjectsController {
   @Get()
   async findAll(@Request() req) {
     return this.subjectsService.findAll(req);
+  }
+
+  @Post('assign-teacher')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('configuration:manage')
+  async assignTeacherToSubjects(
+    @Body()
+    dto: {
+      staffId: string;
+      assignments: Array<{
+        subjectId: string;
+        classId: string;
+        classArmIds: string[];
+      }>;
+    },
+    @Request() req: RequestExpress,
+  ) {
+    return this.subjectsService.assignTeacherToSubjects(dto, req);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('configuration:read')
+  @Get('by-class-arm')
+  async getSubjectsByClassArm(
+    @Request() req: RequestExpress,
+    @Query('classId') classId?: string,
+    @Query('classArmId') classArmId?: string,
+    @Query('q') q?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.subjectsService.getSubjectsByClassArm(
+      req,
+      classId,
+      classArmId,
+      q,
+      page,
+      limit,
+    );
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -71,16 +111,5 @@ export class SubjectsController {
     @Request() req: RequestExpress,
   ) {
     return this.subjectsService.assignSubjectToClasses(subjectId, dto, req);
-  }
-
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Permissions('configuration:read')
-  @Get('class/:classId/class-arm/:classArmId')
-  async getSubjectsByClassArm(
-    @Param('classId') classId: string,
-    @Param('classArmId') classArmId: string,
-    @Request() req: RequestExpress,
-  ) {
-    return this.subjectsService.getSubjectsByClassArm(classId, classArmId, req);
   }
 }

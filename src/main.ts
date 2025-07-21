@@ -12,12 +12,13 @@ async function bootstrap() {
 
   app.enableCors({
     origin: [process.env.FRONTEND_URL, process.env.LIVE_FRONTEND_URL],
+    // origin: '*',
     credentials: true,
   });
 
   app.use(cookieParser());
   app.useGlobalPipes(new ValidationPipe());
 
-  await app.listen(3000);
+  await app.listen(3900);
 }
 bootstrap();

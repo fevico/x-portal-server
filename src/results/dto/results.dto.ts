@@ -21,6 +21,22 @@ export class GetResultsQueryDto {
   @IsString()
   @IsOptional()
   type?: AssessmentType;
+
+  @IsString()
+  @IsOptional()
+  sessionId?: string;
+  @IsString()
+  @IsOptional()
+  classId?: string;
+  @IsString()
+  @IsOptional()
+  classArmId?: string;
+  @IsString()
+  @IsOptional()
+  termId?: string;
+  @IsString()
+  @IsOptional()
+  studentId?: string; // New field to filter results by student ID
 }
 
 export class computeResultsDto {

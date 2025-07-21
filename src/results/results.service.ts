@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import { LoggingService } from '@/log/logging.service';
 import { PrismaService } from '@/prisma/prisma.service';
 import { Injectable } from '@nestjs/common';
@@ -24,10 +25,12 @@ export class ResultsService {
     limit: number;
   }> {
     try {
+
+      console.log(query, "query")
       // Convert page and limit to numbers
       const page = Number(query.page) || 1;
       const limit = Number(query.limit) || 10;
-      const { q, all, type } = query;
+      const { q, all, type, sessionId, classId, classArmId, termId, studentId } = query;
       const skip = (page - 1) * limit;
 
       const whereClause: any = {
@@ -39,41 +42,54 @@ export class ResultsService {
         whereClause.isApproved = true;
       }
 
-      if (type === AssessmentType.EXAM) {
-        whereClause.resultScope = AssessmentType.EXAM;
-      } else if (type === AssessmentType.CA) {
-        whereClause.resultScope = AssessmentType.CA;
+      // Filter by type (CA/EXAM) if provided, else return both
+      if (type === AssessmentType.EXAM || type === AssessmentType.CA) {
+        whereClause.resultScope = type;
+      }
+      // Filter by session, class, classArm, term with all permutations
+      if (sessionId) {
+        whereClause.sessionId = sessionId;
+      }
+      if (classId) {
+        whereClause.classId = classId;
+      }
+      if (classArmId) {
+        whereClause.classArmId = classArmId;
+      }
+      if (termId) {
+        whereClause.termId = termId;
       }
 
+      if (studentId) {
+        whereClause.studentResults = { some: { studentId } };
+      }
       // Add search filter if query provided
       if (q) {
         whereClause.OR = [
+          { title: { contains: q } },
+          { session: { name: { contains: q } } },
+          { class: { name: { contains: q } } },
+          { classArm: { name: { contains: q } } },
+          { termDefinition: { name: { contains: q } } },
+          // Optionally, search student names if not filtering by studentId
+          ...(studentId
+            ? []
+            : [
           {
             studentResults: {
               some: {
                 student: {
                   user: {
-                    firstname: {
-                      contains: q,
-                    },
+                    OR: [
+                      { firstname: { contains: q } },
+                      { lastname: { contains: q } },
+                    ],
                   },
                 },
               },
             },
           },
-          {
-            studentResults: {
-              some: {
-                student: {
-                  user: {
-                    lastname: {
-                      contains: q,
-                    },
-                  },
-                },
-              },
-            },
-          },
+            ]),
         ];
       }
 
@@ -86,9 +102,15 @@ export class ResultsService {
             class: true,
             classArm: true,
             resultType: true,
-            // createdBy: {
-            //   select: { name: true, id: true },
-            // },
+            studentResults: studentId
+              ? {
+                where: { studentId },
+                include: {
+                  subject: true,
+                  grade: true,
+                },
+              }
+              : false,
             _count: {
               select: { studentResults: true },
             },
@@ -684,15 +706,6 @@ export class ResultsService {
           id: 'grade-a',
           name: 'A',
           scoreStartPoint: 80,
-          scoreEndPoint: 100,
-          remark: 'Excellent',
-        },
-        {
-          id: 'grade-b',
-          name: 'B',
-          scoreStartPoint: 70,
-          scoreEndPoint: 79,
-          remark: 'Very Good',
         },
         {
           id: 'grade-c',
@@ -849,8 +862,9 @@ export class ResultsService {
    * Get detailed result batch by ID with all student results and layout structure
    * Enhanced with behavioral data, attendance, demographics, and comprehensive stats
    */
-  async getResultBatchById(resultBatchId: string, req: any) {
+  async getResultBatchById(resultBatchId: string, req: any, studentId?: string) {
     try {
+      console.log(`Fetching result batch ${resultBatchId} for student ${studentId || 'all'}`);
       const schoolId = req.user.schoolId;
 
       // Get the result batch with basic information
@@ -896,6 +910,7 @@ export class ResultsService {
         where: {
           resultBatchId,
           schoolId,
+          ...(studentId && { studentId }),
         },
         include: {
           student: {

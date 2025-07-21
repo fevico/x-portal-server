@@ -42,6 +42,10 @@ export class UpdateUserDto {
 
   @IsString()
   @IsOptional()
+  qualifications?: string;
+
+  @IsString()
+  @IsOptional()
   department?: string;
 
   @IsString()

@@ -18,6 +18,7 @@ import { ClassesService } from './class.service';
 import { AssignClassArmsDto } from './dto/assign.class.dto';
 import { Request as RequestExpress } from 'express';
 import { AuthenticatedUser } from '@/types/express';
+import { GetClassArmTeacherDto } from './dto/class-arm-teacher.dto';
 
 @Controller('classes')
 export class ClassesController {
@@ -158,14 +159,21 @@ export class ClassesController {
     }
     return this.classesService.getClassesBySession(sessionId, user);
   }
+
+  // get students
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('configuration:read')
-  @Get('sessions/:sessionId/class/:classId/arm/:classArmId/students')
+  @Get('/all/get-students')
   async getStudentClassAssignment(
-    @Param('sessionId') sessionId: string,
-    @Param('classId') classId: string,
-    @Param('classArmId') classArmId: string,
     @Request() req: RequestExpress,
+    @Query('sessionId') sessionId?: string,
+    @Query('classId') classId?: string,
+    @Query('classArmId') classArmId?: string,
+    @Query('q') q?: string,
+    @Query('gender') gender?: boolean,
+    @Query('alumni') alumni?: boolean,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
   ) {
     const user = req.user as AuthenticatedUser;
     if (!user.schoolId) {
@@ -175,6 +183,58 @@ export class ClassesController {
       sessionId,
       classId,
       classArmId,
+      q,
+      gender,
+      alumni,
+      page,
+      limit,
     });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('/class-arm-teacher/assign')
+  async assignClassArmTeacher(
+    @Body()
+    dto: {
+      staffId: string;
+      assignments: Array<{ classId: string; classArmIds: string[] }>;
+    },
+    @Request() req: RequestExpress,
+    @Query() query?: { remove?: boolean },
+  ) {
+    const user = req.user as AuthenticatedUser;
+    console.log('Assigning class arm teacher:', req.body, query);
+    return await this.classesService.assignClassArmTeacher(dto, query, user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('/class/arm-teacher')
+  async getClassArmTeacher(
+    @Query() dto: GetClassArmTeacherDto,
+    @Request() req: RequestExpress,
+  ) {
+    return await this.classesService.getClassArmTeacher(dto, req.user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('/school/teachers')
+  async getSchoolTeachers(
+    @Request() req,
+    @Query('q') q?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    const schoolId = req.user.schoolId;
+    // Fetch teachers from staff model
+    const teachers = await this.classesService.getSchoolTeachers(schoolId, {
+      q,
+      page,
+      limit,
+    });
+    return {
+      statusCode: 200,
+      message: 'Teachers fetched successfully',
+      data: teachers,
+    };
   }
 }
