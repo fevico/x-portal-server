@@ -842,22 +842,84 @@ export class SessionsService {
     }
   }
 
-  async getSessionClassArm(sessionId: string, user: AuthenticatedUser) {
+  async getSessionClassArm(
+    sessionId: string | null,
+    stats: boolean,
+    user: AuthenticatedUser,
+  ) {
     try {
       const schoolId = user.schoolId;
+
+      // If sessionId is not provided, fetch current session from school
+      let currentSessionId = sessionId;
+      let currentTermId = null;
+      let sessionName = null;
+      let termName = null;
+
+      if (!currentSessionId || stats) {
+        const school = await this.prisma.school.findUnique({
+          where: { id: schoolId },
+          include: {
+            currentSession: { select: { id: true, name: true } },
+            currentTerm: {
+              include: {
+                termDefinition: { select: { id: true, name: true } },
+              },
+            },
+          },
+        });
+
+        if (!currentSessionId && school?.currentSession) {
+          currentSessionId = school.currentSession.id;
+          sessionName = school.currentSession.name;
+        }
+
+        if (school?.currentTerm) {
+          currentTermId = school.currentTerm.id;
+          termName = school.currentTerm.termDefinition?.name;
+        }
+      }
+
+      // If still no session found, throw error
+      if (!currentSessionId) {
+        throw new NotFoundException('No active session found for the school');
+      }
+
       const sessionData = await this.prisma.sessionClassAssignment.findMany({
-        where: { sessionId, schoolId },
-        include: { class: true, classArm: true },
+        where: { sessionId: currentSessionId, schoolId },
+        include: {
+          class: true,
+          classArm: true,
+          session: { select: { id: true, name: true } },
+        },
       });
 
       if (!sessionData || sessionData.length === 0) {
         throw new NotFoundException('Session not found or no data available');
       }
 
-      // Transform data into the desired format
-      const formattedData = {
+      // Extract session name if not already fetched
+      if (!sessionName && sessionData.length > 0) {
+        sessionName = sessionData[0].session.name;
+      }
+
+      // Transform data into the desired format with base response
+      const formattedData: any = {
+        sessionId: currentSessionId,
+        sessionName: sessionName,
         classes: this.groupClassArmsByClass(sessionData),
       };
+
+      // Add term info if available
+      if (currentTermId) {
+        formattedData.currentTermId = currentTermId;
+        formattedData.currentTermName = this.formatTermName(termName);
+      }
+
+      // Add stats if requested
+      if (stats) {
+        await this.addClassStats(formattedData, currentSessionId, schoolId);
+      }
 
       return formattedData;
     } catch (error) {
@@ -1044,6 +1106,592 @@ export class SessionsService {
       throw new HttpException(
         'Failed to assign session to classes: ' +
           (error.message || 'Unknown error'),
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Format term name for display (e.g., "first_term" → "First Term")
+   */
+  private formatTermName(termName: string): string {
+    if (!termName) return '';
+    return termName
+      .split('_')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  }
+
+  /**
+   * Add class stats to the response object
+   */
+  private async addClassStats(
+    formattedData: any,
+    sessionId: string,
+    schoolId: string,
+  ) {
+    // Get all classes from the data
+    // const classIds = formattedData.classes.map((c: any) => c.id);
+
+    // For each class, fetch student counts
+    for (const classObj of formattedData.classes) {
+      const classId = classObj.id;
+      const classArmIds = classObj.classArms.map((arm: any) => arm.id);
+
+      // Get student assignments for this class/session
+      const studentsCount = await this.prisma.studentClassAssignment.count({
+        where: {
+          sessionId,
+          classId,
+          classArmId: { in: classArmIds },
+          schoolId,
+          isActive: true,
+        },
+      });
+
+      // Get male students count
+      const maleCount = await this.prisma.studentClassAssignment.count({
+        where: {
+          sessionId,
+          classId,
+          classArmId: { in: classArmIds },
+          schoolId,
+          isActive: true,
+          student: {
+            user: {
+              gender: 'male',
+            },
+          },
+        },
+      });
+
+      // Get female students count
+      const femaleCount = await this.prisma.studentClassAssignment.count({
+        where: {
+          sessionId,
+          classId,
+          classArmId: { in: classArmIds },
+          schoolId,
+          isActive: true,
+          student: {
+            user: {
+              gender: 'female',
+            },
+          },
+        },
+      });
+
+      // Add stats to the class object
+      classObj.stats = {
+        totalClassArms: classObj.classArms.length,
+        totalStudents: studentsCount,
+        maleStudents: maleCount,
+        femaleStudents: femaleCount,
+      };
+
+      // Add stats for each class arm
+      for (const arm of classObj.classArms) {
+        const armStudentsCount = await this.prisma.studentClassAssignment.count(
+          {
+            where: {
+              sessionId,
+              classId,
+              classArmId: arm.id,
+              schoolId,
+              isActive: true,
+            },
+          },
+        );
+
+        const armMaleCount = await this.prisma.studentClassAssignment.count({
+          where: {
+            sessionId,
+            classId,
+            classArmId: arm.id,
+            schoolId,
+            isActive: true,
+            student: {
+              user: {
+                gender: 'male',
+              },
+            },
+          },
+        });
+
+        const armFemaleCount = await this.prisma.studentClassAssignment.count({
+          where: {
+            sessionId,
+            classId,
+            classArmId: arm.id,
+            schoolId,
+            isActive: true,
+            student: {
+              user: {
+                gender: 'female',
+              },
+            },
+          },
+        });
+
+        arm.stats = {
+          totalStudents: armStudentsCount,
+          maleStudents: armMaleCount,
+          femaleStudents: armFemaleCount,
+        };
+      }
+    }
+  }
+
+  /**
+   * Get class details in a session by class ID
+   */
+  async getSessionClassById(
+    sessionId: string | null,
+    classId: string,
+    user: AuthenticatedUser,
+  ) {
+    try {
+      const schoolId = user.schoolId;
+
+      // Validate inputs
+      if (!classId) {
+        throw new BadRequestException('Class ID is required');
+      }
+
+      // If sessionId is not provided, fetch current session from school
+      let currentSessionId = sessionId;
+      let sessionName = null;
+
+      if (!currentSessionId) {
+        const school = await this.prisma.school.findUnique({
+          where: { id: schoolId },
+          include: {
+            currentSession: { select: { id: true, name: true } },
+          },
+        });
+
+        if (school?.currentSession) {
+          currentSessionId = school.currentSession.id;
+          sessionName = school.currentSession.name;
+        } else {
+          throw new NotFoundException('No active session found for the school');
+        }
+      }
+
+      // Fetch the session to verify it exists if we don't already have the name
+      let session;
+      if (!sessionName) {
+        session = await this.prisma.session.findFirst({
+          where: {
+            id: currentSessionId,
+            schoolId,
+            isDeleted: false,
+          },
+          select: {
+            id: true,
+            name: true,
+          },
+        });
+
+        if (!session) {
+          throw new NotFoundException('Session not found');
+        }
+
+        sessionName = session.name;
+      }
+
+      // Fetch the class to verify it exists
+      const classDetails = await this.prisma.class.findFirst({
+        where: {
+          id: classId,
+          schoolId,
+          isDeleted: false,
+        },
+        select: {
+          id: true,
+          name: true,
+          classCategory: { select: { id: true, name: true } },
+        },
+      });
+
+      if (!classDetails) {
+        throw new NotFoundException('Class not found');
+      }
+
+      // Fetch all class arms assigned to this class in this session
+      const classArmsData = await this.prisma.sessionClassAssignment.findMany({
+        where: {
+          sessionId: currentSessionId,
+          classId,
+          schoolId,
+        },
+        include: {
+          classArm: true,
+        },
+      });
+
+      // Get current term if available
+      const school = await this.prisma.school.findUnique({
+        where: { id: schoolId },
+        include: {
+          currentTerm: {
+            include: {
+              termDefinition: { select: { id: true, name: true } },
+            },
+          },
+        },
+      });
+
+      const currentTermId = school?.currentTerm?.id;
+      const termName = school?.currentTerm?.termDefinition?.name;
+
+      // Format response
+      const classArms = classArmsData.map((item) => ({
+        id: item.classArm.id,
+        name: item.classArm.name,
+      }));
+
+      const response: any = {
+        session: {
+          id: currentSessionId,
+          name: sessionName,
+        },
+        class: {
+          id: classDetails.id,
+          name: classDetails.name,
+          category: classDetails.classCategory?.name,
+        },
+        classArms: classArms,
+      };
+
+      // Add current term info if available
+      if (currentTermId) {
+        response.currentTerm = {
+          id: currentTermId,
+          name: this.formatTermName(termName),
+        };
+      }
+
+      // Add stats
+      const stats = {
+        totalClassArms: classArms.length,
+        totalStudents: 0,
+        maleStudents: 0,
+        femaleStudents: 0,
+      };
+
+      // Get student counts
+      stats.totalStudents = await this.prisma.studentClassAssignment.count({
+        where: {
+          sessionId: currentSessionId,
+          classId,
+          schoolId,
+          isActive: true,
+          classArmId: { in: classArms.map((arm) => arm.id) },
+        },
+      });
+
+      stats.maleStudents = await this.prisma.studentClassAssignment.count({
+        where: {
+          sessionId: currentSessionId,
+          classId,
+          schoolId,
+          isActive: true,
+          classArmId: { in: classArms.map((arm) => arm.id) },
+          student: {
+            user: {
+              gender: 'male',
+            },
+          },
+        },
+      });
+
+      stats.femaleStudents = await this.prisma.studentClassAssignment.count({
+        where: {
+          sessionId: currentSessionId,
+          classId,
+          schoolId,
+          isActive: true,
+          classArmId: { in: classArms.map((arm) => arm.id) },
+          student: {
+            user: {
+              gender: 'female',
+            },
+          },
+        },
+      });
+
+      response.stats = stats;
+
+      // Add stats for each class arm
+      for (const arm of classArms) {
+        const armTotalStudents = await this.prisma.studentClassAssignment.count(
+          {
+            where: {
+              sessionId: currentSessionId,
+              classId,
+              classArmId: arm.id,
+              schoolId,
+              isActive: true,
+            },
+          },
+        );
+
+        const armStats = {
+          totalStudents: armTotalStudents,
+          maleStudents: await this.prisma.studentClassAssignment.count({
+            where: {
+              sessionId: currentSessionId,
+              classId,
+              classArmId: arm.id,
+              schoolId,
+              isActive: true,
+              student: {
+                user: {
+                  gender: 'male',
+                },
+              },
+            },
+          }),
+          femaleStudents: await this.prisma.studentClassAssignment.count({
+            where: {
+              sessionId: currentSessionId,
+              classId,
+              classArmId: arm.id,
+              schoolId,
+              isActive: true,
+              student: {
+                user: {
+                  gender: 'female',
+                },
+              },
+            },
+          }),
+          percentage:
+            stats.totalStudents > 0
+              ? Math.round(
+                  (armTotalStudents / stats.totalStudents) * 100 * 100,
+                ) / 100
+              : 0,
+        };
+
+        (arm as any).stats = armStats;
+      }
+
+      return response;
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        `Error fetching class details: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Get class arm details in a session
+   */
+  async getSessionClassArmById(
+    sessionId: string,
+    termId: string,
+    classId: string,
+    classArmId: string,
+    user: AuthenticatedUser,
+  ) {
+    try {
+      const schoolId = user.schoolId;
+
+      // Validate inputs
+      if (!sessionId || !classId || !classArmId) {
+        throw new BadRequestException(
+          'Session ID, Class ID, and Class Arm ID are required',
+        );
+      }
+
+      // Fetch the session to verify it exists
+      const session = await this.prisma.session.findFirst({
+        where: {
+          id: sessionId,
+          schoolId,
+          isDeleted: false,
+        },
+        select: {
+          id: true,
+          name: true,
+        },
+      });
+
+      if (!session) {
+        throw new NotFoundException('Session not found');
+      }
+
+      // Fetch the class to verify it exists
+      const classDetails = await this.prisma.class.findFirst({
+        where: {
+          id: classId,
+          schoolId,
+          isDeleted: false,
+        },
+        select: {
+          id: true,
+          name: true,
+          classCategory: { select: { id: true, name: true } },
+        },
+      });
+
+      if (!classDetails) {
+        throw new NotFoundException('Class not found');
+      }
+
+      // Fetch the class arm to verify it exists
+      const classArmDetails = await this.prisma.classArm.findFirst({
+        where: {
+          id: classArmId,
+          schoolId,
+          isDeleted: false,
+        },
+        select: {
+          id: true,
+          name: true,
+        },
+      });
+
+      if (!classArmDetails) {
+        throw new NotFoundException('Class arm not found');
+      }
+
+      // Fetch the term details
+      const termDetails = await this.prisma.termDefinition.findFirst({
+        where: {
+          id: termId,
+          schoolId,
+        },
+        select: {
+          id: true,
+          name: true,
+        },
+      });
+
+      if (!termDetails) {
+        throw new NotFoundException('Term not found');
+      }
+
+      // Check if the class arm is assigned to this class in this session
+      const assignmentExists =
+        await this.prisma.sessionClassAssignment.findFirst({
+          where: {
+            sessionId,
+            classId,
+            classArmId,
+            schoolId,
+          },
+        });
+
+      if (!assignmentExists) {
+        throw new NotFoundException(
+          'Class arm is not assigned to this class in this session',
+        );
+      }
+
+      // Get student counts
+      const totalStudents = await this.prisma.studentClassAssignment.count({
+        where: {
+          sessionId,
+          classId,
+          classArmId,
+          schoolId,
+          isActive: true,
+        },
+      });
+
+      const maleStudents = await this.prisma.studentClassAssignment.count({
+        where: {
+          sessionId,
+          classId,
+          classArmId,
+          schoolId,
+          isActive: true,
+          student: {
+            user: {
+              gender: 'male',
+            },
+          },
+        },
+      });
+
+      const femaleStudents = await this.prisma.studentClassAssignment.count({
+        where: {
+          sessionId,
+          classId,
+          classArmId,
+          schoolId,
+          isActive: true,
+          student: {
+            user: {
+              gender: 'female',
+            },
+          },
+        },
+      });
+
+      // Fetch assigned subjects
+      const assignedSubjects =
+        await this.prisma.classArmSubjectAssignment.findMany({
+          where: {
+            classId,
+            classArmId,
+            schoolId,
+            isActive: true,
+          },
+          include: {
+            subject: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+              },
+            },
+          },
+        });
+
+      // Format response
+      return {
+        session: {
+          id: session.id,
+          name: session.name,
+        },
+        term: {
+          id: termDetails.id,
+          name: this.formatTermName(termDetails.name),
+        },
+        class: {
+          id: classDetails.id,
+          name: classDetails.name,
+          category: classDetails.classCategory?.name,
+        },
+        classArm: {
+          id: classArmDetails.id,
+          name: classArmDetails.name,
+        },
+        stats: {
+          totalStudents,
+          maleStudents,
+          femaleStudents,
+        },
+        subjects: assignedSubjects.map((item) => ({
+          id: item.subject.id,
+          name: item.subject.name,
+          code: item.subject.code,
+        })),
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        `Error fetching class arm details: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

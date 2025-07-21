@@ -91,6 +91,39 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('MANAGE_SUBROLES')
+  /**
+   * Create a new student (creates User first, then Student, links them)
+   */
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('student:create')
+  @Post('student')
+  async createStudent(@Body() body, @Request() req) {
+    return this.usersService.createStudent(body, req.user);
+  }
+
+  /**
+   * Edit student and linked user
+   */
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('student:update')
+  @Patch('student/:studentId')
+  async updateStudent(
+    @Param('studentId') studentId: string,
+    @Body() body,
+    @Request() req,
+  ) {
+    return this.usersService.updateStudent(studentId, body, req.user);
+  }
+
+  /**
+   * Soft delete student and linked user
+   */
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('student:delete')
+  @Delete('student/:studentId')
+  async deleteStudent(@Param('studentId') studentId: string, @Request() req) {
+    return this.usersService.deleteStudent(studentId, req.user);
+  }
   @Patch(':userId/sub-role')
   async updateSubRole(
     @Param('userId') userId: string,
@@ -102,5 +135,97 @@ export class UsersController {
       updateSubRoleDto.subRoleId,
       req.user,
     );
+  }
+
+  @Get('student/:studentId')
+  async getStudentById(@Param('studentId') studentId: string) {
+    // Optionally, you can use req.user.schoolId for school-based filtering if needed
+    return await this.usersService.getStudentById(studentId);
+  }
+
+  // --- Parent Endpoints ---
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('parent:create')
+  @Post('parent')
+  async createParent(@Body() body, @Request() req) {
+    return this.usersService.createParent(body, req.user);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('parent:update')
+  @Patch('parent/:parentId')
+  async updateParent(
+    @Param('parentId') parentId: string,
+    @Body() body,
+    @Request() req,
+  ) {
+    return this.usersService.updateParent(parentId, body, req.user);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('parent:delete')
+  @Delete('parent/:parentId')
+  async deleteParent(@Param('parentId') parentId: string, @Request() req) {
+    return this.usersService.deleteParent(parentId, req.user);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('parent:read')
+  @Get('parent/:parentId')
+  async getParentById(@Param('parentId') parentId: string) {
+    return this.usersService.getParentById(parentId);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('parent:read')
+  @Get('/all/parent/all')
+  async getAllParents(@Query() query, @Request() req) {
+    return this.usersService.getAllParents(query, req.user);
+  }
+
+  // --- Staff/Teacher Endpoints ---
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('staff:create')
+  @Post('staff')
+  async createStaff(@Body() body, @Request() req) {
+    return this.usersService.createStaff(body, req.user);
+  }
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('staff:read')
+  @Get('staff/all')
+  async getAllStaff(@Query() query, @Request() req) {
+    return this.usersService.getAllStaff(query, req.user);
+  }
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('staff:update')
+  @Patch('staff/:staffId')
+  async updateStaff(
+    @Param('staffId') staffId: string,
+    @Body() body,
+    @Request() req,
+  ) {
+    return this.usersService.updateStaff(staffId, body, req.user);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('staff:delete')
+  @Delete('staff/:staffId')
+  async deleteStaff(@Param('staffId') staffId: string, @Request() req) {
+    return this.usersService.deleteStaff(staffId, req.user);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('staff:read')
+  @Get('staff/:staffId')
+  async getStaffById(@Param('staffId') staffId: string) {
+    return this.usersService.getStaffById(staffId);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('parent:update')
+  @Post('link-parent-student')
+  async linkParentToStudent(@Body() body, @Request() req) {
+    // body: { studentId, parentId, relationship }
+    return this.usersService.linkParentToStudent(body, req.user);
   }
 }

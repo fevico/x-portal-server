@@ -49,21 +49,67 @@ export class SessionsController {
     };
   }
 
-  @Get('fetch-class-class-arm/:sessionId')
+  @Get('fetch-class-class-arm')
   @UseGuards(JwtAuthGuard)
   async getSessionClassArm(
-    @Param('sessionId') sessionId: string,
     @Request() req: RequestExpress,
+    @Query('sessionId') sessionId?: string,
+    @Query('stats') stats?: boolean,
   ) {
     const user = req.user as AuthenticatedUser;
     const session = await this.sessionsService.getSessionClassArm(
       sessionId,
+      stats,
       user,
     );
     return {
       statusCode: 200,
       message: 'Session retrieved successfully',
       data: session,
+    };
+  }
+
+  @Get('class/:classId')
+  @UseGuards(JwtAuthGuard)
+  async getSessionClassById(
+    @Request() req: RequestExpress,
+    @Param('classId') classId: string,
+    @Query('sessionId') sessionId?: string,
+  ) {
+    const user = req.user as AuthenticatedUser;
+    const classDetails = await this.sessionsService.getSessionClassById(
+      sessionId || null,
+      classId,
+      user,
+    );
+    return {
+      statusCode: 200,
+      message: 'Class details retrieved successfully',
+      data: classDetails,
+    };
+  }
+
+  @Get('class-arm/:classId/:classArmId')
+  @UseGuards(JwtAuthGuard)
+  async getSessionClassArmById(
+    @Request() req: RequestExpress,
+    @Param('classId') classId: string,
+    @Param('classArmId') classArmId: string,
+    @Query('sessionId') sessionId: string,
+    @Query('termId') termId: string,
+  ) {
+    const user = req.user as AuthenticatedUser;
+    const classArmDetails = await this.sessionsService.getSessionClassArmById(
+      sessionId,
+      termId,
+      classId,
+      classArmId,
+      user,
+    );
+    return {
+      statusCode: 200,
+      message: 'Class arm details retrieved successfully',
+      data: classArmDetails,
     };
   }
 

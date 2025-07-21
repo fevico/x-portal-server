@@ -20,6 +20,14 @@ import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guards';
 export class ResultsController {
   constructor(private resultsService: ResultsService) {}
 
+  @Get()
+  async getResults(
+    @Query() query: GetResultsQueryDto,
+    @Request() req: RequestExpress,
+  ) {
+    return this.resultsService.getAllResults(query, req);
+  }
+
   @Post('submit')
   async computeResults(
     @Body() results: computeResultsDto,
@@ -36,17 +44,13 @@ export class ResultsController {
     );
   }
 
-  @Get()
-  async getResults(
-    @Query() query: GetResultsQueryDto,
-    @Request() req: RequestExpress,
-  ) {
-    return this.resultsService.getAllResults(query, req);
-  }
-
   @Get(':id')
-  async getResultById(@Param('id') id: string, @Request() req: RequestExpress) {
-    return this.resultsService.getResultBatchById(id, req);
+  async getResultById(
+    @Param('id') id: string,
+    @Request() req: RequestExpress,
+    @Query('studentId') studentId?: string,
+  ) {
+    return this.resultsService.getResultBatchById(id, req, studentId);
   }
 
   @Get(':id/:type')

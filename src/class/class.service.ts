@@ -8,6 +8,8 @@ import {
 } from '@nestjs/common';
 import { AuthenticatedUser } from '@/types/express';
 import { LoggingService } from '@/log/logging.service';
+import { GetClassArmTeacherDto } from './dto/class-arm-teacher.dto';
+import { AdmissionStatus } from '@prisma/client';
 
 @Injectable()
 export class ClassesService {
@@ -609,165 +611,615 @@ export class ClassesService {
       );
     }
   }
-  async getStudentClassAssignment(user: AuthenticatedUser, body: any) {
-    const { classId, classArmId, sessionId } = body;
-    const schoolId = user.schoolId;
-
+  async getStudentClassAssignment(user: AuthenticatedUser, query: any) {
     try {
-      // Validate session exists and belongs to the school
-      const session = await this.prisma.session.findFirst({
-        where: {
-          id: sessionId,
-          schoolId,
-          isDeleted: false,
-        },
-        select: { id: true, name: true },
-      });
-
-      if (!session) {
+      const {
+        classId,
+        classArmId,
+        sessionId,
+        q,
+        page = 1,
+        limit = 20,
+        gender = false,
+        alumni = false,
+      } = query;
+      const schoolId = user.schoolId;
+      // Validation logic
+      if (classArmId && !classId) {
         throw new HttpException(
-          'Session not found for this school',
-          HttpStatus.NOT_FOUND,
+          'classId is required when classArmId is provided',
+          HttpStatus.BAD_REQUEST,
         );
       }
-
-      // Validate class exists and belongs to the school
-      const classExists = await this.prisma.class.findFirst({
-        where: {
-          id: classId,
-          schoolId,
-          isDeleted: false,
-        },
-        select: { id: true, name: true },
-      });
-
-      if (!classExists) {
+      if (classId && !sessionId) {
         throw new HttpException(
-          'Class not found for this school',
-          HttpStatus.NOT_FOUND,
+          'sessionId is required when classId is provided',
+          HttpStatus.BAD_REQUEST,
         );
       }
-
-      // Validate class arm exists and belongs to the school
-      const classArmExists = await this.prisma.classArm.findFirst({
-        where: {
-          id: classArmId,
-          schoolId,
-          isDeleted: false,
-        },
-        select: { id: true, name: true },
-      });
-
-      if (!classArmExists) {
+      if (classArmId && !sessionId) {
         throw new HttpException(
-          'Class arm not found for this school',
-          HttpStatus.NOT_FOUND,
+          'sessionId is required when classArmId is provided',
+          HttpStatus.BAD_REQUEST,
         );
       }
+      // Pagination
+      const pageInt = parseInt(page, 10) || 1;
+      const limitInt = parseInt(limit, 10) || 20;
+      const skip = (pageInt - 1) * limitInt;
+      let students = [];
+      let total = 0;
+      let sessionObj = null;
+      let classObj = null;
+      let classArmObj = null;
+      let totalMales = 0;
+      let totalFemales = 0;
+      const includeGenderStats = gender === true || gender === 'true';
+      const alumniBool = alumni === true || alumni === 'true';
 
-      const studentClassAssignments =
-        await this.prisma.studentClassAssignment.findMany({
-          where: {
+      if (!sessionId) {
+        // Fetch from student model to avoid duplicates
+        const where: any = {
+          isAlumni: alumniBool,
+          admissionStatus: AdmissionStatus.accepted,
+          isDeleted: false,
+          user: {
             schoolId,
-            classId,
-            classArmId,
-            sessionId,
-            isActive: true,
           },
-          include: {
-            class: {
-              select: {
-                id: true,
-                name: true,
-                classCategory: {
-                  select: { id: true, name: true },
+        };
+        if (q) {
+          where.user.OR = [
+            { firstname: { contains: q } },
+            { lastname: { contains: q } },
+          ];
+        }
+        // Query students
+        const [studentRecords, count] = await Promise.all([
+          this.prisma.student.findMany({
+            where,
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  firstname: true,
+                  lastname: true,
+                  othername: true,
+                  email: true,
+                  username: true,
+                  gender: true,
+                  avatar: true,
+                  createdAt: true,
+                  contact: true,
+                  address: true,
                 },
               },
-            },
-            classArm: {
-              select: { id: true, name: true },
-            },
-            session: {
-              select: { id: true, name: true },
-            },
-            student: {
-              select: {
-                id: true,
-                studentRegNo: true,
-                user: {
-                  select: {
-                    id: true,
-                    firstname: true,
-                    lastname: true,
-                    othername: true,
-                    email: true,
-                    username: true,
-                    gender: true,
-                    avatar: true,
+              parent: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      firstname: true,
+                      lastname: true,
+                    },
                   },
                 },
               },
+              class: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+              classArm: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
             },
-          },
-          orderBy: {
-            student: {
+            orderBy: {
               user: {
                 lastname: 'asc',
               },
             },
-          },
+            skip,
+            take: limitInt,
+          }),
+          this.prisma.student.count({
+            where,
+          }),
+        ]);
+        students = studentRecords.map((student) => {
+          const parent = student.parent?.user;
+          return {
+            id: student.id,
+            studentRegNo: student.studentRegNo,
+            fullName:
+              `${student.user.lastname || ''} ${student.user.firstname || ''} ${student.user.othername || ''}`.trim(),
+            firstname: student.user.firstname,
+            lastname: student.user.lastname,
+            othername: student.user.othername,
+            email: student.user.email,
+            username: student.user.username,
+            gender: student.user.gender,
+            avatar: (student.user.avatar as any)?.imageUrl || null,
+            parentGuardian: parent
+              ? `${parent.firstname} ${parent.lastname}`
+              : 'Not specified',
+            contact: student.user.contact || 'Not specified',
+            address: student.user.address || 'Not specified',
+            parentId: student.parent?.id || null,
+            dateOfBirth: student.dateOfBirth || 'Not specified',
+            religion: student.religion || 'Not specified',
+            stateOfOrigin: student.stateOfOrigin || 'Not specified',
+            nationality: student.nationality || 'Not specified',
+            relationship: student.parent?.relationship || 'Not specified',
+            createdDate: student.user.createdAt?.toISOString() || '',
+            classId: student.classId || null,
+            classArmId: student.classArmId || null,
+            className: student.class?.name || 'Not assigned',
+            classArmName: student.classArm?.name || 'Not assigned',
+            lga: student.lga || 'Not specified',
+          };
         });
+        total = count;
 
-      // Format the response
-      const students = studentClassAssignments.map((assignment) => ({
-        assignmentId: assignment.id,
-        student: {
-          id: assignment.student.id,
-          regNo: assignment.student.studentRegNo,
-          fullName: `${assignment.student.user.lastname || ''} ${
-            assignment.student.user.firstname || ''
-          } ${assignment.student.user.othername || ''}`.trim(),
-          firstname: assignment.student.user.firstname,
-          lastname: assignment.student.user.lastname,
-          othername: assignment.student.user.othername,
-          email: assignment.student.user.email,
-          username: assignment.student.user.username,
-          gender: assignment.student.user.gender,
-          avatar: (assignment.student.user.avatar as any)?.imageUrl || null,
-        },
-        assignedAt: new Date(), // Current timestamp
-        isActive: assignment.isActive,
-      }));
+        if (includeGenderStats) {
+          // Count gender from all students matching the filter (not just paginated)
+          const [maleCount, femaleCount] = await Promise.all([
+            this.prisma.student.count({
+              where: {
+                ...where,
+                user: {
+                  ...where.user,
+                  gender: 'male',
+                },
+              },
+            }),
+            this.prisma.student.count({
+              where: {
+                ...where,
+                user: {
+                  ...where.user,
+                  gender: 'female',
+                },
+              },
+            }),
+          ]);
+          totalMales = maleCount;
+          totalFemales = femaleCount;
+        }
+      } else {
+        // Use studentClassAssignment for session-based queries
+        const alumniBool = alumni === true || alumni === 'true';
+        const where: any = {
+          schoolId,
+          isActive: true,
+          student: {
+            isAlumni: alumniBool,
+            admissionStatus: AdmissionStatus.accepted,
+            isDeleted: false,
+            user: {},
+          },
+        };
+        if (sessionId) {
+          where.sessionId = sessionId;
+        }
+        if (classId) {
+          where.classId = classId;
+        }
+        if (classArmId) {
+          where.classArmId = classArmId;
+        }
+        if (q) {
+          where.student.user.OR = [
+            { firstname: { contains: q } },
+            { lastname: { contains: q } },
+          ];
+        }
+        const [studentClassAssignments, count] = await Promise.all([
+          this.prisma.studentClassAssignment.findMany({
+            where,
+            include: {
+              class: {
+                select: {
+                  id: true,
+                  name: true,
+                  classCategory: {
+                    select: { id: true, name: true },
+                  },
+                },
+              },
+              classArm: {
+                select: { id: true, name: true },
+              },
+              session: {
+                select: { id: true, name: true },
+              },
+              student: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      firstname: true,
+                      lastname: true,
+                      othername: true,
+                      email: true,
+                      username: true,
+                      gender: true,
+                      avatar: true,
+                      createdAt: true,
+                      updatedAt: true,
+                      contact: true,
+                      address: true,
+                    },
+                  },
+                  parent: {
+                    include: {
+                      user: {
+                        select: {
+                          id: true,
+                          firstname: true,
+                          lastname: true,
+                        },
+                      },
+                    },
+                  },
+                  class: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
+                  classArm: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
+                },
+              },
+            },
+            orderBy: {
+              student: {
+                user: {
+                  lastname: 'asc',
+                },
+              },
+            },
+            skip,
+            take: limitInt,
+          }),
+          this.prisma.studentClassAssignment.count({ where }),
+        ]);
+        students = studentClassAssignments.map((assignment) => {
+          const parent = assignment.student.parent?.user;
+          return {
+            id: assignment.student.id,
+            studentRegNo: assignment.student.studentRegNo,
+            fullName:
+              `${assignment.student.user.lastname || ''} ${assignment.student.user.firstname || ''} ${assignment.student.user.othername || ''}`.trim(),
+            firstname: assignment.student.user.firstname,
+            lastname: assignment.student.user.lastname,
+            othername: assignment.student.user.othername,
+            email: assignment.student.user.email,
+            username: assignment.student.user.username,
+            gender: assignment.student.user.gender,
+            avatar: (assignment.student.user.avatar as any)?.imageUrl || null,
+            parentGuardian: parent
+              ? `${parent.firstname} ${parent.lastname}`
+              : 'Not specified',
+            relationship:
+              assignment.student.parent?.relationship || 'Not specified',
+            createdDate: assignment.student.user.createdAt?.toISOString() || '',
+            status: assignment.isActive ? 'Active' : 'Inactive',
+            contact: assignment.student.user.contact || 'Not specified',
+            address: assignment.student.user.address || 'Not specified',
+            parentId: assignment.student.parent?.id || null,
+            dateOfBirth: assignment.student.dateOfBirth || 'Not specified',
+            religion: assignment.student.religion || 'Not specified',
+            stateOfOrigin: assignment.student.stateOfOrigin || 'Not specified',
+            nationality: assignment.student.nationality || 'Not specified',
+            classId: assignment.student.classId || null,
+            classArmId: assignment.student.classArmId || null,
+            className: assignment.student.class?.name || 'Not assigned',
+            classArmName: assignment.student.classArm?.name || 'Not assigned',
+            lga: assignment.student.lga || 'Not specified',
+          };
+        });
+        total = count;
+        sessionObj = sessionId
+          ? {
+              id: sessionId,
+              name: studentClassAssignments[0]?.session?.name || '',
+            }
+          : null;
+        classObj = classId
+          ? {
+              id: classId,
+              name: studentClassAssignments[0]?.class?.name || '',
+            }
+          : null;
+        classArmObj = classArmId
+          ? {
+              id: classArmId,
+              name: studentClassAssignments[0]?.classArm?.name || '',
+            }
+          : null;
 
-      return {
+        if (includeGenderStats) {
+          // Count gender from all assignments matching the filter (not just paginated)
+          const [maleCount, femaleCount] = await Promise.all([
+            this.prisma.studentClassAssignment.count({
+              where: {
+                ...where,
+                student: {
+                  ...where.student,
+                  user: {
+                    ...where.student.user,
+                    gender: 'male',
+                  },
+                },
+              },
+            }),
+            this.prisma.studentClassAssignment.count({
+              where: {
+                ...where,
+                student: {
+                  ...where.student,
+                  user: {
+                    ...where.student.user,
+                    gender: 'female',
+                  },
+                },
+              },
+            }),
+          ]);
+          totalMales = maleCount;
+          totalFemales = femaleCount;
+        }
+      }
+      // Preserve original response structure, add pagination
+      const response: any = {
         statusCode: 200,
         message: 'Students in class arm retrieved successfully',
         data: {
-          session: {
-            id: session.id,
-            name: session.name,
-          },
-          class: {
-            id: classExists.id,
-            name: classExists.name,
-          },
-          classArm: {
-            id: classArmExists.id,
-            name: classArmExists.name,
-          },
-          totalStudents: students.length,
+          session: sessionObj,
+          class: classObj,
+          classArm: classArmObj,
+          totalStudents: total,
           students,
+          pagination: {
+            page: pageInt,
+            limit: limitInt,
+            total,
+            totalPages: Math.ceil(total / limitInt),
+          },
         },
       };
+      if (includeGenderStats) {
+        response.data.totalMales = totalMales;
+        response.data.totalFemales = totalFemales;
+      }
+      return response;
     } catch (error) {
+      // Handle known HTTP exceptions
       if (error instanceof HttpException) {
         throw error;
       }
-      console.error('Error fetching student class assignments:', error);
+      // Fallback for unexpected errors
       throw new HttpException(
-        'Failed to fetch student class assignment',
+        'Failed to fetch student class assignments',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+  }
+
+  /**
+   * Assign or remove a staff to/from multiple class arms in multiple classes.
+   * dto: { staffId: string, assignments: Array<{ classId: string, classArmIds: string[] }> }
+   * query: { remove?: boolean }
+   */
+  async assignClassArmTeacher(
+    dto: {
+      staffId: string;
+      assignments: Array<{ classId: string; classArmIds: string[] }>;
+    },
+    query,
+    user,
+  ) {
+    try {
+      const { staffId, assignments } = dto;
+      if (!staffId || !Array.isArray(assignments) || assignments.length === 0) {
+        throw new BadRequestException('staffId and assignments are required');
+      }
+
+      // Validate staff exists
+      const staff = await this.prisma.staff.findUnique({
+        where: { id: staffId },
+      });
+      if (!staff) throw new NotFoundException('Staff not found');
+
+      // Validate all classes and classArms exist
+      for (const assign of assignments) {
+        const classObj = await this.prisma.class.findUnique({
+          where: { id: assign.classId },
+        });
+        if (!classObj)
+          throw new NotFoundException(`Class not found: ${assign.classId}`);
+        for (const classArmId of assign.classArmIds) {
+          const classArm = await this.prisma.classArm.findUnique({
+            where: { id: classArmId },
+          });
+          if (!classArm)
+            throw new NotFoundException(`Class arm not found: ${classArmId}`);
+        }
+      }
+
+      // If remove flag is set, just remove the specified assignments for this staff
+      if (query?.remove) {
+        let removed = 0;
+        for (const assign of assignments) {
+          for (const classArmId of assign.classArmIds) {
+            const assignment =
+              await this.prisma.classArmTeacherAssignment.findFirst({
+                where: {
+                  classId: assign.classId,
+                  classArmId: classArmId,
+                  schoolId: user.schoolId,
+                  isDeleted: false,
+                  staffId: staffId,
+                },
+              });
+            if (assignment) {
+              await this.prisma.classArmTeacherAssignment.delete({
+                where: { id: assignment.id },
+              });
+              removed++;
+            }
+          }
+        }
+        return { message: `Removed ${removed} assignment(s) for staff` };
+      }
+
+      // For normal requests: clear all current assignments for this staff, then create new ones from the payload
+      // Remove all assignments for this staff in this school
+      const deleted = await this.prisma.classArmTeacherAssignment.deleteMany({
+        where: {
+          staffId: staffId,
+          schoolId: user.schoolId,
+          isDeleted: false,
+        },
+      });
+      let created = 0;
+      const errors: string[] = [];
+      for (const assign of assignments) {
+        for (const classArmId of assign.classArmIds) {
+          // Check if any assignment exists for this class/classArm/school (regardless of staff)
+          const existing =
+            await this.prisma.classArmTeacherAssignment.findFirst({
+              where: {
+                classId: assign.classId,
+                classArmId: classArmId,
+                schoolId: user.schoolId,
+                isDeleted: false,
+              },
+            });
+          if (existing) {
+            errors.push(
+              `Class ${assign.classId} arm ${classArmId} already has a teacher assigned.`,
+            );
+            continue;
+          }
+          await this.prisma.classArmTeacherAssignment.create({
+            data: {
+              staffId: staffId,
+              classId: assign.classId,
+              classArmId: classArmId,
+              schoolId: user.schoolId,
+              createdBy: user.createdBy,
+            },
+          });
+          created++;
+        }
+      }
+      if (errors.length > 0) {
+        if (created === 0) {
+          // All failed, throw error
+          throw new BadRequestException({
+            message:
+              'No assignments created. All assignments failed because class/classArm already has a teacher assigned.',
+            errors,
+          });
+        } else {
+          // Partial success
+          return {
+            message: `Replaced assignments: ${deleted.count} removed, ${created} created. Some assignments failed:`,
+            errors,
+          };
+        }
+      }
+      // All succeeded
+      return {
+        message: `Replaced assignments: ${deleted.count} removed, ${created} created.`,
+      };
+    } catch (error) {
+      console.log(error);
+
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      )
+        throw error;
+      throw new BadRequestException(
+        'Failed to assign/remove class arm teacher',
+      );
+    }
+  }
+
+  async getClassArmTeacher(dto: GetClassArmTeacherDto, user) {
+    const assignment = await this.prisma.classArmTeacherAssignment.findFirst({
+      where: {
+        classId: dto.classId,
+        classArmId: dto.classArmId,
+        schoolId: user.schoolId,
+        isDeleted: false,
+      },
+      include: {
+        staff: { include: { user: true } },
+        class: true,
+        classArm: true,
+        school: true,
+      },
+    });
+    if (!assignment) {
+      throw new NotFoundException('No teacher assigned to this class arm');
+    }
+    return assignment;
+  }
+
+  async getSchoolTeachers(
+    schoolId: string,
+    query: { q?: string; page?: number; limit?: number },
+  ) {
+    const { q, page = 1, limit = 20 } = query;
+    const skip = (page - 1) * limit;
+    // Build where clause
+    const where: any = {
+      user: {
+        schoolId: schoolId,
+        ...(q && {
+          OR: [{ firstname: { contains: q } }, { lastname: { contains: q } }],
+        }),
+      },
+    };
+    // Fetch teachers with pagination
+    const [teachers, total] = await Promise.all([
+      this.prisma.staff.findMany({
+        where,
+        include: {
+          user: true,
+        },
+        skip,
+        take: limit,
+      }),
+      this.prisma.staff.count({ where }),
+    ]);
+    // Map to desired output
+    const data = teachers.map((t) => ({
+      id: t.id,
+      firstname: t.user?.firstname,
+      lastname: t.user?.lastname,
+      // age: t.user?.age, // Remove age if not present in user model
+    }));
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 }
