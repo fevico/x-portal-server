@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
   Put,
+  Query,
   Request,
   UseGuards,
 } from '@nestjs/common';
@@ -31,10 +32,48 @@ export class InvoiceController {
     return this.invoiceService.generateInvoice(body, user);
   }
 
+  // @Get('list')
+  // async allSchoolInvoice(
+  //   @Request() req: RequestExpress,
+  //   @Query('classId') classId: string,
+  //   @Query('termId') termId: string,
+  //   @Query('sessionId') sessionId: string,
+  //   @Query('classArmId') classArmId: string,
+  //   @Query("search") search: string,
+  // ): Promise<any> {
+  //   const user = req.user as AuthenticatedUser;
+  //   return this.invoiceService.allSchoolInvoice(user);
+  // }
+
   @Get('list')
-  async allSchoolInvoice(@Request() req: RequestExpress): Promise<any> {
+  async allSchoolInvoice(
+    @Request() req: RequestExpress,
+    @Query('classId') classId: string,
+    @Query('termId') termId: string,
+    @Query('sessionId') sessionId: string,
+    @Query('classArmId') classArmId: string,
+    @Query('search') search: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ): Promise<any> {
     const user = req.user as AuthenticatedUser;
-    return this.invoiceService.allSchoolInvoice(user);
+
+    // Convert page and limit to numbers and calculate skip
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 10;
+    const skip = (pageNum - 1) * limitNum;
+
+    return this.invoiceService.allSchoolInvoice({
+      user,
+      classId,
+      termId,
+      sessionId,
+      classArmId,
+      search,
+      page: pageNum,
+      limit: limitNum,
+      skip,
+    });
   }
 
   @Get(':invoiceId')
@@ -64,10 +103,10 @@ export class InvoiceController {
 
   @Put(':invoiceId')
   @UseGuards(JwtAuthGuard)
-  async updateDiscountInvoice(
+  async updateDiscountInvoice( 
     @Request() req: RequestExpress,
     @Param('invoiceId') invoiceId: string,
-    @Body() body: InvoiceDto,
+    @Body() body: UpdateInvoiceDto,
   ): Promise<any> {
     const user = req.user as AuthenticatedUser;
     const invoice = await this.invoiceService.getInvoiceById(invoiceId, user);

@@ -25,6 +25,7 @@ import { InvoiceModule } from './invoice/invoice.module';
 import { CommunicationModule } from './communication/communication.module';
 import { ConfigurationModule } from './configuration/configuration.module';
 import { ScoreModule } from './score/score.module';
+import { CbtModule } from './cbt/cbt.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { ScoreModule } from './score/score.module';
     ConfigurationModule,
     ScoreModule,
     ResultsModule,
+    CbtModule,
   ],
   controllers: [AppController],
   providers: [AppService, PingService],

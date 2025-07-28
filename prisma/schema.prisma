@@ -126,16 +126,13 @@ model Staff {
   createdBy      String?   @map("created_by") // Added
   isDeleted      Boolean   @default(false) @map("is_deleted")
 
-
-  updatedBy          String?                    @map("updated_by") // Added
-  teacherAssignments TeacherSubjectAssignment[]
+  updatedBy                  String?                     @map("updated_by") // Added
+  teacherAssignments         TeacherSubjectAssignment[]
   classArmTeacherAssignments ClassArmTeacherAssignment[]
   // @@index([userId, schoolId]) 
 
   @@map("staff")
 }
-
-
 
 // If you need to query a student’s “current” class and class arm, you can derive it from the StudentClassAssignment where sessionId matches the School.currentSessionId.
 // Student 
@@ -186,7 +183,7 @@ model Parent {
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
   createdBy    String?   @map("created_by") // Added
-  isDeleted   Boolean   @default(false) @map("is_deleted")
+  isDeleted    Boolean   @default(false) @map("is_deleted")
 
   updatedBy String?     @map("updated_by") // Added
   Admission Admission[]
@@ -197,35 +194,35 @@ model Parent {
 
 // Class model 
 model Class {
-  id                      String                             @id @default(uuid())
-  name                    String
-  schoolId                String                             @map("school_id")
-  school                  School                             @relation(fields: [schoolId], references: [id])
-  classCategoryId         String?                            @map("class_category_id")
-  classCategory           ClassCategory?                     @relation(fields: [classCategoryId], references: [id])
-  students                Student[]                          @relation("StudentClass")
-  isDeleted               Boolean                            @default(false)
-  isActive                Boolean                            @default(true)
-  createdAt               DateTime                           @default(now()) @map("created_at")
-  updatedAt               DateTime                           @updatedAt @map("updated_at")
-  createdBy               String?                            @map("created_by")
-  updatedBy               String?                            @map("updated_by")
-  admissionsPresentClass  Admission[]                        @relation("PresentClass")
-  admissionsClassToApply  Admission[]                        @relation("ClassToApply")
-  admissionsAssignedClass Admission[]                        @relation("AssignedClass")
-  invoices                Invoice[]
-  sessionClassAssignments SessionClassAssignment[]
-  classArmSubjects        ClassArmSubjectAssignment[]
-  attendanceRecords       Attendance[]
-  gradingSystems          ClassGradingSystem[]
-  termAssignments         ClassTermMarkingSchemeAssignment[]
-  teacherAssignments      TeacherSubjectAssignment[]
+  id                         String                             @id @default(uuid())
+  name                       String
+  schoolId                   String                             @map("school_id")
+  school                     School                             @relation(fields: [schoolId], references: [id])
+  classCategoryId            String?                            @map("class_category_id")
+  classCategory              ClassCategory?                     @relation(fields: [classCategoryId], references: [id])
+  students                   Student[]                          @relation("StudentClass")
+  isDeleted                  Boolean                            @default(false)
+  isActive                   Boolean                            @default(true)
+  createdAt                  DateTime                           @default(now()) @map("created_at")
+  updatedAt                  DateTime                           @updatedAt @map("updated_at")
+  createdBy                  String?                            @map("created_by")
+  updatedBy                  String?                            @map("updated_by")
+  admissionsPresentClass     Admission[]                        @relation("PresentClass")
+  admissionsClassToApply     Admission[]                        @relation("ClassToApply")
+  admissionsAssignedClass    Admission[]                        @relation("AssignedClass")
+  invoices                   Invoice[]
+  sessionClassAssignments    SessionClassAssignment[]
+  classArmSubjects           ClassArmSubjectAssignment[]
+  attendanceRecords          Attendance[]
+  gradingSystems             ClassGradingSystem[]
+  termAssignments            ClassTermMarkingSchemeAssignment[]
+  teacherAssignments         TeacherSubjectAssignment[]
   classArmTeacherAssignments ClassArmTeacherAssignment[]
-  classAssignments        StudentClassAssignment[]
-  scores                  StudentScoreAssignment[]
-  termRecords             StudentTermRecord[]                @relation("ClassTermRecords")
-  resultBatches           ResultBatch[]
-  reportSheetSetting      ReportSheetSetting[]
+  classAssignments           StudentClassAssignment[]
+  scores                     StudentScoreAssignment[]
+  termRecords                StudentTermRecord[]                @relation("ClassTermRecords")
+  resultBatches              ResultBatch[]
+  reportSheetSetting         ReportSheetSetting[]
 
   @@unique([name, schoolId])
   @@index([schoolId, classCategoryId])
@@ -345,6 +342,7 @@ model Session {
   studentSubjects        StudentSubjectAssignment[]
   resultBatches          ResultBatch[]
   StudentClassAssignment StudentClassAssignment[]
+  invoice                 Invoice[]  
 
   @@unique([name, schoolId])
   @@index([schoolId])
@@ -367,6 +365,7 @@ model TermDefinition {
   scores                        StudentScoreAssignment[]           @relation("TermScores")
   termRecords                   StudentTermRecord[]                @relation("TermRecords")
   resultBatches                 ResultBatch[]
+  invoice                       Invoice[]
 
   @@unique([name, schoolId])
   @@index([schoolId])
@@ -666,7 +665,11 @@ model Invoice {
   class          Class?        @relation(fields: [classId], references: [id])
   classArmId     String?       @map("class_arm_id")
   classArm       ClassArm?     @relation(fields: [classArmId], references: [id])
-  amount         Float
+  termId      String        @map("term_id")
+  term        TermDefinition       @relation(fields: [termId], references: [id])
+  sessionId      String        @map("session_id")
+  session        Session       @relation(fields: [sessionId], references: [id])
+  amount         Float  
   title          String
   description    String?
   reference      String
@@ -680,6 +683,8 @@ model Invoice {
   createdAt      DateTime?     @default(now()) @map("created_at")
   updatedAt      DateTime?     @updatedAt @map("updated_at")
   createdBy      String?       @map("created_by")
+  paymentEvidence String?
+  // discount       Discount?     @relation(fields: [id], references: [invoiceId])
 
   @@index([schoolId, studentId])
   @@map("invoices")
@@ -912,10 +917,10 @@ model ClassArmTeacherAssignment {
   updatedAt  DateTime @updatedAt @map("updated_at")
   createdBy  String?  @map("created_by")
   updatedBy  String?  @map("updated_by")
+  // This model links a teacher (staff) to a class arm for a school.
 
   @@unique([classId, classArmId, schoolId])
   @@index([schoolId, staffId])
-  // This model links a teacher (staff) to a class arm for a school.
 }
 
 // Added: StudentScoreAssignment for storing student scores
@@ -1121,6 +1126,17 @@ model ReportSheetSetting {
   createdBy           String?   @map("created_by") @db.VarChar(50)
   updatedBy           String?   @map("updated_by") @db.VarChar(50)
 }
+
+// model Discount {
+//   id        String  @id @default(uuid())
+//   amount    Int     @map("amount")
+//   invoiceId String  @map("invoice_id") @db.VarChar(50)
+//   invoice   Invoice @relation(fields: [invoiceId], references: [id])
+//   schoolId  String  @map("school_id") @db.VarChar(50)
+//   school    School  @relation(fields: [schoolId], references: [id])
+//   isDeleted Boolean @default(false)
+// }
+
 
 // Enums
 enum Gender {

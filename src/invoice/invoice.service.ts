@@ -16,11 +16,11 @@ export class InvoiceService {
     user: AuthenticatedUser,
   ): Promise<any> {
     const schoolId = user.schoolId;
-    const { studentId, amount, classId, description, title, classArmId } = body;
-    // const reference = await this.utilityService.generateUniqueReferenceNumber(); // Use unique reference
+    const { studentId, amount, classId, description, title, classArmId, termId, sessionId } = body;
+          
     try {
       const createInvoice = await this.prisma.invoice.create({
-        data: {
+        data: {  
           amount,
           description,
           title,
@@ -30,6 +30,8 @@ export class InvoiceService {
           school: { connect: { id: schoolId } },
           issuedDate: new Date(),
           reference: `INV-${Date.now()}-${Math.floor(Math.random() * 1000)}`, // Simple unique reference generation
+          term: { connect: { id: termId } },
+          session: { connect: { id: sessionId } },
         },
       });
       return createInvoice;
@@ -53,23 +55,121 @@ export class InvoiceService {
     }
   }
 
-  async allSchoolInvoice(user: AuthenticatedUser): Promise<any> {
+  // async allSchoolInvoice(user: AuthenticatedUser): Promise<any> {
+  //   const schoolId = user.schoolId;
+  //   try {
+  //     const invoice = await this.prisma.invoice.findMany({
+  //       where: { schoolId },
+  //       include: {
+  //         student: true,
+  //         class: true,
+  //         classArm: true,
+  //       },
+  //       orderBy: {
+  //         issuedDate: 'desc',
+  //       },
+  //     });
+  //     return invoice;
+  //   } catch (error) {
+  //     throw new HttpException('Failed to fetch invoice', 500);
+  //   }
+  // }
+
+  async allSchoolInvoice({
+    user,
+    classId,
+    termId,
+    sessionId,
+    classArmId,
+    search,
+    page,
+    limit,
+    skip,
+  }: {
+    user: AuthenticatedUser;
+    classId?: string;
+    termId?: string;
+    sessionId?: string;
+    classArmId?: string;
+    search?: string;
+    page: number;
+    limit: number;
+    skip: number;
+  }): Promise<{
+    data: any[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
     const schoolId = user.schoolId;
+
     try {
-      const invoice = await this.prisma.invoice.findMany({
-        where: { schoolId },
-        include: {
-          student: true,
-          class: true,
-          classArm: true,
-        },
-        orderBy: {
-          issuedDate: 'desc',
-        },
-      });
-      return invoice;
+      // Build the where clause dynamically
+      const where: any = { schoolId };
+
+      // Add filters based on query parameters
+      if (classId) {
+        where.classId = classId;
+      }
+      if (termId) {
+        where.termId = termId;
+      }
+      if (sessionId) {
+        where.sessionId = sessionId;
+      }
+      if (classArmId) {
+        where.classArmId = classArmId;
+      }
+      if (search) {
+        where.OR = [
+          { title: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } },
+          {
+            student: {
+              firstName: { contains: search, mode: 'insensitive' },
+            },
+          },
+          {
+            student: {
+              lastName: { contains: search, mode: 'insensitive' },
+            },
+          },
+        ];
+      }
+
+      // Fetch paginated invoices
+      const [invoices, total] = await Promise.all([
+        this.prisma.invoice.findMany({
+          where,
+          include: {
+            student: true,
+            class: true,
+            classArm: true,
+            term: true,
+            session: true,  
+          },
+          orderBy: {
+            issuedDate: 'desc',
+          },
+          skip,
+          take: limit,
+        }),
+        this.prisma.invoice.count({ where }),
+      ]);
+
+      // Calculate total pages
+      const totalPages = Math.ceil(total / limit);
+
+      return {
+        data: invoices,
+        total,
+        page, 
+        limit,
+        totalPages,
+      };
     } catch (error) {
-      throw new HttpException('Failed to fetch invoice', 500);
+      throw new HttpException('Failed to fetch invoices', 500);
     }
   }
 
@@ -77,13 +177,13 @@ export class InvoiceService {
     invoiceId: string,
     body: any,
     user: AuthenticatedUser,
-  ): Promise<any> {
+  ): Promise<any> {   
     const schoolId = user.schoolId;
     const { discount, dueDate } = body;
     try {
       const updatedInvoice = await this.prisma.invoice.update({
         where: { id: invoiceId, schoolId },
-        data: {
+        data: { 
           discount,
           dueDate: dueDate ? new Date(dueDate) : null, // Ensure dueDate is a Date object
         },

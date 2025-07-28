@@ -18,6 +18,14 @@ export class InvoiceDto {
   classId: string;
 
   @IsString()
+  @IsNotEmpty()
+  sessionId: string;
+
+  @IsString()
+  @IsNotEmpty()
+  termId: string;
+
+  @IsString()
   @IsOptional()
   studentId?: string;
 
@@ -34,6 +42,10 @@ export class UpdateInvoiceDto {
   @IsString()
   @IsOptional()
   description?: string;
+
+  @IsString()
+  @IsOptional()
+  termId?: string
 
   @IsNumber()
   @IsOptional()
