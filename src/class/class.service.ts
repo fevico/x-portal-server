@@ -396,7 +396,7 @@ export class ClassesService {
       const classCategory = await this.prisma.classCategory.create({
         data: {
           name: body.name,
-          createdBy: user.id,
+          createdByUser: { connect: { id: user.id } },
           school: { connect: { id: schoolId } },
         },
       });

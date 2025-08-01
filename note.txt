@@ -13,8 +13,8 @@ DELETE FROM _prisma_migrations WHERE migration_name = '20250626203524_add_studen
 exit;
 
 
-SELECT * FROM _prisma_migrations WHERE migration_name = '20250717133146_added_isdelete';
-DELETE FROM _prisma_migrations WHERE migration_name = '20250717133146_added_isdelete';
+SELECT * FROM _prisma_migrations WHERE migration_name = '20250731004452_added';
+DELETE FROM _prisma_migrations WHERE migration_name = '20250731004452_added';
 exit;
 
 npx prisma migrate dev --name modified-configuration

@@ -225,7 +225,7 @@ export class UsersService {
                 // department: data.department,
                 // position: data.position,
                 // qualifications: data.qualifications,
-                createdBy: requester.id,
+                createdByUser: { connect: { id: requester.id } },
               },
             });
           } else if (subRole.name.toLowerCase() === 'student') {
@@ -248,7 +248,7 @@ export class UsersService {
                 parent: data.parentId
                   ? { connect: { id: data.parentId } }
                   : undefined,
-                createdBy: requester.id,
+                createdByUser: { connect: { id: requester.id } },
               },
             });
             // create class assignment if classId is provided
@@ -271,7 +271,7 @@ export class UsersService {
                 user: { connect: { id: createdUser.id } },
                 occupation: data.occupation,
                 relationship: data.relationship,
-                createdBy: requester.id,
+                createdByUser: { connect: { id: requester.id } },
               },
             });
           }
@@ -431,7 +431,7 @@ export class UsersService {
                 parent: data.parentId
                   ? { connect: { id: data.parentId } }
                   : undefined,
-                updatedBy: requester.id,
+                updatedByUser: { connect: { id: requester.id } },
               },
               create: {
                 // id: uuidv4(),
@@ -446,7 +446,7 @@ export class UsersService {
                 parent: data.parentId
                   ? { connect: { id: data.parentId } }
                   : undefined,
-                createdBy: requester.id,
+                createdByUser: { connect: { id: requester.id } },
               },
             });
           } else if (subRole.name.toLowerCase() === 'parent') {
@@ -854,11 +854,15 @@ export class UsersService {
             },
           },
         },
-        invoices: {
+        invoiceAssignments: {
           include: {
-            class: true,
-            classArm: true,
-            school: true,
+            invoice: {
+              include: {
+                class: true,
+                classArm: true,
+                school: { select: { name: true } },
+              },
+            },
           },
         },
         attendanceRecords: {
@@ -974,17 +978,17 @@ export class UsersService {
             : null,
         })) || [],
       invoices:
-        student.invoices?.map((inv) => ({
-          id: inv.id,
-          title: inv.title,
-          amount: inv.amount,
-          status: inv.status,
-          class: inv.class?.name,
-          classArm: inv.classArm?.name,
-          dueDate: inv.dueDate,
-          paid: inv.paid,
-          outstanding: inv.outstanding,
-          school: inv.school?.name,
+        student.invoiceAssignments?.map((assignment) => ({
+          id: assignment.invoice.id,
+          title: assignment.invoice.title,
+          amount: assignment.invoice.amount,
+          status: assignment.invoice.status,
+          class: assignment.invoice.class?.name,
+          classArm: assignment.invoice.classArm?.name,
+          dueDate: assignment.invoice.dueDate,
+          paid: assignment.invoice.paid,
+          outstanding: assignment.invoice.outstanding,
+          school: assignment.invoice.school?.name,
         })) || [],
       attendance:
         student.attendanceRecords?.map((att) => ({
@@ -1849,7 +1853,7 @@ export class UsersService {
               classArm: data.classArmId
                 ? { connect: { id: data.classArmId } }
                 : undefined,
-              createdBy: requester.id,
+              createdByUser: { connect: { id: requester.id } },
             },
           });
 
@@ -2026,7 +2030,7 @@ export class UsersService {
               classArm: data.classArmId
                 ? { connect: { id: data.classArmId } }
                 : undefined,
-              updatedBy: requester.id,
+              updatedByUser: { connect: { id: requester.id } },
             },
           });
 

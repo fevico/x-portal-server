@@ -4,6 +4,6 @@ import { CbtController } from './cbt.controller';
 
 @Module({
   providers: [CbtService],
-  controllers: [CbtController]
+  controllers: [CbtController],
 })
 export class CbtModule {}
