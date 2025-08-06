@@ -64,7 +64,7 @@ export class InvoiceService {
       // Fetch the latest invoice for today to increment the serial
       const latestInvoice = await this.prisma.invoice.findFirst({
         where: {
-          issuedDate: {
+          createdAt: {
             gte: new Date(`${year}-${month}-${day}T00:00:00.000Z`),
             lt: new Date(
               `${year}-${month}-${(Number(day) + 1).toString().padStart(2, '0')}T00:00:00.000Z`,
@@ -94,10 +94,11 @@ export class InvoiceService {
           class: classId ? { connect: { id: classId } } : undefined,
           classArm: classArmId ? { connect: { id: classArmId } } : undefined,
           school: { connect: { id: schoolId } },
-          issuedDate: now,
           reference,
+          type: type || 'single', // Default to single if not provided
           term: { connect: { id: termId } },
           session: { connect: { id: sessionId } },
+          createdByUser: { connect: { id: user.id } },
         },
       });
 
@@ -185,6 +186,7 @@ export class InvoiceService {
     reference: string,
     user: AuthenticatedUser,
   ): Promise<any> {
+    console.log(reference);
     const schoolId = user.schoolId;
     const invoice = await this.prisma.invoice.findFirst({
       where: { reference, schoolId },
@@ -203,7 +205,7 @@ export class InvoiceService {
     // Soft delete: set status to 'cancelled' and optionally set isDeleted flag if you have one
     const invoice = await this.prisma.invoice.update({
       where: { id: invoiceId, schoolId },
-      data: { status: 'cancelled' },
+      data: { isDeleted: true },
     });
     return { message: 'Invoice cancelled', invoice };
   }
@@ -280,6 +282,9 @@ export class InvoiceService {
             classArm: true,
             term: true,
             session: true,
+            createdByUser: {
+              select: { id: true, lastname: true, firstname: true },
+            }, // Include user info for createdBy
             studentInvoiceAssignments: {
               include: {
                 student: {
@@ -291,7 +296,7 @@ export class InvoiceService {
             },
           },
           orderBy: {
-            issuedDate: 'desc',
+            createdAt: 'desc',
           },
           skip,
           take: limit,

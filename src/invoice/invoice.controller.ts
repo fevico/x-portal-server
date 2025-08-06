@@ -18,7 +18,6 @@ import { AuthenticatedUser } from '@/types/express';
 import { Request as RequestExpress } from 'express';
 
 @Controller('invoice')
-@Controller('invoice')
 export class InvoiceController {
   constructor(private readonly invoiceService: InvoiceService) {}
 
@@ -39,6 +38,8 @@ export class InvoiceController {
     @Request() req: RequestExpress,
     @Param('reference') reference: string,
   ): Promise<any> {
+    console.log(reference);
+
     const user = req.user as AuthenticatedUser;
     return this.invoiceService.getInvoiceByReference(reference, user);
   }
@@ -54,6 +55,7 @@ export class InvoiceController {
   }
 
   @Get('list')
+  @UseGuards(JwtAuthGuard)
   async allSchoolInvoice(
     @Request() req: RequestExpress,
     @Query('classId') classId: string,

@@ -787,17 +787,19 @@ model Invoice {
   title                    String
   description              String?
   reference                String
-  outstanding              Float?
-  dueDate                  DateTime?                  @map("due_date")
-  paid                     Float?
-  status                   InvoiceStatus              @default(submitted)
-  paymentReceipt           String?                    @map("payment_receipt")
-  issuedDate               DateTime                   @map("issued_date")
+  isDeleted               Boolean                    @default(false)
+  type                     InvoiceType                @default(single)
+  // outstanding              Float?
+  // dueDate                  DateTime?                  @map("due_date")
+  // paid                     Float?
+  // status                   InvoiceStatus              @default(submitted)
+  // paymentReceipt           String?                    @map("payment_receipt")
+  // issuedDate               DateTime                   @map("issued_date")
   createdAt                DateTime?                  @default(now()) @map("created_at")
   updatedAt                DateTime?                  @updatedAt @map("updated_at")
   createdBy                String?                    @map("created_by")
   createdByUser            User?                      @relation("InvoiceCreatedBy", fields: [createdBy], references: [id])
-  paymentEvidence          String?
+  // paymentEvidence          String?
   studentInvoiceAssignments StudentInvoiceAssignment[]
   discounts                Discount[]
 
@@ -1346,4 +1348,9 @@ enum DiscountStatus {
   pending
   approved
   expired
+}
+
+enum InvoiceType {
+  single
+  mass
 }
