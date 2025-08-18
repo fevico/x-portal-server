@@ -4,7 +4,7 @@ import { hash } from 'bcrypt';
 const prisma = new PrismaClient();
 
 // Target school ID
-const TARGET_SCHOOL_ID = '2e7ac74c-6f8e-47b6-ba5c-c28c234325ce';
+const TARGET_SCHOOL_ID = 'cmdrauk5d0003hnm8aam4luow';
 
 // Helper functions
 function generateRandomEmail(firstName: string, lastName: string): string {
@@ -137,38 +137,6 @@ function getRandomDateOfBirth(minAge: number, maxAge: number): Date {
   return new Date(birthYear, month, day);
 }
 
-// function getRandomSubjects(): string[] {
-//   const allSubjects = [
-//     'Mathematics',
-//     'English Language',
-//     'Physics',
-//     'Chemistry',
-//     'Biology',
-//     'Geography',
-//     'Economics',
-//     'Government',
-//     'History',
-//     'Literature in English',
-//     'Yoruba',
-//     'Hausa',
-//     'Igbo',
-//     'French',
-//     'Agricultural Science',
-//     'Technical Drawing',
-//     'Computer Studies',
-//     'Civic Education',
-//     'Christian Religious Studies',
-//     'Islamic Studies',
-//     'Fine Arts',
-//     'Music',
-//     'Physical Education',
-//   ];
-
-//   const numSubjects = Math.floor(Math.random() * 6) + 8; // 8-13 subjects
-//   const shuffled = [...allSubjects].sort(() => 0.5 - Math.random());
-//   return shuffled.slice(0, numSubjects);
-// }
-
 function getRandomReligion(): string {
   const religions = ['Christianity', 'Islam', 'Traditional', 'Other'];
   return religions[Math.floor(Math.random() * religions.length)];
@@ -256,9 +224,7 @@ function generateStaffId(index: number): string {
   return `STF${currentYear}${(index + 1).toString().padStart(4, '0')}`;
 }
 
-// Nigerian class names for secondary schools
 const nigerianClasses = ['JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3'];
-// const classArms = ['A', 'B', 'C', 'D'];
 
 async function main() {
   console.log('🌟 Starting comprehensive seed for school:', TARGET_SCHOOL_ID);
@@ -290,7 +256,6 @@ async function main() {
       session = school.sessions[0];
       console.log(`📅 Using existing session: ${session.name}`);
     } else {
-      // Create a default session
       const currentYear = new Date().getFullYear();
       const nextYear = currentYear + 1;
       session = await prisma.session.create({
@@ -298,7 +263,7 @@ async function main() {
           name: `${currentYear}/${nextYear}`,
           schoolId: TARGET_SCHOOL_ID,
           isActive: true,
-          createdBy: 'system-seed',
+          createdBy: 'cmdramgvd0000hnf0vbblis2r',
         },
       });
       console.log(`📅 Created new session: ${session.name}`);
@@ -325,7 +290,7 @@ async function main() {
           data: {
             name: className,
             schoolId: TARGET_SCHOOL_ID,
-            createdBy: 'system-seed',
+            createdBy: 'cmdramgvd0000hnf0vbblis2r',
           },
         });
       }
@@ -339,7 +304,7 @@ async function main() {
           data: {
             name: armName,
             schoolId: TARGET_SCHOOL_ID,
-            createdBy: 'system-seed',
+            createdBy: 'cmdramgvd0000hnf0vbblis2r',
           },
         });
       }
@@ -350,6 +315,25 @@ async function main() {
       where: { schoolId: TARGET_SCHOOL_ID, isDeleted: false },
     });
 
+    const updatedClassArms = await prisma.classArm.findMany({
+      where: { schoolId: TARGET_SCHOOL_ID, isDeleted: false },
+    });
+
+    console.log(
+      `📖 Updated: ${updatedClasses.length} classes and ${updatedClassArms.length} class arms`,
+    );
+
+    // Verify the createdBy user exists
+    const createdByUser = await prisma.user.findUnique({
+      where: { id: 'cmdramgvd0000hnf0vbblis2r' },
+    });
+    if (!createdByUser) {
+      throw new Error(
+        'The createdBy user ID cmdramgvd0000hnf0vbblis2r does not exist in the User table.',
+      );
+    }
+
+    // Get sub-roles
     const subRoleStaff = await prisma.subRole.findFirst({
       where: { name: 'staff', isGlobal: true },
     });
@@ -359,46 +343,26 @@ async function main() {
     const subRoleParent = await prisma.subRole.findFirst({
       where: { name: 'parent', isGlobal: true },
     });
-    const updatedClassArms = await prisma.classArm.findMany({
-      where: { schoolId: TARGET_SCHOOL_ID, isDeleted: false },
-    });
 
-    console.log(
-      `📖 Updated: ${updatedClasses.length} classes and ${updatedClassArms.length} class arms`,
-    );
+    if (!subRoleStaff || !subRoleStudent || !subRoleParent) {
+      throw new Error(
+        'One or more sub-roles (staff, student, parent) not found in the database.',
+      );
+    }
 
-    // Create session class assignments if they don't exist
-    console.log('🔗 Creating session class assignments...');
-    // for (const cls of updatedClasses) {
-    //   for (const arm of updatedClassArms) {
-    //     const existingAssignment =
-    //       await prisma.sessionClassAssignment.findFirst({
-    //         where: {
-    //           sessionId: session.id,
-    //           classId: cls.id,
-    //           classArmId: arm.id,
-    //           schoolId: TARGET_SCHOOL_ID,
-    //         },
-    //       });
-
-    //     if (!existingAssignment) {
-    //       await prisma.sessionClassAssignment.create({
-    //         data: {
-    //           sessionId: session.id,
-    //           classId: cls.id,
-    //           classArmId: arm.id,
-    //           schoolId: TARGET_SCHOOL_ID,
-    //           createdBy: 'system-seed',
-    //         },
-    //       });
-    //     }
-    //   }
-    // }
+    // Clear existing staff, students, and parents for this school
+    console.log('🧹 Clearing existing staff, students, and parents...');
 
     // Create staff members (teachers)
     console.log('👨‍🏫 Creating staff members...');
     const numberOfStaff = 25;
     const createdStaff = [];
+    const secondaryQualifications = [
+      'B.Ed (Bachelor of Education) - Secondary',
+      'B.Sc (Ed) (Bachelor of Science in Education)',
+      'M.Ed (Master of Education)',
+      'PGDE (Postgraduate Diploma in Education)',
+    ];
 
     for (let i = 0; i < numberOfStaff; i++) {
       const { firstName, lastName } = generateNigerianName();
@@ -407,7 +371,20 @@ async function main() {
       const gender = getRandomGender();
       const hashedPassword = await hash('password', 12);
 
-      // Create user account
+      const numQuals = Math.floor(Math.random() * 3) + 1;
+      const randomQuals = [];
+      const usedIndices = new Set();
+      while (randomQuals.length < numQuals) {
+        const randomIndex = Math.floor(
+          Math.random() * secondaryQualifications.length,
+        );
+        if (!usedIndices.has(randomIndex)) {
+          usedIndices.add(randomIndex);
+          randomQuals.push(secondaryQualifications[randomIndex]);
+        }
+      }
+      const newQualifications = JSON.stringify(randomQuals);
+
       const user = await prisma.user.create({
         data: {
           firstname: firstName,
@@ -418,31 +395,27 @@ async function main() {
           plainPassword: 'password',
           contact: phoneNumber,
           gender: gender,
-          role: 'admin',
-          subRoleId: subRoleStaff?.id,
+          role: 'admin', // Consider changing to 'staff' if schema expects specific roles
+          subRoleId: subRoleStaff.id,
           schoolId: TARGET_SCHOOL_ID,
-          createdBy: 'system-seed',
+          schoolSlug: school.slug,
+          createdBy: 'cmdramgvd0000hnf0vbblis2r',
+          staff: {
+            create: {
+              staffRegNo: generateStaffId(i),
+              qualifications: newQualifications,
+              hireDate: new Date(
+                2020 + Math.floor(Math.random() * 4),
+                Math.floor(Math.random() * 12),
+                1,
+              ),
+              createdBy: 'cmdramgvd0000hnf0vbblis2r',
+            },
+          },
         },
+        include: { staff: true },
       });
-
-      // Create staff record
-      const staff = await prisma.staff.create({
-        data: {
-          userId: user.id,
-          staffRegNo: generateStaffId(i),
-          qualifications: ['B.Ed', 'B.Sc', 'M.Ed'][
-            Math.floor(Math.random() * 3)
-          ],
-          hireDate: new Date(
-            2020 + Math.floor(Math.random() * 4),
-            Math.floor(Math.random() * 12),
-            1,
-          ),
-          createdBy: 'system-seed',
-        },
-      });
-
-      createdStaff.push({ user, staff });
+      createdStaff.push({ user, staff: user.staff });
     }
 
     console.log(`✅ Created ${createdStaff.length} staff members`);
@@ -452,16 +425,21 @@ async function main() {
     const numberOfStudents = 200;
     const createdStudents = [];
 
+    if (updatedClasses.length === 0 || updatedClassArms.length === 0) {
+      throw new Error(
+        'No classes or class arms found for the school. Please create them first.',
+      );
+    }
+
     for (let i = 0; i < numberOfStudents; i++) {
       const { firstName, lastName } = generateNigerianName();
       const email = generateRandomEmail(firstName, lastName);
       const phoneNumber = generateRandomPhoneNumber();
       const gender = getRandomGender();
       const dateOfBirth = getRandomDateOfBirth(10, 18);
-      const isAlumni = Math.random() < 0.15; // 15% chance of being alumni
+      const isAlumni = Math.random() < 0.15;
       const hashedPassword = await hash('password', 12);
 
-      // Create user account
       const user = await prisma.user.create({
         data: {
           firstname: firstName,
@@ -472,58 +450,76 @@ async function main() {
           plainPassword: 'password',
           contact: phoneNumber,
           gender: gender,
-          role: 'admin',
-          subRoleId: subRoleStudent?.id,
+          role: 'admin', // Consider changing to 'student' if schema expects specific roles
+          subRoleId: subRoleStudent.id,
           schoolId: TARGET_SCHOOL_ID,
-          createdBy: 'system-seed',
+          schoolSlug: school.slug,
+          createdBy: 'cmdramgvd0000hnf0vbblis2r',
         },
       });
 
-      // Select random class and class arm
-      const randomClass =
-        updatedClasses[Math.floor(Math.random() * updatedClasses.length)];
-      const randomClassArm =
-        updatedClassArms[Math.floor(Math.random() * updatedClassArms.length)];
+      try {
+        const student = await prisma.student.create({
+          data: {
+            userId: user.id,
+            studentRegNo: generateStudentRegNo(i),
+            dateOfBirth: dateOfBirth,
+            religion: getRandomReligion(),
+            nationality: getRandomNationality(),
+            stateOfOrigin: getRandomStateOfOrigin(),
+            lga: getRandomLGA(),
+            classId: isAlumni
+              ? null
+              : updatedClasses[
+                  Math.floor(Math.random() * updatedClasses.length)
+                ].id,
+            classArmId: isAlumni
+              ? null
+              : updatedClassArms[
+                  Math.floor(Math.random() * updatedClassArms.length)
+                ].id,
+            isAlumni: isAlumni,
+            admissionStatus: AdmissionStatus.accepted,
+            createdBy: 'cmdramgvd0000hnf0vbblis2r',
+          },
+        });
 
-      // Create student record
-      const student = await prisma.student.create({
-        data: {
-          userId: user.id,
-          studentRegNo: generateStudentRegNo(i),
-          dateOfBirth: dateOfBirth,
-          religion: getRandomReligion(),
-          nationality: getRandomNationality(),
-          stateOfOrigin: getRandomStateOfOrigin(),
-          lga: getRandomLGA(),
-          classId: isAlumni ? null : randomClass.id,
-          classArmId: isAlumni ? null : randomClassArm.id,
-          isAlumni: isAlumni,
-          admissionStatus: AdmissionStatus.accepted,
-          createdBy: 'system-seed',
-        },
-      });
+        if (!isAlumni) {
+          const randomClass =
+            updatedClasses[Math.floor(Math.random() * updatedClasses.length)];
+          const randomClassArm =
+            updatedClassArms[
+              Math.floor(Math.random() * updatedClassArms.length)
+            ];
+          await prisma.studentClassAssignment.create({
+            data: {
+              studentId: student.id,
+              classId: randomClass.id,
+              classArmId: randomClassArm.id,
+              sessionId: session.id,
+              schoolId: TARGET_SCHOOL_ID,
+              isActive: true,
+              createdBy: 'cmdramgvd0000hnf0vbblis2r',
+            },
+          });
+        }
 
-      // Create student class assignment
-      await prisma.studentClassAssignment.create({
-        data: {
-          studentId: student.id,
-          classId: randomClass.id,
-          classArmId: randomClassArm.id,
-          sessionId: session.id,
-          schoolId: TARGET_SCHOOL_ID,
-          isActive: true,
-          createdBy: 'system-seed',
-        },
-      });
-
-      //   student subject assignments
-
-      createdStudents.push({
-        user,
-        student,
-        class: randomClass,
-        classArm: randomClassArm,
-      });
+        createdStudents.push({
+          user,
+          student,
+          class: isAlumni
+            ? null
+            : updatedClasses[Math.floor(Math.random() * updatedClasses.length)],
+          classArm: isAlumni
+            ? null
+            : updatedClassArms[
+                Math.floor(Math.random() * updatedClassArms.length)
+              ],
+        });
+      } catch (error) {
+        console.error(`Failed to create student ${i + 1} (${email}):`, error);
+        throw error;
+      }
     }
 
     console.log(`✅ Created ${createdStudents.length} students`);
@@ -533,78 +529,86 @@ async function main() {
     let admissionCount = 0;
 
     for (const { student, class: studentClass, classArm } of createdStudents) {
-      // Create parent for admission
+      if (!studentClass || !classArm) continue; // Skip alumni students
+
       const { firstName: parentFirstName, lastName: parentLastName } =
         generateNigerianName();
       const parentEmail = generateRandomEmail(parentFirstName, parentLastName);
       const parentPhone = generateRandomPhoneNumber();
       const hashedParentPassword = await hash('password', 12);
 
-      const parentUser = await prisma.user.create({
-        data: {
-          firstname: parentFirstName,
-          lastname: parentLastName,
-          email: parentEmail,
-          username: parentEmail,
-          password: hashedParentPassword,
-          plainPassword: 'password',
-          contact: parentPhone,
-          gender: getRandomGender(),
-          role: 'admin',
-          subRoleId: subRoleParent?.id,
-          schoolId: TARGET_SCHOOL_ID,
-          createdBy: 'system-seed',
-        },
-      });
+      try {
+        const parentUser = await prisma.user.create({
+          data: {
+            firstname: parentFirstName,
+            lastname: parentLastName,
+            email: parentEmail,
+            username: parentEmail,
+            password: hashedParentPassword,
+            plainPassword: 'password',
+            contact: parentPhone,
+            gender: getRandomGender(),
+            role: 'admin', // Consider changing to 'parent' if schema expects specific roles
+            subRoleId: subRoleParent.id,
+            schoolId: TARGET_SCHOOL_ID,
+            schoolSlug: school.slug,
+            createdBy: 'cmdramgvd0000hnf0vbblis2r',
+          },
+        });
 
-      const parent = await prisma.parent.create({
-        data: {
-          userId: parentUser.id,
-          occupation: [
-            'Engineer',
-            'Doctor',
-            'Teacher',
-            'Lawyer',
-            'Trader',
-            'Civil Servant',
-          ][Math.floor(Math.random() * 6)],
-          relationship: ['Father', 'Mother', 'Guardian'][
-            Math.floor(Math.random() * 3)
-          ],
-          createdBy: 'system-seed',
-        },
-      });
+        const parent = await prisma.parent.create({
+          data: {
+            userId: parentUser.id,
+            occupation: [
+              'Engineer',
+              'Doctor',
+              'Teacher',
+              'Lawyer',
+              'Trader',
+              'Civil Servant',
+            ][Math.floor(Math.random() * 6)],
+            relationship: ['Father', 'Mother', 'Guardian'][
+              Math.floor(Math.random() * 3)
+            ],
+            createdBy: 'cmdramgvd0000hnf0vbblis2r',
+          },
+        });
 
-      const admissionDate = new Date(
-        2020 + Math.floor(Math.random() * 4),
-        Math.floor(Math.random() * 12),
-        1,
-      );
+        const admissionDate = new Date(
+          2020 + Math.floor(Math.random() * 4),
+          Math.floor(Math.random() * 12),
+          1,
+        );
 
-      // Create admission
-      await prisma.admission.create({
-        data: {
-          sessionId: session.id,
-          schoolId: TARGET_SCHOOL_ID,
-          studentId: student.id,
-          parentId: parent.id,
-          presentClassId: studentClass.id, // Class they're currently in
-          classApplyingTo: studentClass.id, // Class they're applying to
-          assignedClassId: studentClass.id, // Class they've been assigned to
-          assignedClassArmId: classArm.id,
-          admissionStatus: AdmissionStatus.accepted,
-          admissionDate,
-          createdBy: 'system-seed',
-        },
-      });
+        await prisma.admission.create({
+          data: {
+            sessionId: session.id,
+            schoolId: TARGET_SCHOOL_ID,
+            studentId: student.id,
+            parentId: parent.id,
+            presentClassId: studentClass.id,
+            classApplyingTo: studentClass.id,
+            assignedClassId: studentClass.id,
+            assignedClassArmId: classArm.id,
+            admissionStatus: AdmissionStatus.accepted,
+            admissionDate,
+            createdBy: 'cmdramgvd0000hnf0vbblis2r',
+          },
+        });
 
-      // Update student with parent reference
-      await prisma.student.update({
-        where: { id: student.id },
-        data: { parentId: parent.id, admissionDate },
-      });
+        await prisma.student.update({
+          where: { id: student.id },
+          data: { parentId: parent.id, admissionDate },
+        });
 
-      admissionCount++;
+        admissionCount++;
+      } catch (error) {
+        console.error(
+          `Failed to create parent/admission for student ${student.studentRegNo} (${parentEmail}):`,
+          error,
+        );
+        throw error;
+      }
     }
 
     console.log(`✅ Created ${admissionCount} admissions with parents`);
@@ -623,30 +627,38 @@ async function main() {
         class: studentClass,
         classArm,
       } of createdStudents) {
-        // Get class arm subject assignments
-        const classArmSubjectAssignments =
-          await prisma.classArmSubjectAssignment.findMany({
-            where: {
-              classId: studentClass.id,
-              classArmId: classArm.id,
-              schoolId: TARGET_SCHOOL_ID,
-              isActive: true,
-            },
-          });
+        if (!studentClass || !classArm) continue; // Skip alumni students
 
-        // Create student subject assignments
-        for (const classArmSubjectAssignment of classArmSubjectAssignments) {
-          await prisma.studentSubjectAssignment.create({
-            data: {
-              studentId: student.id,
-              subjectId: classArmSubjectAssignment.subjectId,
-              classArmSubjectId: classArmSubjectAssignment.id,
-              sessionId: session.id,
-              schoolId: TARGET_SCHOOL_ID,
-              createdBy: 'system-seed',
-            },
-          });
-          subjectAssignmentCount++;
+        try {
+          const classArmSubjectAssignments =
+            await prisma.classArmSubjectAssignment.findMany({
+              where: {
+                classId: studentClass.id,
+                classArmId: classArm.id,
+                schoolId: TARGET_SCHOOL_ID,
+                isActive: true,
+              },
+            });
+
+          for (const classArmSubjectAssignment of classArmSubjectAssignments) {
+            await prisma.studentSubjectAssignment.create({
+              data: {
+                studentId: student.id,
+                subjectId: classArmSubjectAssignment.subjectId,
+                classArmSubjectId: classArmSubjectAssignment.id,
+                sessionId: session.id,
+                schoolId: TARGET_SCHOOL_ID,
+                createdBy: 'cmdramgvd0000hnf0vbblis2r',
+              },
+            });
+            subjectAssignmentCount++;
+          }
+        } catch (error) {
+          console.error(
+            `Failed to create subject assignments for student ${student.studentRegNo}:`,
+            error,
+          );
+          throw error;
         }
       }
 

@@ -220,7 +220,7 @@ export class ResultsService {
           classArm: { connect: { id: classArmId } },
           resultType: { connect: { id: resultTypeId } },
           school: { connect: { id: schoolId } },
-          createdBy: userId,
+          createdByUser: { connect: { id: userId } },
           uniqueHash,
 
           // Direct fields
