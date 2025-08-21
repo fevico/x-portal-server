@@ -26,6 +26,7 @@ import { CommunicationModule } from './communication/communication.module';
 import { ConfigurationModule } from './configuration/configuration.module';
 import { ScoreModule } from './score/score.module';
 import { CbtModule } from './cbt/cbt.module';
+import { LessonPlanModule } from './lesson-plan/lesson-plan.module';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { CbtModule } from './cbt/cbt.module';
     ScoreModule,
     ResultsModule,
     CbtModule,
+    LessonPlanModule,
   ],
   controllers: [AppController],
   providers: [AppService, PingService],

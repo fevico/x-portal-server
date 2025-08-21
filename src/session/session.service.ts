@@ -297,7 +297,6 @@ export class SessionsService {
           );
         }
       }
-
       // Fetch or create TermDefinition records
       const termDefinitions = await this.prisma.termDefinition.findMany({
         where: {
@@ -329,6 +328,8 @@ export class SessionsService {
           termDefinitionMap[termName] = newTermDef.id;
         }
       }
+
+      //  create weeks automatically after creating term weeks per term base on the duration 
 
       // Create session and session terms in a transaction
       const result = await this.prisma.$transaction(

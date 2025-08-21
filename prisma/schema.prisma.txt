@@ -1085,3 +1085,28 @@ enum TermEnum {
 }
 
 
+
+
+
+
+model Exam {
+  id                    String  @id @default(uuid())
+  name                  String
+  classId               String
+  class                 Class   @relation(Fields: [classId], references: [id], onDelete: Cascade)
+  markingSchemeId       String
+  markingScheme         MarkingScheme @relation(Fields: [markingSchmeId], references; [id], onDelete: Cascade)
+  paper                 Paper[]
+}
+
+ model Paper {
+  id                    String  @id @default(uuid())
+  subjecId              String
+  duration              Int
+  attempt               Int
+  randomQuestion        Boolean   @default(false)
+  showResult            Boolean   @default(false)
+  corrections           Boolean   @default(false)
+  examId                String
+  exam                  Exam @relation(Fields: [examId], references: [id], onDelete: Cascade)
+}

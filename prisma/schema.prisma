@@ -106,6 +106,8 @@ model School {
   studentSubjectAssignments         StudentSubjectAssignment[]
   classArmSubjectAssignments        ClassArmSubjectAssignment[]
   reportSheetSettings               ReportSheetSetting[]
+  queestions                            QuestionSet[]
+  weeks                            Weeks[]
 
   @@index([email])
   @@map("schools")
@@ -223,6 +225,7 @@ model Class {
   termRecords                StudentTermRecord[]                @relation("ClassTermRecords")
   resultBatches              ResultBatch[]
   reportSheetSetting         ReportSheetSetting[]
+  questionSet                QuestionSet[]
 
   @@unique([name, schoolId])
   @@index([schoolId, classCategoryId])
@@ -343,7 +346,7 @@ model Session {
   resultBatches          ResultBatch[]
   StudentClassAssignment StudentClassAssignment[]
   invoice                 Invoice[]  
-
+  weeks                   Weeks[]
   @@unique([name, schoolId])
   @@index([schoolId])
   @@map("sessions")
@@ -366,6 +369,7 @@ model TermDefinition {
   termRecords                   StudentTermRecord[]                @relation("TermRecords")
   resultBatches                 ResultBatch[]
   invoice                       Invoice[]
+  weeks                         Weeks[]
 
   @@unique([name, schoolId])
   @@index([schoolId])
@@ -434,6 +438,7 @@ model Subject {
   teacherAssignments TeacherSubjectAssignment[]
   scores             StudentScoreAssignment[]
   studentResults     StudentResult[]
+  questionSet        QuestionSet[]
 
   @@unique([name, schoolId])
   @@index([schoolId])
@@ -1125,6 +1130,60 @@ model ReportSheetSetting {
   updatedAt           DateTime? @updatedAt @map("updated_at")
   createdBy           String?   @map("created_by") @db.VarChar(50)
   updatedBy           String?   @map("updated_by") @db.VarChar(50)
+}
+
+model QuestionSet {
+id        String    @id @default(uuid())
+subjectId String
+classId   String
+schoolId  String
+createdBy String?    // Assuming this is a user ID, relate to User model if exists
+updatedBy String?   // Optional for updates
+createdAt DateTime  @default(now())
+updatedAt DateTime  @updatedAt
+subject   Subject   @relation(fields: [subjectId], references: [id])
+school  School    @relation(fields: [schoolId], references: [id])
+class     Class     @relation(fields: [classId], references: [id])
+questions Question[]
+@@unique([subjectId, classId, schoolId]) // Ensures one QuestionSet per subject-class combination
+@@index([subjectId])
+@@index([classId])
+@@index([schoolId])
+}
+model Question {
+id             String   @id @default(uuid())
+text           String
+questionSetId  String
+questionSet    QuestionSet @relation(fields: [questionSetId], references: [id], onDelete: Cascade)
+options        Option[]
+@@index([questionSetId])
+}
+model Option {
+id          String   @id @default(uuid())
+text        String
+isCorrect   Boolean  @default(false)
+questionId  String
+question    Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+@@index([questionId])
+}
+
+model LessonPlan {
+  id                    String  @id @default(uuid())
+}
+
+model Weeks{
+  id                    String  @id @default(uuid())
+  name                  String
+  schoolId              String
+  school                School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  sessionId             String
+  session               Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  termId                String
+  term                  TermDefinition @relation(fields: [termId], references: [id], onDelete: Cascade)
+  createdAt             DateTime
+  startDate             DateTime
+  endDate               DateTime
+  
 }
 
 // model Discount {
