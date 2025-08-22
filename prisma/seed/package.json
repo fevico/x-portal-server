@@ -1,10 +1,12 @@
 {
-    "name": "seed-grading-systems",
+    "name": "x-portal-seeds",
     "version": "1.0.0",
-    "description": "Seed grading systems for a specific school",
+    "description": "Seed scripts for X-Portal Server",
     "main": "seed-grading-systems.ts",
     "scripts": {
-        "seed": "npx tsx seed-grading-systems.ts",
+        "seed:grading": "npx tsx seed-grading-systems.ts",
+        "seed:subscriptions": "npx tsx seed-subscription-packages.ts",
+        "seed:schools": "npx tsx seed-school-comprehensive-data.ts",
         "dev": "npx tsx seed-grading-systems.ts"
     },
     "devDependencies": {

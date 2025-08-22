@@ -5,7 +5,7 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function clearLogs() {
-  const BATCH_SIZE = 89;
+  const BATCH_SIZE = Number(89);
   let deleted: number;
 
   console.log(`⏳ Starting log truncation in batches of ${BATCH_SIZE}...`);
@@ -13,6 +13,11 @@ async function clearLogs() {
   do {
     // delete up to BATCH_SIZE rows
     const result = await prisma.logEntry.deleteMany({
+      // where: {
+      //   id: {
+      //     notIn: ['cmdraukkz0005hnm8kq6yr8c3', 'cmdramgvd0000hnf0vbblis2r'],
+      //   },
+      // },
       limit: BATCH_SIZE,
     });
     deleted = result.count;

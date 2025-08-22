@@ -35,18 +35,17 @@ export class UtilityService {
 //     throw new Error('Failed to generate a unique reference number after maximum attempts');
 //   }
 
-
 export const generateInvoiceReference = () => {
-    const letters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    const digits = '0123456789';
-    const allChars = letters + digits;
-    
-    let password = '';
-    for (let i = 0; i < 6; i++) {
-        password += allChars.charAt(Math.floor(Math.random() * allChars.length));
-    }
-    
-    return password;
+  const letters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const digits = '0123456789';
+  const allChars = letters + digits;
+
+  let password = '';
+  for (let i = 0; i < 6; i++) {
+    password += allChars.charAt(Math.floor(Math.random() * allChars.length));
+  }
+
+  return password;
 };
 
 // Example usage

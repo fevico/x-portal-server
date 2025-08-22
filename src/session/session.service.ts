@@ -12,6 +12,7 @@ import { LoggingService } from '@/log/logging.service';
 import { AuthenticatedUser } from '@/types/express';
 import { TermEnum } from '@prisma/client';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { addDays, differenceInWeeks, startOfWeek, endOfWeek } from 'date-fns'; // Import date-fns utilities
 
 @Injectable()
 export class SessionsService {
@@ -240,181 +241,403 @@ export class SessionsService {
     });
   }
 
-  async createSession(dto: CreateSessionDto, req: any) {
-    const requester = req.user;
+  // async createSession(dto: CreateSessionDto, req: any) {
+  //   const requester = req.user;
 
-    try {
-      // Validate school
-      const school = await this.prisma.school.findUnique({
-        where: { id: requester.schoolId },
-      });
-      if (!school) {
-        throw new NotFoundException('School not found');
-      }
+  //   try {
+  //     // Validate school
+  //     const school = await this.prisma.school.findUnique({
+  //       where: { id: requester.schoolId },
+  //     });
+  //     if (!school) {
+  //       throw new NotFoundException('School not found');
+  //     }
 
-      // Validate session doesn't already exist
-      const existingSession = await this.prisma.session.findFirst({
-        where: {
-          name: dto.session,
-          schoolId: requester.schoolId,
-          isDeleted: false,
-        },
-      });
-      if (existingSession) {
-        throw new BadRequestException('Session already exists for this school');
-      }
+  //     // Validate session doesn't already exist
+  //     const existingSession = await this.prisma.session.findFirst({
+  //       where: {
+  //         name: dto.session,
+  //         schoolId: requester.schoolId,
+  //         isDeleted: false,
+  //       },
+  //     });
+  //     if (existingSession) {
+  //       throw new BadRequestException('Session already exists for this school');
+  //     }
 
-      // Validate date ranges
-      const dates = [
-        {
-          start: new Date(dto.firstTermStartDate),
-          end: new Date(dto.firstTermEndDate),
-        },
-        {
-          start: new Date(dto.secondTermStartDate),
-          end: new Date(dto.secondTermEndDate),
-        },
-        {
-          start: new Date(dto.thirdTermStartDate),
-          end: new Date(dto.thirdTermEndDate),
-        },
-      ];
+  //     // Validate date ranges
+  //     const dates = [
+  //       {
+  //         start: new Date(dto.firstTermStartDate),
+  //         end: new Date(dto.firstTermEndDate),
+  //       },
+  //       {
+  //         start: new Date(dto.secondTermStartDate),
+  //         end: new Date(dto.secondTermEndDate),
+  //       },
+  //       {
+  //         start: new Date(dto.thirdTermStartDate),
+  //         end: new Date(dto.thirdTermEndDate),
+  //       },
+  //     ];
 
-      for (let i = 0; i < dates.length; i++) {
-        if (isNaN(dates[i].start.getTime()) || isNaN(dates[i].end.getTime())) {
-          throw new BadRequestException(
-            `Term ${i + 1} has invalid date format`,
-          );
-        }
-        if (dates[i].start >= dates[i].end) {
-          throw new BadRequestException(
-            `Term ${i + 1} start date must be before end date`,
-          );
-        }
-        if (i > 0 && dates[i].start <= dates[i - 1].end) {
-          throw new BadRequestException(
-            `Term ${i + 1} start date must be after Term ${i} end date`,
-          );
-        }
-      }
-      // Fetch or create TermDefinition records
-      const termDefinitions = await this.prisma.termDefinition.findMany({
-        where: {
-          schoolId: requester.schoolId,
-          name: { in: ['First_Term', 'Second_Term', 'Third_Term'] },
-        },
-      });
+  //     for (let i = 0; i < dates.length; i++) {
+  //       if (isNaN(dates[i].start.getTime()) || isNaN(dates[i].end.getTime())) {
+  //         throw new BadRequestException(
+  //           `Term ${i + 1} has invalid date format`,
+  //         );
+  //       }
+  //       if (dates[i].start >= dates[i].end) {
+  //         throw new BadRequestException(
+  //           `Term ${i + 1} start date must be before end date`,
+  //         );
+  //       }
+  //       if (i > 0 && dates[i].start <= dates[i - 1].end) {
+  //         throw new BadRequestException(
+  //           `Term ${i + 1} start date must be after Term ${i} end date`,
+  //         );
+  //       }
+  //     }
+  //     // Fetch or create TermDefinition records
+  //     const termDefinitions = await this.prisma.termDefinition.findMany({
+  //       where: {
+  //         schoolId: requester.schoolId,
+  //         name: { in: ['First_Term', 'Second_Term', 'Third_Term'] },
+  //       },
+  //     });
 
-      const termDefinitionMap = termDefinitions.reduce(
-        (acc, td) => {
-          acc[td.name] = td.id;
-          return acc;
-        },
-        {} as Record<string, string>,
-      );
+  //     const termDefinitionMap = termDefinitions.reduce(
+  //       (acc, td) => {
+  //         acc[td.name] = td.id;
+  //         return acc;
+  //       },
+  //       {} as Record<string, string>,
+  //     );
 
-      // Ensure all required TermDefinitions exist
-      const requiredTerms = ['First_Term', 'Second_Term', 'Third_Term'];
-      for (const termName of requiredTerms) {
-        if (!termDefinitionMap[termName]) {
-          // Create missing TermDefinition
-          const newTermDef = await this.prisma.termDefinition.create({
-            data: {
-              name: termName as TermEnum, // Cast to TermEnum
-              schoolId: requester.schoolId,
-              createdBy: requester.id,
-            },
-          });
-          termDefinitionMap[termName] = newTermDef.id;
-        }
-      }
+  //     // Ensure all required TermDefinitions exist
+  //     const requiredTerms = ['First_Term', 'Second_Term', 'Third_Term'];
+  //     for (const termName of requiredTerms) {
+  //       if (!termDefinitionMap[termName]) {
+  //         // Create missing TermDefinition
+  //         const newTermDef = await this.prisma.termDefinition.create({
+  //           data: {
+  //             name: termName as TermEnum, // Cast to TermEnum
+  //             schoolId: requester.schoolId,
+  //             createdBy: requester.id,
+  //           },
+  //         });
+  //         termDefinitionMap[termName] = newTermDef.id;
+  //       }
+  //     }
 
-      //  create weeks automatically after creating term weeks per term base on the duration 
+  //     //  create weeks automatically after creating term weeks per term base on the duration    
 
-      // Create session and session terms in a transaction
-      const result = await this.prisma.$transaction(
-        async (tx) => {
-          // Create session
-          const session = await tx.session.create({
-            data: {
-              name: dto.session,
-              schoolId: requester.schoolId,
-              createdBy: requester.id,
-            },
-          });
+  //     // Create session and session terms in a transaction
+  //     const result = await this.prisma.$transaction(
+  //       async (tx) => {
+  //         // Create session
+  //         const session = await tx.session.create({
+  //           data: {
+  //             name: dto.session,
+  //             schoolId: requester.schoolId,
+  //             createdBy: requester.id,
+  //           },
+  //         });
 
-          // Create session terms
-          const sessionTerms = await Promise.all([
-            tx.sessionTerm.create({
-              data: {
-                termDefinitionId: termDefinitionMap['First_Term'],
-                sessionId: session.id,
-                schoolId: requester.schoolId,
-                startDate: new Date(dto.firstTermStartDate),
-                endDate: new Date(dto.firstTermEndDate),
-                createdBy: requester.id,
-              },
-            }),
-            tx.sessionTerm.create({
-              data: {
-                termDefinitionId: termDefinitionMap['Second_Term'],
-                sessionId: session.id,
-                schoolId: requester.schoolId,
-                startDate: new Date(dto.secondTermStartDate),
-                endDate: new Date(dto.secondTermEndDate),
-                createdBy: requester.id,
-              },
-            }),
-            tx.sessionTerm.create({
-              data: {
-                termDefinitionId: termDefinitionMap['Third_Term'],
-                sessionId: session.id,
-                schoolId: requester.schoolId,
-                startDate: new Date(dto.thirdTermStartDate),
-                endDate: new Date(dto.thirdTermEndDate),
-                createdBy: requester.id,
-              },
-            }),
-          ]);
+  //         // Create session terms
+  //         const sessionTerms = await Promise.all([
+  //           tx.sessionTerm.create({
+  //             data: {
+  //               termDefinitionId: termDefinitionMap['First_Term'],
+  //               sessionId: session.id,
+  //               schoolId: requester.schoolId,
+  //               startDate: new Date(dto.firstTermStartDate),
+  //               endDate: new Date(dto.firstTermEndDate),
+  //               createdBy: requester.id,
+  //             },
+  //           }),
+  //           tx.sessionTerm.create({
+  //             data: {
+  //               termDefinitionId: termDefinitionMap['Second_Term'],
+  //               sessionId: session.id,
+  //               schoolId: requester.schoolId,
+  //               startDate: new Date(dto.secondTermStartDate),
+  //               endDate: new Date(dto.secondTermEndDate),
+  //               createdBy: requester.id,
+  //             },
+  //           }),
+  //           tx.sessionTerm.create({
+  //             data: {
+  //               termDefinitionId: termDefinitionMap['Third_Term'],
+  //               sessionId: session.id,
+  //               schoolId: requester.schoolId,
+  //               startDate: new Date(dto.thirdTermStartDate),
+  //               endDate: new Date(dto.thirdTermEndDate),
+  //               createdBy: requester.id,
+  //             },
+  //           }),
+  //         ]);
 
-          return {
-            message: 'Session created successfully',
-            session,
-            sessionTerms,
-          };
-        },
-        { timeout: 10000 }, // Increase timeout to 10 seconds
-      );
+  //         return {
+  //           message: 'Session created successfully',
+  //           session,
+  //           sessionTerms,
+  //         };
+  //       },
+  //       { timeout: 10000 }, // Increase timeout to 10 seconds
+  //     );
 
-      // Log action outside the transaction
-      await this.loggingService.logAction(
-        'create_session',
-        'Session',
-        result.session.id,
-        requester.id,
-        requester.schoolId,
-        {
-          name: result.session.name,
-          terms: result.sessionTerms.map((t) => ({
-            termDefinitionId: t.termDefinitionId,
-            startDate: t.startDate,
-            endDate: t.endDate,
-          })),
-        },
-        req,
-      );
+  //     // Log action outside the transaction
+  //     await this.loggingService.logAction(
+  //       'create_session',
+  //       'Session',
+  //       result.session.id,
+  //       requester.id,
+  //       requester.schoolId,
+  //       {
+  //         name: result.session.name,
+  //         terms: result.sessionTerms.map((t) => ({
+  //           termDefinitionId: t.termDefinitionId,
+  //           startDate: t.startDate,
+  //           endDate: t.endDate,
+  //         })),
+  //       },
+  //       req,
+  //     );
 
-      return {
-        statusCode: 201,
-        message: 'Session created successfully',
-      };
-    } catch (error) {
-      console.error('Error creating session:', error);
-      throw new Error(
-        'Failed to create session: ' + (error.message || 'Unknown error'),
-      );
+  //     return {
+  //       statusCode: 201,
+  //       message: 'Session created successfully',
+  //     };
+  //   } catch (error) {
+  //     console.error('Error creating session:', error);
+  //     throw new Error(
+  //       'Failed to create session: ' + (error.message || 'Unknown error'),
+  //     );
+  //   }
+  // }
+
+
+async createSession(dto: CreateSessionDto, req: any) {
+  const requester = req.user;
+
+  try {
+    // Validate school
+    const school = await this.prisma.school.findUnique({
+      where: { id: requester.schoolId },
+    });
+    if (!school) {
+      throw new NotFoundException('School not found');
     }
+
+    // Validate session doesn't already exist
+    const existingSession = await this.prisma.session.findFirst({
+      where: {
+        name: dto.session,
+        schoolId: requester.schoolId,
+        isDeleted: false,
+      },
+    });
+    if (existingSession) {
+      throw new BadRequestException('Session already exists for this school');
+    }
+
+    // Validate date ranges
+    const dates = [
+      {
+        start: new Date(dto.firstTermStartDate),
+        end: new Date(dto.firstTermEndDate),
+      },
+      {
+        start: new Date(dto.secondTermStartDate),
+        end: new Date(dto.secondTermEndDate),
+      },
+      {
+        start: new Date(dto.thirdTermStartDate),
+        end: new Date(dto.thirdTermEndDate),
+      },
+    ];
+
+    for (let i = 0; i < dates.length; i++) {
+      if (isNaN(dates[i].start.getTime()) || isNaN(dates[i].end.getTime())) {
+        throw new BadRequestException(`Term ${i + 1} has invalid date format`);
+      }
+      if (dates[i].start >= dates[i].end) {
+        throw new BadRequestException(
+          `Term ${i + 1} start date must be before end date`,
+        );
+      }
+      if (i > 0 && dates[i].start <= dates[i - 1].end) {
+        throw new BadRequestException(
+          `Term ${i + 1} start date must be after Term ${i} end date`,
+        );
+      }
+    }
+
+    // Fetch or create TermDefinition records
+    const termDefinitions = await this.prisma.termDefinition.findMany({
+      where: {
+        schoolId: requester.schoolId,
+        name: { in: ['First_Term', 'Second_Term', 'Third_Term'] },
+      },
+    });
+
+    const termDefinitionMap = termDefinitions.reduce(
+      (acc, td) => {
+        acc[td.name] = td.id;
+        return acc;
+      },
+      {} as Record<string, string>,
+    );
+
+    // Ensure all required TermDefinitions exist
+    const requiredTerms = ['First_Term', 'Second_Term', 'Third_Term'];
+    for (const termName of requiredTerms) {
+      if (!termDefinitionMap[termName]) {
+        const newTermDef = await this.prisma.termDefinition.create({
+          data: {
+            name: termName as TermEnum,
+            schoolId: requester.schoolId,
+            createdBy: requester.id,
+          },
+        });
+        termDefinitionMap[termName] = newTermDef.id;
+      }
+    }
+
+    // Create session, session terms, and weeks in a transaction
+    const result = await this.prisma.$transaction(
+      async (tx) => {
+        // Create session
+        const session = await tx.session.create({
+          data: {
+            name: dto.session,
+            schoolId: requester.schoolId,
+            createdBy: requester.id,
+          },
+        });
+
+        // Create session terms
+        const sessionTerms = await Promise.all([
+          tx.sessionTerm.create({
+            data: {
+              termDefinitionId: termDefinitionMap['First_Term'],
+              sessionId: session.id,
+              schoolId: requester.schoolId,
+              startDate: new Date(dto.firstTermStartDate),
+              endDate: new Date(dto.firstTermEndDate),
+              createdBy: requester.id,
+            },
+          }),
+          tx.sessionTerm.create({
+            data: {
+              termDefinitionId: termDefinitionMap['Second_Term'],
+              sessionId: session.id,
+              schoolId: requester.schoolId,
+              startDate: new Date(dto.secondTermStartDate),
+              endDate: new Date(dto.secondTermEndDate),
+              createdBy: requester.id,
+            },
+          }),
+          tx.sessionTerm.create({
+            data: {
+              termDefinitionId: termDefinitionMap['Third_Term'],
+              sessionId: session.id,
+              schoolId: requester.schoolId,
+              startDate: new Date(dto.thirdTermStartDate),
+              endDate: new Date(dto.thirdTermEndDate),
+              createdBy: requester.id,
+            },
+          }),
+        ]);
+
+        // Create weeks for each session term
+        const weeks = [];
+        for (let i = 0; i < sessionTerms.length; i++) {
+          const term = sessionTerms[i];
+          const termStart = new Date(term.startDate);
+          const termEnd = new Date(term.endDate);
+
+          // Calculate the number of weeks (including partial weeks)
+          const totalWeeks = differenceInWeeks(termEnd, termStart) + 1;
+
+          // Generate weeks
+          for (let weekNum = 1; weekNum <= totalWeeks; weekNum++) {
+            const weekStart = addDays(termStart, (weekNum - 1) * 7);
+            let weekEnd = addDays(weekStart, 6); // Full 7-day week
+
+            // Ensure the week doesn't exceed the term's end date
+            if (weekEnd > termEnd) {
+              weekEnd = termEnd;
+            }
+
+            // For Monday-to-Friday weeks, adjust weekStart and weekEnd:
+            // const weekStart = startOfWeek(addDays(termStart, (weekNum - 1) * 7), { weekStartsOn: 1 }); // Monday
+            // let weekEnd = addDays(weekStart, 4); // Friday
+            // if (weekEnd > termEnd) weekEnd = termEnd;
+
+            const week = await tx.weeks.create({
+              data: {
+                name: `Week ${weekNum}`,
+                schoolId: requester.schoolId,
+                sessionId: session.id,
+                termId: term.termDefinitionId, // Use termDefinitionId as termId
+                createdAt: new Date(),
+                startDate: weekStart,
+                endDate: weekEnd,
+              },
+            });
+            weeks.push(week);
+          }
+        }
+
+        return {
+          message: 'Session created successfully',
+          session,
+          sessionTerms,
+          weeks, // Include weeks in the result for logging or further use
+        };
+      },
+      { timeout: 10000 },
+    );
+
+    // Log action outside the transaction
+    await this.loggingService.logAction(
+      'create_session',
+      'Session',
+      result.session.id,
+      requester.id,
+      requester.schoolId,
+      {
+        name: result.session.name,
+        terms: result.sessionTerms.map((t) => ({
+          termDefinitionId: t.termDefinitionId,
+          startDate: t.startDate,
+          endDate: t.endDate,
+        })),
+        weeks: result.weeks.map((w) => ({
+          name: w.name,
+          termId: w.termId,
+          startDate: w.startDate,
+          endDate: w.endDate,
+        })),
+      },
+      req,
+    );
+
+    return {
+      statusCode: 201,
+      message: 'Session created successfully',
+    };
+  } catch (error) {
+    console.error('Error creating session:', error);
+    throw new Error(
+      'Failed to create session: ' + (error.message || 'Unknown error'),
+    );
   }
+}
+
+
 
   async getSessionsBySchool(req: any) {
     const requester = req.user;

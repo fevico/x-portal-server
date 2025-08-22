@@ -4,6 +4,6 @@ import { Body, Controller, Post } from '@nestjs/common';
 export class LessonPlanController {
     @Post("create")
     async createLessonplan(@Body() body: any){
-
+        
     }
 }

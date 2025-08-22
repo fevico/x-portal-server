@@ -108,6 +108,7 @@ model School {
   reportSheetSettings               ReportSheetSetting[]
   queestions                            QuestionSet[]
   weeks                            Weeks[]
+  LessonPlan                       LessonPlan[]
 
   @@index([email])
   @@map("schools")
@@ -347,6 +348,7 @@ model Session {
   StudentClassAssignment StudentClassAssignment[]
   invoice                 Invoice[]  
   weeks                   Weeks[]
+  LessonPlan              LessonPlan[]
   @@unique([name, schoolId])
   @@index([schoolId])
   @@map("sessions")
@@ -370,6 +372,7 @@ model TermDefinition {
   resultBatches                 ResultBatch[]
   invoice                       Invoice[]
   weeks                         Weeks[]
+  LessonPlan                    LessonPlan[]
 
   @@unique([name, schoolId])
   @@index([schoolId])
@@ -1150,6 +1153,8 @@ questions Question[]
 @@index([classId])
 @@index([schoolId])
 }
+
+
 model Question {
 id             String   @id @default(uuid())
 text           String
@@ -1169,6 +1174,12 @@ question    Question @relation(fields: [questionId], references: [id], onDelete:
 
 model LessonPlan {
   id                    String  @id @default(uuid())
+  schoolId              String
+  school                School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  termId                String
+  term                  TermDefinition @relation(fields: [termId, references: [id], onDelete: Cascade])
+  sessionId             String 
+  session               Session @relation(fields: [sessionId, references: [id], onDelete: Cascade])
 }
 
 model Weeks{
