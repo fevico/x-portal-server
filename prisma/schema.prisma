@@ -227,6 +227,7 @@ model Class {
   resultBatches              ResultBatch[]
   reportSheetSetting         ReportSheetSetting[]
   questionSet                QuestionSet[]
+  lessonPlan                 LessonPlan[]
 
   @@unique([name, schoolId])
   @@index([schoolId, classCategoryId])
@@ -275,6 +276,7 @@ model ClassArm {
   scores                     StudentScoreAssignment[]
   termRecords                StudentTermRecord[]         @relation("ClassArmTermRecords")
   resultBatches              ResultBatch[]
+  lessonPlan                 LessonPlan[]
 
   @@unique([name, schoolId])
   @@index([schoolId])
@@ -442,6 +444,7 @@ model Subject {
   scores             StudentScoreAssignment[]
   studentResults     StudentResult[]
   questionSet        QuestionSet[]
+  lessonPlan         LessonPlan[]
 
   @@unique([name, schoolId])
   @@index([schoolId])
@@ -1172,41 +1175,64 @@ question    Question @relation(fields: [questionId], references: [id], onDelete:
 @@index([questionId])
 }
 
+
+model Weeks {
+  id        String       @id @default(uuid()) @map("id") @db.VarChar(36)
+  name      String       @map("name") @db.VarChar(100)
+  schoolId  String       @map("school_id") @db.VarChar(36)
+  school    School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  sessionId String       @map("session_id") @db.VarChar(36)
+  session   Session      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  termId    String       @map("term_id") @db.VarChar(36)
+  term      TermDefinition @relation(fields: [termId], references: [id], onDelete: Cascade)
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime?    @updatedAt @map("updated_at")
+  createdBy String?      @map("created_by") @db.VarChar(36)
+  updatedBy String?      @map("updated_by") @db.VarChar(36)
+  isDeleted Boolean      @default(false) @map("is_deleted")
+  isActive  Boolean      @default(true) @map("is_active")
+  startDate DateTime     @map("start_date")
+  endDate   DateTime     @map("end_date")
+  lessonPlans LessonPlan[] // One-to-many relation with LessonPlan
+
+  @@unique([schoolId, sessionId, termId, name])
+  @@index([schoolId, sessionId, termId])
+}
+
 model LessonPlan {
-  id                    String  @id @default(uuid())
-  schoolId              String
-  school                School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  termId                String
-  term                  TermDefinition @relation(fields: [termId, references: [id], onDelete: Cascade])
-  sessionId             String 
-  session               Session @relation(fields: [sessionId, references: [id], onDelete: Cascade])
+  id          String        @id @default(uuid()) @map("id") @db.VarChar(36)
+  schoolId    String        @map("school_id") @db.VarChar(36)
+  school      School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  termId      String        @map("term_id") @db.VarChar(36)
+  term        TermDefinition @relation(fields: [termId], references: [id], onDelete: Cascade)
+  classArmId  String?        @map("class_arm_id") @db.VarChar(36)
+  classArm    ClassArm?      @relation(fields: [classArmId], references: [id], onDelete: Cascade)
+  sessionId   String        @map("session_id") @db.VarChar(36)
+  session     Session       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  subjectId   String?       @map("subject_id") @db.VarChar(36)
+  subject     Subject?      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  classId     String?       @map("class_id") @db.VarChar(36)
+  class       Class?        @relation(fields: [classId], references: [id], onDelete: Cascade)
+  weekId      String        @map("week_id") @db.VarChar(36)
+  week        Weeks         @relation(fields: [weekId], references: [id], onDelete: Cascade)
+  title       String        @map("title") @db.VarChar(100)
+  description String?       @map("description") @db.VarChar(255)
+  date        DateTime      @map("date")
+  period      String        @map("period") @db.VarChar(50)
+  duration    String        @map("duration") @db.VarChar(50)
+  step        String?       @map("step") @db.VarChar(255)
+  teacherActivity String?   @map("teacher_activity") @db.VarChar(255)
+  resources   Json?         @map("resources")
+  createdAt   DateTime?     @default(now()) @map("created_at")
+  updatedAt   DateTime?     @updatedAt @map("updated_at")
+  createdBy   String?       @map("created_by") @db.VarChar(36)
+  updatedBy   String?       @map("updated_by") @db.VarChar(36)
+  isDeleted   Boolean       @default(false) @map("is_deleted")
+  isActive    Boolean       @default(true) @map("is_active")
+
+  @@unique([schoolId, sessionId, termId, subjectId, classId, weekId])
+  @@index([schoolId, sessionId, termId, weekId])
 }
-
-model Weeks{
-  id                    String  @id @default(uuid())
-  name                  String
-  schoolId              String
-  school                School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  sessionId             String
-  session               Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  termId                String
-  term                  TermDefinition @relation(fields: [termId], references: [id], onDelete: Cascade)
-  createdAt             DateTime
-  startDate             DateTime
-  endDate               DateTime
-  
-}
-
-// model Discount {
-//   id        String  @id @default(uuid())
-//   amount    Int     @map("amount")
-//   invoiceId String  @map("invoice_id") @db.VarChar(50)
-//   invoice   Invoice @relation(fields: [invoiceId], references: [id])
-//   schoolId  String  @map("school_id") @db.VarChar(50)
-//   school    School  @relation(fields: [schoolId], references: [id])
-//   isDeleted Boolean @default(false)
-// }
-
 
 // Enums
 enum Gender {

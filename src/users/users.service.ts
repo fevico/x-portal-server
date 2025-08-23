@@ -225,7 +225,7 @@ export class UsersService {
                 // department: data.department,
                 // position: data.position,
                 // qualifications: data.qualifications,
-                createdByUser: { connect: { id: requester.id } },
+                // createdByUser: { connect: { id: requester.id } },
               },
             });
           } else if (subRole.name.toLowerCase() === 'student') {
@@ -248,7 +248,7 @@ export class UsersService {
                 parent: data.parentId
                   ? { connect: { id: data.parentId } }
                   : undefined,
-                createdByUser: { connect: { id: requester.id } },
+                // createdByUser: { connect: { id: requester.id } },
               },
             });
             // create class assignment if classId is provided
@@ -271,7 +271,7 @@ export class UsersService {
                 user: { connect: { id: createdUser.id } },
                 occupation: data.occupation,
                 relationship: data.relationship,
-                createdByUser: { connect: { id: requester.id } },
+                // createdByUser: { connect: { id: requester.id } },
               },
             });
           }
@@ -431,7 +431,7 @@ export class UsersService {
                 parent: data.parentId
                   ? { connect: { id: data.parentId } }
                   : undefined,
-                updatedByUser: { connect: { id: requester.id } },
+                // updatedByUser: { connect: { id: requester.id } },
               },
               create: {
                 // id: uuidv4(),
@@ -446,7 +446,7 @@ export class UsersService {
                 parent: data.parentId
                   ? { connect: { id: data.parentId } }
                   : undefined,
-                createdByUser: { connect: { id: requester.id } },
+                // createdByUser: { connect: { id: requester.id } },
               },
             });
           } else if (subRole.name.toLowerCase() === 'parent') {
