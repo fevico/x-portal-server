@@ -7,7 +7,7 @@ datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
 }
-
+//comment
 // User model for common user data 
 model User {
   id              String    @id @default(cuid())
