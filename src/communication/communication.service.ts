@@ -22,6 +22,7 @@ export class CommunicationService {
           eventColor,
           // schoolId,
           school: { connect: { id: schoolId } },
+          createdByUser: { connect: { id: user.id } },
         },
       });
       return event;

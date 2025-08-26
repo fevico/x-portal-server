@@ -13,8 +13,8 @@ DELETE FROM _prisma_migrations WHERE migration_name = '20250626203524_add_studen
 exit;
 
 
-SELECT * FROM _prisma_migrations WHERE migration_name = '20250731004452_added';
-DELETE FROM _prisma_migrations WHERE migration_name = '20250731004452_added';
+SELECT * FROM _prisma_migrations WHERE migration_name = '20250820153147_update_invoice_status_enum';
+DELETE FROM _prisma_migrations WHERE migration_name = '20250820153147_update_invoice_status_enum';
 exit;
 
 npx prisma migrate dev --name modified-configuration
@@ -67,3 +67,8 @@ on create student as in new user cerate session assignment with class and subjec
 
 if session starts and student is assigned to class and class arm cannot remove that class or class arm for that session until all students are moved, if u assign subject to class we check to make sure students in that class gets the subject immediately and if u remove subject from class we check to make sure students in that class are not assigned to that subject immediately
 approved by cerwated and updated by needs to connect to user model
+
+
+
+
+mysql -h mysql-6ce44ed-netojaycee-eadc.i.aivencloud.com -P 11674 -u avnadmin -p defaultdb -e "SELECT DISTINCT status FROM student_invoice_assignments;"

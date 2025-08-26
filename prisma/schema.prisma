@@ -10,121 +10,138 @@ datasource db {
 
 // User model for common user data 
 model User {
-  id              String    @id @default(cuid())
-  firstname       String?
-  lastname        String?
-  othername       String?
-  username        String    @unique
-  email           String?   @unique
-  contact         String?   @unique
-  gender          Gender?
-  address         String?
-  isActive        Boolean   @default(true)
-  emailVerifiedAt DateTime? @map("email_verified_at")
-  password        String
-  isDeleted       Boolean   @default(false)
-  plainPassword   String
-  role            Role      @default(admin)
-  rememberToken   String?   @map("remember_token")
-  avatar          Json?     @map("avatar")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
-  schoolSlug      String?   @map("school_slug")
-  schoolId        String?   @map("school_id")
-  school          School?   @relation(fields: [schoolId], references: [id])
-  subRoleId       String?   @map("sub_role_id")
-  subRole         SubRole?  @relation("UserRoles", fields: [subRoleId], references: [id])
-  logEntries      LogEntry[]
-  staff           Staff?    @relation("UserToStaff")
-  student         Student?  @relation("UserToStudent")
-  parent          Parent?   @relation("UserToParent")
-  createdBy           String?   @map("created_by")
-  updatedBy           String?   @map("updated_by")
+  id                                       String                             @id @default(cuid())
+  firstname                                String?
+  lastname                                 String?
+  othername                                String?
+  username                                 String                             @unique
+  email                                    String?                            @unique
+  contact                                  String?                            @unique
+  gender                                   Gender?
+  address                                  String?
+  isActive                                 Boolean                            @default(true)
+  emailVerifiedAt                          DateTime?                          @map("email_verified_at")
+  password                                 String
+  isDeleted                                Boolean                            @default(false)
+  plainPassword                            String
+  role                                     Role                               @default(admin)
+  rememberToken                            String?                            @map("remember_token")
+  avatar                                   Json?                              @map("avatar")
+  createdAt                                DateTime                           @default(now()) @map("created_at")
+  updatedAt                                DateTime                           @updatedAt @map("updated_at")
+  schoolSlug                               String?                            @map("school_slug")
+  schoolId                                 String?                            @map("school_id")
+  school                                   School?                            @relation(fields: [schoolId], references: [id])
+  subRoleId                                String?                            @map("sub_role_id")
+  subRole                                  SubRole?                           @relation("UserRoles", fields: [subRoleId], references: [id])
+  logEntries                               LogEntry[]
+  staff                                    Staff?                             @relation("UserToStaff")
+  student                                  Student?                           @relation("UserToStudent")
+  parent                                   Parent?                            @relation("UserToParent")
+  createdBy                                String?                            @map("created_by")
+  updatedBy                                String?                            @map("updated_by")
   // createdByUser       User?     @relation("UserCreatedBy", fields: [createdBy], references: [id])
   // updatedByUser       User?     @relation("UserUpdatedBy", fields: [updatedBy], references: [id])
-  createdSchools      School[]  @relation("SchoolCreatedBy")
-  updatedSchools      School[]  @relation("SchoolUpdatedBy")
-  createdStaff        Staff[]   @relation("StaffCreatedBy")
-  updatedStaff        Staff[]   @relation("StaffUpdatedBy")
-  createdStudents     Student[] @relation("StudentCreatedBy")
-  updatedStudents     Student[] @relation("StudentUpdatedBy")
-  createdParents      Parent[]  @relation("ParentCreatedBy")
-  updatedParents      Parent[]  @relation("ParentUpdatedBy")
-  createdClasses      Class[]   @relation("ClassCreatedBy")
-  updatedClasses      Class[]   @relation("ClassUpdatedBy")
-  createdClassCategories ClassCategory[] @relation("ClassCategoryCreatedBy")
-  updatedClassCategories ClassCategory[] @relation("ClassCategoryUpdatedBy")
-  createdClassArms    ClassArm[] @relation("ClassArmCreatedBy")
-  updatedClassArms    ClassArm[] @relation("ClassArmUpdatedBy")
-  createdAdmissions   Admission[] @relation("AdmissionCreatedBy")
-  updatedAdmissions   Admission[] @relation("AdmissionUpdatedBy")
-  createdSessions     Session[]  @relation("SessionCreatedBy")
-  updatedSessions     Session[]  @relation("SessionUpdatedBy")
-  createdTermDefinitions TermDefinition[] @relation("TermDefinitionCreatedBy")
-  updatedTermDefinitions TermDefinition[] @relation("TermDefinitionUpdatedBy")
-  createdSessionTerms SessionTerm[] @relation("SessionTermCreatedBy")
-  updatedSessionTerms SessionTerm[] @relation("SessionTermUpdatedBy")
-  createdSessionClassAssignments SessionClassAssignment[] @relation("SessionClassAssignmentCreatedBy")
-  updatedSessionClassAssignments SessionClassAssignment[] @relation("SessionClassAssignmentUpdatedBy")
-  createdSubjects     Subject[]  @relation("SubjectCreatedBy")
-  updatedSubjects     Subject[]  @relation("SubjectUpdatedBy")
-  createdStudentSubjectAssignments StudentSubjectAssignment[] @relation("StudentSubjectAssignmentCreatedBy")
-  updatedStudentSubjectAssignments StudentSubjectAssignment[] @relation("StudentSubjectAssignmentUpdatedBy")
-  createdClassArmSubjectAssignments ClassArmSubjectAssignment[] @relation("ClassArmSubjectAssignmentCreatedBy")
-  updatedClassArmSubjectAssignments ClassArmSubjectAssignment[] @relation("ClassArmSubjectAssignmentUpdatedBy")
-  createdPermissions  Permission[] @relation("PermissionCreatedBy")
-  updatedPermissions  Permission[] @relation("PermissionUpdatedBy")
-  createdSubRoles     SubRole[]  @relation("SubRoleCreatedBy")
-  updatedSubRoles     SubRole[]  @relation("SubRoleUpdatedBy")
-  createdSubRolePermissions SubRolePermission[] @relation("SubRolePermissionCreatedBy")
-  updatedSubRolePermissions SubRolePermission[] @relation("SubRolePermissionUpdatedBy")
-  createdSubscriptions Subscription[] @relation("SubscriptionCreatedBy")
-  updatedSubscriptions Subscription[] @relation("SubscriptionUpdatedBy")
-  createdAttendances  Attendance[] @relation("AttendanceCreatedBy")
-  updatedAttendances  Attendance[] @relation("AttendanceUpdatedBy")
-  createdStudentClassAssignments StudentClassAssignment[] @relation("StudentClassAssignmentCreatedBy")
-  updatedStudentClassAssignments StudentClassAssignment[] @relation("StudentClassAssignmentUpdatedBy")
-  createdLogEntries   LogEntry[] @relation("LogEntryCreatedBy")
-  createdSubscriptionPayments SubscriptionPayment[] @relation("SubscriptionPaymentCreatedBy")
-  createdInvoices     Invoice[]  @relation("InvoiceCreatedBy")
-  createdStudentInvoiceAssignments StudentInvoiceAssignment[] @relation("StudentInvoiceAssignmentCreatedBy")
-  updatedStudentInvoiceAssignments StudentInvoiceAssignment[] @relation("StudentInvoiceAssignmentUpdatedBy")
-  createdDiscounts    Discount[] @relation("DiscountCreatedBy")
-  approvedDiscounts   Discount[] @relation("DiscountApprovedBy")
-  updatedDiscounts    Discount[] @relation("DiscountUpdatedBy")
-  createdCommunications Communication[] @relation("CommunicationCreatedBy")
-  createdMarkingSchemes MarkingScheme[] @relation("MarkingSchemeCreatedBy")
-  updatedMarkingSchemes MarkingScheme[] @relation("MarkingSchemeUpdatedBy")
-  createdMarkingSchemeComponents MarkingSchemeComponent[] @relation("MarkingSchemeComponentCreatedBy")
-  updatedMarkingSchemeComponents MarkingSchemeComponent[] @relation("MarkingSchemeComponentUpdatedBy")
-  createdContinuousAssessments ContinuousAssessment[] @relation("ContinuousAssessmentCreatedBy")
-  updatedContinuousAssessments ContinuousAssessment[] @relation("ContinuousAssessmentUpdatedBy")
-  createdContinuousAssessmentComponents ContinuousAssessmentComponent[] @relation("ContinuousAssessmentComponentCreatedBy")
-  updatedContinuousAssessmentComponents ContinuousAssessmentComponent[] @relation("ContinuousAssessmentComponentUpdatedBy")
-  createdGradingSystems GradingSystem[] @relation("GradingSystemCreatedBy")
-  updatedGradingSystems GradingSystem[] @relation("GradingSystemUpdatedBy")
-  createdGrades       Grade[]    @relation("GradeCreatedBy")
-  updatedGrades       Grade[]    @relation("GradeUpdatedBy")
-  createdClassGradingSystems ClassGradingSystem[] @relation("ClassGradingSystemCreatedBy")
-  updatedClassGradingSystems ClassGradingSystem[] @relation("ClassGradingSystemUpdatedBy")
+  createdSchools                           School[]                           @relation("SchoolCreatedBy")
+  updatedSchools                           School[]                           @relation("SchoolUpdatedBy")
+  createdStaff                             Staff[]                            @relation("StaffCreatedBy")
+  updatedStaff                             Staff[]                            @relation("StaffUpdatedBy")
+  createdStudents                          Student[]                          @relation("StudentCreatedBy")
+  updatedStudents                          Student[]                          @relation("StudentUpdatedBy")
+  createdParents                           Parent[]                           @relation("ParentCreatedBy")
+  updatedParents                           Parent[]                           @relation("ParentUpdatedBy")
+  createdClasses                           Class[]                            @relation("ClassCreatedBy")
+  updatedClasses                           Class[]                            @relation("ClassUpdatedBy")
+  createdClassCategories                   ClassCategory[]                    @relation("ClassCategoryCreatedBy")
+  updatedClassCategories                   ClassCategory[]                    @relation("ClassCategoryUpdatedBy")
+  createdClassArms                         ClassArm[]                         @relation("ClassArmCreatedBy")
+  updatedClassArms                         ClassArm[]                         @relation("ClassArmUpdatedBy")
+  createdAdmissions                        Admission[]                        @relation("AdmissionCreatedBy")
+  updatedAdmissions                        Admission[]                        @relation("AdmissionUpdatedBy")
+  // CBT Relations
+  createdExams                             Exam[]                             @relation("ExamCreator")
+  updatedExams                             Exam[]                             @relation("ExamUpdater")
+  deletedExams                             Exam[]                             @relation("ExamDeleter")
+  createdPapers                            Paper[]                            @relation("PaperCreator")
+  updatedPapers                            Paper[]                            @relation("PaperUpdater")
+  deletedPapers                            Paper[]                            @relation("PaperDeleter")
+  createdQuestions                         Question[]                         @relation("QuestionCreator")
+  updatedQuestions                         Question[]                         @relation("QuestionUpdater")
+  deletedQuestions                         Question[]                         @relation("QuestionDeleter")
+  createdQuestionPapers                    QuestionPaper[]                    @relation("QuestionPaperCreator")
+  updatedQuestionPapers                    QuestionPaper[]                    @relation("QuestionPaperUpdater")
+  submittedResponses                       StudentResponse[]                  @relation("ResponseSubmitter")
+  gradedResponses                          StudentResponse[]                  @relation("ResponseGrader")
+  createdSessions                          Session[]                          @relation("SessionCreatedBy")
+  updatedSessions                          Session[]                          @relation("SessionUpdatedBy")
+  createdTermDefinitions                   TermDefinition[]                   @relation("TermDefinitionCreatedBy")
+  updatedTermDefinitions                   TermDefinition[]                   @relation("TermDefinitionUpdatedBy")
+  createdSessionTerms                      SessionTerm[]                      @relation("SessionTermCreatedBy")
+  updatedSessionTerms                      SessionTerm[]                      @relation("SessionTermUpdatedBy")
+  createdSessionClassAssignments           SessionClassAssignment[]           @relation("SessionClassAssignmentCreatedBy")
+  updatedSessionClassAssignments           SessionClassAssignment[]           @relation("SessionClassAssignmentUpdatedBy")
+  createdSubjects                          Subject[]                          @relation("SubjectCreatedBy")
+  updatedSubjects                          Subject[]                          @relation("SubjectUpdatedBy")
+  createdStudentSubjectAssignments         StudentSubjectAssignment[]         @relation("StudentSubjectAssignmentCreatedBy")
+  updatedStudentSubjectAssignments         StudentSubjectAssignment[]         @relation("StudentSubjectAssignmentUpdatedBy")
+  createdClassArmSubjectAssignments        ClassArmSubjectAssignment[]        @relation("ClassArmSubjectAssignmentCreatedBy")
+  updatedClassArmSubjectAssignments        ClassArmSubjectAssignment[]        @relation("ClassArmSubjectAssignmentUpdatedBy")
+  createdPermissions                       Permission[]                       @relation("PermissionCreatedBy")
+  updatedPermissions                       Permission[]                       @relation("PermissionUpdatedBy")
+  createdSubRoles                          SubRole[]                          @relation("SubRoleCreatedBy")
+  updatedSubRoles                          SubRole[]                          @relation("SubRoleUpdatedBy")
+  createdSubRolePermissions                SubRolePermission[]                @relation("SubRolePermissionCreatedBy")
+  updatedSubRolePermissions                SubRolePermission[]                @relation("SubRolePermissionUpdatedBy")
+  createdSubscriptions                     Subscription[]                     @relation("SubscriptionCreatedBy")
+  updatedSubscriptions                     Subscription[]                     @relation("SubscriptionUpdatedBy")
+  createdAttendances                       Attendance[]                       @relation("AttendanceCreatedBy")
+  updatedAttendances                       Attendance[]                       @relation("AttendanceUpdatedBy")
+  createdStudentClassAssignments           StudentClassAssignment[]           @relation("StudentClassAssignmentCreatedBy")
+  updatedStudentClassAssignments           StudentClassAssignment[]           @relation("StudentClassAssignmentUpdatedBy")
+  createdLogEntries                        LogEntry[]                         @relation("LogEntryCreatedBy")
+  createdSubscriptionPayments              SubscriptionPayment[]              @relation("SubscriptionPaymentCreatedBy")
+  createdInvoices                          Invoice[]                          @relation("InvoiceCreatedBy")
+  createdStudentInvoiceAssignments         StudentInvoiceAssignment[]         @relation("StudentInvoiceAssignmentCreatedBy")
+  updatedStudentInvoiceAssignments         StudentInvoiceAssignment[]         @relation("StudentInvoiceAssignmentUpdatedBy")
+  createdDiscounts                         Discount[]                         @relation("DiscountCreatedBy")
+  approvedDiscounts                        Discount[]                         @relation("DiscountApprovedBy")
+  updatedDiscounts                         Discount[]                         @relation("DiscountUpdatedBy")
+  createdCommunications                    Communication[]                    @relation("CommunicationCreatedBy")
+  createdOfflinePayments                   OfflinePayment[]                   @relation("PaymentCreatedBy")
+  updatedOfflinePayments                   OfflinePayment[]                   @relation("PaymentUpdatedBy")
+  approvedOfflinePayments                  OfflinePayment[]                   @relation("PaymentApprovedBy")
+  createdMarkingSchemes                    MarkingScheme[]                    @relation("MarkingSchemeCreatedBy")
+  updatedMarkingSchemes                    MarkingScheme[]                    @relation("MarkingSchemeUpdatedBy")
+  createdMarkingSchemeComponents           MarkingSchemeComponent[]           @relation("MarkingSchemeComponentCreatedBy")
+  updatedMarkingSchemeComponents           MarkingSchemeComponent[]           @relation("MarkingSchemeComponentUpdatedBy")
+  createdContinuousAssessments             ContinuousAssessment[]             @relation("ContinuousAssessmentCreatedBy")
+  updatedContinuousAssessments             ContinuousAssessment[]             @relation("ContinuousAssessmentUpdatedBy")
+  createdContinuousAssessmentComponents    ContinuousAssessmentComponent[]    @relation("ContinuousAssessmentComponentCreatedBy")
+  updatedContinuousAssessmentComponents    ContinuousAssessmentComponent[]    @relation("ContinuousAssessmentComponentUpdatedBy")
+  createdGradingSystems                    GradingSystem[]                    @relation("GradingSystemCreatedBy")
+  updatedGradingSystems                    GradingSystem[]                    @relation("GradingSystemUpdatedBy")
+  createdGrades                            Grade[]                            @relation("GradeCreatedBy")
+  updatedGrades                            Grade[]                            @relation("GradeUpdatedBy")
+  createdClassGradingSystems               ClassGradingSystem[]               @relation("ClassGradingSystemCreatedBy")
+  updatedClassGradingSystems               ClassGradingSystem[]               @relation("ClassGradingSystemUpdatedBy")
   createdClassTermMarkingSchemeAssignments ClassTermMarkingSchemeAssignment[] @relation("ClassTermMarkingSchemeAssignmentCreatedBy")
   updatedClassTermMarkingSchemeAssignments ClassTermMarkingSchemeAssignment[] @relation("ClassTermMarkingSchemeAssignmentUpdatedBy")
-  createdTeacherSubjectAssignments TeacherSubjectAssignment[] @relation("TeacherSubjectAssignmentCreatedBy")
-  updatedTeacherSubjectAssignments TeacherSubjectAssignment[] @relation("TeacherSubjectAssignmentUpdatedBy")
-  createdClassArmTeacherAssignments ClassArmTeacherAssignment[] @relation("ClassArmTeacherAssignmentCreatedBy")
-  updatedClassArmTeacherAssignments ClassArmTeacherAssignment[] @relation("ClassArmTeacherAssignmentUpdatedBy")
-  createdStudentScoreAssignments StudentScoreAssignment[] @relation("StudentScoreAssignmentCreatedBy")
-  updatedStudentScoreAssignments StudentScoreAssignment[] @relation("StudentScoreAssignmentUpdatedBy")
-  createdStudentTermRecords StudentTermRecord[] @relation("StudentTermRecordCreatedBy")
-  updatedStudentTermRecords StudentTermRecord[] @relation("StudentTermRecordUpdatedBy")
-  createdResultBatches ResultBatch[] @relation("ResultBatchCreatedBy")
-  updatedResultBatches ResultBatch[] @relation("ResultBatchUpdatedBy")
-  approvedResultBatchBy  ResultBatch[] @relation("ResultBatchApprovedBy")
-  createdStudentResults StudentResult[] @relation("StudentResultCreatedBy")
-  createdConfigurations Configuration[] @relation("ConfigurationCreatedBy")
-  updatedConfigurations Configuration[] @relation("ConfigurationUpdatedBy")
-  createdReportSheetSettings ReportSheetSetting[] @relation("ReportSheetSettingCreatedBy")
-  updatedReportSheetSettings ReportSheetSetting[] @relation("ReportSheetSettingUpdatedBy")
+  createdTeacherSubjectAssignments         TeacherSubjectAssignment[]         @relation("TeacherSubjectAssignmentCreatedBy")
+  updatedTeacherSubjectAssignments         TeacherSubjectAssignment[]         @relation("TeacherSubjectAssignmentUpdatedBy")
+  createdClassArmTeacherAssignments        ClassArmTeacherAssignment[]        @relation("ClassArmTeacherAssignmentCreatedBy")
+  updatedClassArmTeacherAssignments        ClassArmTeacherAssignment[]        @relation("ClassArmTeacherAssignmentUpdatedBy")
+  createdStudentScoreAssignments           StudentScoreAssignment[]           @relation("StudentScoreAssignmentCreatedBy")
+  updatedStudentScoreAssignments           StudentScoreAssignment[]           @relation("StudentScoreAssignmentUpdatedBy")
+  createdStudentTermRecords                StudentTermRecord[]                @relation("StudentTermRecordCreatedBy")
+  updatedStudentTermRecords                StudentTermRecord[]                @relation("StudentTermRecordUpdatedBy")
+  createdResultBatches                     ResultBatch[]                      @relation("ResultBatchCreatedBy")
+  updatedResultBatches                     ResultBatch[]                      @relation("ResultBatchUpdatedBy")
+  approvedResultBatchBy                    ResultBatch[]                      @relation("ResultBatchApprovedBy")
+  createdStudentResults                    StudentResult[]                    @relation("StudentResultCreatedBy")
+  createdConfigurations                    Configuration[]                    @relation("ConfigurationCreatedBy")
+  updatedConfigurations                    Configuration[]                    @relation("ConfigurationUpdatedBy")
+  createdReportSheetSettings               ReportSheetSetting[]               @relation("ReportSheetSettingCreatedBy")
+  updatedReportSheetSettings               ReportSheetSetting[]               @relation("ReportSheetSettingUpdatedBy")
 
   @@index([schoolId, email])
   @@index([schoolId, username])
@@ -133,66 +150,73 @@ model User {
 
 // School model 
 model School {
-  id                             String                          @id @default(cuid())
-  name                           String                          @unique
-  email                          String                          @unique
-  slug                           String                          @unique
-  contact                        String                          @unique
-  isActive                       Boolean                         @default(true)
-  isDeleted                      Boolean                         @default(false)
-  address                        String?
-  subscriptionId                 String?                         @map("subscription_id")
-  subscription                   Subscription?                   @relation("SubscriptionSchools", fields: [subscriptionId], references: [id])
-  subscriptionExpiresAt          DateTime?                       @map("subscription_expires_at")
-  subscriptionStatus             Boolean?                        @default(false) @map("subscription_status")
-  createdAt                      DateTime                        @default(now()) @map("created_at")
-  createdBy                      String?                         @map("created_by")
-  createdByUser                  User?                           @relation("SchoolCreatedBy", fields: [createdBy], references: [id])
-  updatedBy                      String?                         @map("updated_by")
-  updatedByUser                  User?                           @relation("SchoolUpdatedBy", fields: [updatedBy], references: [id])
-  updatedAt                      DateTime                        @updatedAt @map("updated_at")
-  users                          User[]
-  subRoles                       SubRole[]
-  subRolePermissions             SubRolePermission[]
-  classGradingSystems            ClassGradingSystem[]
-  markingSchemes                 MarkingScheme[]
-  markingSchemeComponents        MarkingSchemeComponent[]
-  continuousAssessments          ContinuousAssessment[]
-  continuousAssessmentComponents ContinuousAssessmentComponent[]
-  gradingSystems                 GradingSystem[]
-  grades                         Grade[]
-  logEntries                     LogEntry[]
-  classes                        Class[]
-  classArms                      ClassArm[]
-  subjects                       Subject[]
-  invoices                       Invoice[]
-  communication                  Communication[]
-  admissions                     Admission[]
-  sessions                       Session[]
-  currentSessionId               String?                         @map("current_session_id")
-  currentSession                 Session?                        @relation("SchoolCurrentSession", fields: [currentSessionId], references: [id])
-  currentTermId                  String?                         @map("current_term_id")
-  currentTerm                    SessionTerm?                    @relation("SchoolCurrentTerm", fields: [currentTermId], references: [id])
-  sessionClassAssignments        SessionClassAssignment[]
-  classCategories                ClassCategory[]
-  attendanceRecords              Attendance[]
-  classAssignments               StudentClassAssignment[]
-  subscriptionPayments           SubscriptionPayment[]
-  termDefinitions                TermDefinition[]
-  sessionTerms                   SessionTerm[]
+  id                                String                             @id @default(cuid())
+  name                              String                             @unique
+  email                             String                             @unique
+  slug                              String                             @unique
+  contact                           String                             @unique
+  isActive                          Boolean                            @default(true)
+  isDeleted                         Boolean                            @default(false)
+  address                           String?
+  subscriptionId                    String?                            @map("subscription_id")
+  subscription                      Subscription?                      @relation("SubscriptionSchools", fields: [subscriptionId], references: [id])
+  subscriptionExpiresAt             DateTime?                          @map("subscription_expires_at")
+  subscriptionStatus                Boolean?                           @default(false) @map("subscription_status")
+  createdAt                         DateTime                           @default(now()) @map("created_at")
+  createdBy                         String?                            @map("created_by")
+  createdByUser                     User?                              @relation("SchoolCreatedBy", fields: [createdBy], references: [id])
+  updatedBy                         String?                            @map("updated_by")
+  updatedByUser                     User?                              @relation("SchoolUpdatedBy", fields: [updatedBy], references: [id])
+  updatedAt                         DateTime                           @updatedAt @map("updated_at")
+  users                             User[]
+  subRoles                          SubRole[]
+  subRolePermissions                SubRolePermission[]
+  classGradingSystems               ClassGradingSystem[]
+  markingSchemes                    MarkingScheme[]
+  markingSchemeComponents           MarkingSchemeComponent[]
+  continuousAssessments             ContinuousAssessment[]
+  continuousAssessmentComponents    ContinuousAssessmentComponent[]
+  gradingSystems                    GradingSystem[]
+  grades                            Grade[]
+  logEntries                        LogEntry[]
+  classes                           Class[]
+  classArms                         ClassArm[]
+  subjects                          Subject[]
+  invoices                          Invoice[]
+  invoiceClassAssignments           InvoiceClassAssignment[]
+  communication                     Communication[]
+  admissions                        Admission[]
+  sessions                          Session[]
+  currentSessionId                  String?                            @map("current_session_id")
+  currentSession                    Session?                           @relation("SchoolCurrentSession", fields: [currentSessionId], references: [id])
+  currentTermId                     String?                            @map("current_term_id")
+  currentTerm                       SessionTerm?                       @relation("SchoolCurrentTerm", fields: [currentTermId], references: [id])
+  sessionClassAssignments           SessionClassAssignment[]
+  classCategories                   ClassCategory[]
+  attendanceRecords                 Attendance[]
+  classAssignments                  StudentClassAssignment[]
+  subscriptionPayments              SubscriptionPayment[]
+  termDefinitions                   TermDefinition[]
+  offlinePayments                   OfflinePayment[]
+  sessionTerms                      SessionTerm[]
   classTermMarkingSchemeAssignments ClassTermMarkingSchemeAssignment[]
-  teacherAssignments             TeacherSubjectAssignment[]
-  classArmTeacherAssignments     ClassArmTeacherAssignment[]
-  scores                         StudentScoreAssignment[]
-  termRecords                    StudentTermRecord[]             @relation("SchoolTermRecords")
-  resultBatches                  ResultBatch[]
-  studentResults                 StudentResult[]
-  configuration                  Configuration?                  @relation("SchoolConfiguration")
-  studentSubjectAssignments      StudentSubjectAssignment[]
-  classArmSubjectAssignments     ClassArmSubjectAssignment[]
-  reportSheetSettings            ReportSheetSetting[]
-  studentInvoiceAssignments      StudentInvoiceAssignment[]
-  discounts                      Discount[]
+  teacherAssignments                TeacherSubjectAssignment[]
+  classArmTeacherAssignments        ClassArmTeacherAssignment[]
+  scores                            StudentScoreAssignment[]
+  termRecords                       StudentTermRecord[]                @relation("SchoolTermRecords")
+  resultBatches                     ResultBatch[]
+  studentResults                    StudentResult[]
+  configuration                     Configuration?                     @relation("SchoolConfiguration")
+  studentSubjectAssignments         StudentSubjectAssignment[]
+  classArmSubjectAssignments        ClassArmSubjectAssignment[]
+  reportSheetSettings               ReportSheetSetting[]
+  studentInvoiceAssignments         StudentInvoiceAssignment[]
+  discounts                         Discount[]
+  Exam                              Exam[]
+  Paper                             Paper[]
+  Question                          Question[]
+  QuestionPaper                     QuestionPaper[]
+  StudentResponse                   StudentResponse[]
 
   @@index([email])
   @@map("schools")
@@ -200,20 +224,20 @@ model School {
 
 // Staff model 
 model Staff {
-  id             String    @id @default(cuid())
-  userId         String    @unique @map("user_id")
-  user           User      @relation("UserToStaff", fields: [userId], references: [id])
-  staffRegNo     String?   @unique @map("staff_reg_no")
-  hireDate       DateTime? @map("hire_date")
-  qualifications Json?
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
-  createdBy      String?   @map("created_by")
-  createdByUser  User?     @relation("StaffCreatedBy", fields: [createdBy], references: [id])
-  updatedBy      String?   @map("updated_by")
-  updatedByUser  User?     @relation("StaffUpdatedBy", fields: [updatedBy], references: [id])
-  isDeleted      Boolean   @default(false) @map("is_deleted")
-  teacherAssignments TeacherSubjectAssignment[]
+  id                         String                      @id @default(cuid())
+  userId                     String                      @unique @map("user_id")
+  user                       User                        @relation("UserToStaff", fields: [userId], references: [id])
+  staffRegNo                 String?                     @unique @map("staff_reg_no")
+  hireDate                   DateTime?                   @map("hire_date")
+  qualifications             Json?
+  createdAt                  DateTime                    @default(now()) @map("created_at")
+  updatedAt                  DateTime                    @updatedAt @map("updated_at")
+  createdBy                  String?                     @map("created_by")
+  createdByUser              User?                       @relation("StaffCreatedBy", fields: [createdBy], references: [id])
+  updatedBy                  String?                     @map("updated_by")
+  updatedByUser              User?                       @relation("StaffUpdatedBy", fields: [updatedBy], references: [id])
+  isDeleted                  Boolean                     @default(false) @map("is_deleted")
+  teacherAssignments         TeacherSubjectAssignment[]
   classArmTeacherAssignments ClassArmTeacherAssignment[]
 
   @@map("staff")
@@ -249,32 +273,34 @@ model Student {
   updatedByUser      User?                      @relation("StudentUpdatedBy", fields: [updatedBy], references: [id])
   isAlumni           Boolean                    @default(false) @map("is_alumni")
   isDeleted          Boolean                    @default(false) @map("is_deleted")
-attendanceRecords  Attendance[]               @relation("StudentAttendance")
+  attendanceRecords  Attendance[]               @relation("StudentAttendance")
   classAssignments   StudentClassAssignment[]   @relation("StudentClassAssignment")
   invoiceAssignments StudentInvoiceAssignment[]
   scores             StudentScoreAssignment[]
   termRecords        StudentTermRecord[]        @relation("StudentTermRecords")
   studentResults     StudentResult[]
+  offlinePayments    OfflinePayment[]
+  StudentResponse    StudentResponse[]
 
   @@map("students")
 }
 
 // Parent model 
 model Parent {
-  id           String    @id @default(cuid())
-  userId       String    @unique @map("user_id")
-  user         User      @relation("UserToParent", fields: [userId], references: [id])
-  occupation   String?
-  relationship String?
-  students     Student[]
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
-  createdBy    String?   @map("created_by")
-  createdByUser User?    @relation("ParentCreatedBy", fields: [createdBy], references: [id])
-  updatedBy    String?   @map("updated_by")
-  updatedByUser User?    @relation("ParentUpdatedBy", fields: [updatedBy], references: [id])
-  isDeleted    Boolean   @default(false) @map("is_deleted")
-  admissions   Admission[]
+  id            String      @id @default(cuid())
+  userId        String      @unique @map("user_id")
+  user          User        @relation("UserToParent", fields: [userId], references: [id])
+  occupation    String?
+  relationship  String?
+  students      Student[]
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+  createdBy     String?     @map("created_by")
+  createdByUser User?       @relation("ParentCreatedBy", fields: [createdBy], references: [id])
+  updatedBy     String?     @map("updated_by")
+  updatedByUser User?       @relation("ParentUpdatedBy", fields: [updatedBy], references: [id])
+  isDeleted     Boolean     @default(false) @map("is_deleted")
+  admissions    Admission[]
 
   @@map("parents")
 }
@@ -299,7 +325,7 @@ model Class {
   admissionsPresentClass     Admission[]                        @relation("PresentClass")
   admissionsClassToApply     Admission[]                        @relation("ClassToApply")
   admissionsAssignedClass    Admission[]                        @relation("AssignedClass")
-  invoices                   Invoice[]
+  invoices                   InvoiceClassAssignment[]
   sessionClassAssignments    SessionClassAssignment[]
   classArmSubjects           ClassArmSubjectAssignment[]
   attendanceRecords          Attendance[]
@@ -312,6 +338,7 @@ model Class {
   termRecords                StudentTermRecord[]                @relation("ClassTermRecords")
   resultBatches              ResultBatch[]
   reportSheetSetting         ReportSheetSetting[]
+  Exam                       Exam[]
 
   @@unique([name, schoolId])
   @@index([schoolId, classCategoryId])
@@ -372,28 +399,28 @@ model ClassArm {
 
 // Admission model 
 model Admission {
-  id                 String    @id @default(cuid())
-  sessionId          String    @map("session_id")
-  session            Session   @relation("SessionAdmissions", fields: [sessionId], references: [id])
-  schoolId           String    @map("school_id")
-  school             School    @relation(fields: [schoolId], references: [id])
-  studentId          String    @unique @map("student_id")
-  student            Student   @relation("StudentToAdmission", fields: [studentId], references: [id])
-  parentId           String?   @map("parent_id")
-  parent             Parent?   @relation(fields: [parentId], references: [id])
-  presentClassId     String?   @map("present_class_id")
-  presentClass       Class?    @relation("PresentClass", fields: [presentClassId], references: [id])
-  classApplyingTo    String?   @map("class_applying_to")
-  classToApply       Class?    @relation("ClassToApply", fields: [classApplyingTo], references: [id])
-  assignedClassId    String?   @map("assigned_class_id")
-  assignedClass      Class?    @relation("AssignedClass", fields: [assignedClassId], references: [id])
-  assignedClassArmId String?   @map("assigned_class_arm_id")
-  assignedClassArm   ClassArm? @relation("AssignedClassArm", fields: [assignedClassArmId], references: [id])
-  formerSchoolName    String? @map("former_school_name")
-  formerSchoolAddress String? @map("former_school_address")
-  formerSchoolContact String? @map("former_school_contact")
-  healthProblems      String? @map("health_problems")
-  howHeardAboutUs     String? @map("how_heard_about_us")
+  id                  String          @id @default(cuid())
+  sessionId           String          @map("session_id")
+  session             Session         @relation("SessionAdmissions", fields: [sessionId], references: [id])
+  schoolId            String          @map("school_id")
+  school              School          @relation(fields: [schoolId], references: [id])
+  studentId           String          @unique @map("student_id")
+  student             Student         @relation("StudentToAdmission", fields: [studentId], references: [id])
+  parentId            String?         @map("parent_id")
+  parent              Parent?         @relation(fields: [parentId], references: [id])
+  presentClassId      String?         @map("present_class_id")
+  presentClass        Class?          @relation("PresentClass", fields: [presentClassId], references: [id])
+  classApplyingTo     String?         @map("class_applying_to")
+  classToApply        Class?          @relation("ClassToApply", fields: [classApplyingTo], references: [id])
+  assignedClassId     String?         @map("assigned_class_id")
+  assignedClass       Class?          @relation("AssignedClass", fields: [assignedClassId], references: [id])
+  assignedClassArmId  String?         @map("assigned_class_arm_id")
+  assignedClassArm    ClassArm?       @relation("AssignedClassArm", fields: [assignedClassArmId], references: [id])
+  formerSchoolName    String?         @map("former_school_name")
+  formerSchoolAddress String?         @map("former_school_address")
+  formerSchoolContact String?         @map("former_school_contact")
+  healthProblems      String?         @map("health_problems")
+  howHeardAboutUs     String?         @map("how_heard_about_us")
   admissionStatus     AdmissionStatus @default(pending) @map("admission_status")
   admissionDate       DateTime?       @map("admission_date")
   rejectionReason     String?         @map("rejection_reason")
@@ -411,29 +438,30 @@ model Admission {
 
 // Session model 
 model Session {
-  id                     String                     @id @default(cuid())
-  name                   String
-  schoolId               String                     @map("school_id")
-  school                 School                     @relation(fields: [schoolId], references: [id])
-  terms                  SessionTerm[]
-  schools                School[]                   @relation("SchoolCurrentSession")
-  isActive               Boolean                    @default(false)
-  isDeleted              Boolean                    @default(false)
-  admissions             Admission[]                @relation("SessionAdmissions")
-  createdAt              DateTime                   @default(now()) @map("created_at")
-  updatedAt              DateTime                   @updatedAt @map("updated_at")
-  createdBy              String?                    @map("created_by")
-  createdByUser          User?                      @relation("SessionCreatedBy", fields: [createdBy], references: [id])
-  updatedBy              String?                    @map("updated_by")
-  updatedByUser          User?                      @relation("SessionUpdatedBy", fields: [updatedBy], references: [id])
-  classAssignments       SessionClassAssignment[]
-  attendanceRecords      Attendance[]
-  scores                 StudentScoreAssignment[]   @relation("SessionScores")
-  termRecords            StudentTermRecord[]        @relation("SessionTermRecords")
-  studentSubjects        StudentSubjectAssignment[]
-  resultBatches          ResultBatch[]
+  id                      String                     @id @default(cuid())
+  name                    String
+  schoolId                String                     @map("school_id")
+  school                  School                     @relation(fields: [schoolId], references: [id])
+  terms                   SessionTerm[]
+  schools                 School[]                   @relation("SchoolCurrentSession")
+  isActive                Boolean                    @default(false)
+  isDeleted               Boolean                    @default(false)
+  admissions              Admission[]                @relation("SessionAdmissions")
+  createdAt               DateTime                   @default(now()) @map("created_at")
+  updatedAt               DateTime                   @updatedAt @map("updated_at")
+  createdBy               String?                    @map("created_by")
+  createdByUser           User?                      @relation("SessionCreatedBy", fields: [createdBy], references: [id])
+  updatedBy               String?                    @map("updated_by")
+  updatedByUser           User?                      @relation("SessionUpdatedBy", fields: [updatedBy], references: [id])
+  classAssignments        SessionClassAssignment[]
+  attendanceRecords       Attendance[]
+  scores                  StudentScoreAssignment[]   @relation("SessionScores")
+  termRecords             StudentTermRecord[]        @relation("SessionTermRecords")
+  studentSubjects         StudentSubjectAssignment[]
+  resultBatches           ResultBatch[]
   studentClassAssignments StudentClassAssignment[]
-  invoices               Invoice[]
+  invoices                Invoice[]
+  Exam                    Exam[]
 
   @@unique([name, schoolId])
   @@index([schoolId])
@@ -458,6 +486,7 @@ model TermDefinition {
   termRecords                   StudentTermRecord[]                @relation("TermRecords")
   resultBatches                 ResultBatch[]
   invoices                      Invoice[]
+  Exam                          Exam[]
 
   @@unique([name, schoolId])
   @@index([schoolId])
@@ -532,6 +561,8 @@ model Subject {
   teacherAssignments TeacherSubjectAssignment[]
   scores             StudentScoreAssignment[]
   studentResults     StudentResult[]
+  Paper              Paper[]
+  Question           Question[]
 
   @@unique([name, schoolId])
   @@index([schoolId])
@@ -652,22 +683,22 @@ model SubRolePermission {
 
 // Subscription model
 model Subscription {
-  id           String                @id @default(cuid())
-  name         String                @unique
-  amount       Int?
-  studentLimit Int?
-  duration     Int?
-  schools      School[]              @relation("SubscriptionSchools")
-  isDeleted    Boolean               @default(false)
-  isActive     Boolean               @default(true)
-  features     Json?
-  createdAt    DateTime?             @default(now()) @map("created_at")
-  updatedAt    DateTime?             @updatedAt @map("updated_at")
-  createdBy    String?               @map("created_by")
-  createdByUser User?                @relation("SubscriptionCreatedBy", fields: [createdBy], references: [id])
-  updatedBy    String?               @map("updated_by")
-  updatedByUser User?                @relation("SubscriptionUpdatedBy", fields: [updatedBy], references: [id])
-  payments     SubscriptionPayment[] @relation("SubscriptionPayments")
+  id            String                @id @default(cuid())
+  name          String                @unique
+  amount        Int?
+  studentLimit  Int?
+  duration      Int?
+  schools       School[]              @relation("SubscriptionSchools")
+  isDeleted     Boolean               @default(false)
+  isActive      Boolean               @default(true)
+  features      Json?
+  createdAt     DateTime?             @default(now()) @map("created_at")
+  updatedAt     DateTime?             @updatedAt @map("updated_at")
+  createdBy     String?               @map("created_by")
+  createdByUser User?                 @relation("SubscriptionCreatedBy", fields: [createdBy], references: [id])
+  updatedBy     String?               @map("updated_by")
+  updatedByUser User?                 @relation("SubscriptionUpdatedBy", fields: [updatedBy], references: [id])
+  payments      SubscriptionPayment[] @relation("SubscriptionPayments")
 
   @@map("subscriptions")
 }
@@ -772,39 +803,56 @@ model SubscriptionPayment {
 }
 
 model Invoice {
-  id                       String                     @id @default(cuid())
-  schoolId                 String                     @map("school_id")
-  school                   School                     @relation(fields: [schoolId], references: [id])
-  classId                  String?                    @map("class_id")
-  class                    Class?                     @relation(fields: [classId], references: [id])
-  classArmId               String?                    @map("class_arm_id")
-  classArm                 ClassArm?                  @relation(fields: [classArmId], references: [id])
-  termId                   String                     @map("term_id")
-  term                     TermDefinition             @relation(fields: [termId], references: [id])
-  sessionId                String                     @map("session_id")
-  session                  Session                    @relation(fields: [sessionId], references: [id])
-  amount                   Float
-  title                    String
-  description              String?
-  reference                String
-  isDeleted               Boolean                    @default(false)
-  type                     InvoiceType                @default(single)
+  id                        String                     @id @default(cuid())
+  schoolId                  String                     @map("school_id")
+  school                    School                     @relation(fields: [schoolId], references: [id])
+  // classId                  String?                    @map("class_id")
+  // class                    Class?                     @relation(fields: [classId], references: [id])
+  classes                   InvoiceClassAssignment[] // New relation
+  offlinePayments           OfflinePayment[]
+  classArmId                String?                    @map("class_arm_id")
+  classArm                  ClassArm?                  @relation(fields: [classArmId], references: [id])
+  termId                    String                     @map("term_id")
+  term                      TermDefinition             @relation(fields: [termId], references: [id])
+  sessionId                 String                     @map("session_id")
+  session                   Session                    @relation(fields: [sessionId], references: [id])
+  amount                    Float
+  title                     String
+  description               String?
+  reference                 String
+  isDeleted                 Boolean                    @default(false)
+  invoiceType               InvoiceType                @default(single)
   // outstanding              Float?
   // dueDate                  DateTime?                  @map("due_date")
   // paid                     Float?
   // status                   InvoiceStatus              @default(submitted)
   // paymentReceipt           String?                    @map("payment_receipt")
   // issuedDate               DateTime                   @map("issued_date")
-  createdAt                DateTime?                  @default(now()) @map("created_at")
-  updatedAt                DateTime?                  @updatedAt @map("updated_at")
-  createdBy                String?                    @map("created_by")
-  createdByUser            User?                      @relation("InvoiceCreatedBy", fields: [createdBy], references: [id])
+  createdAt                 DateTime?                  @default(now()) @map("created_at")
+  updatedAt                 DateTime?                  @updatedAt @map("updated_at")
+  createdBy                 String?                    @map("created_by")
+  createdByUser             User?                      @relation("InvoiceCreatedBy", fields: [createdBy], references: [id])
   // paymentEvidence          String?
   studentInvoiceAssignments StudentInvoiceAssignment[]
-  discounts                Discount[]
+  discounts                 Discount[]
 
   @@index([schoolId])
   @@map("invoices")
+}
+
+model InvoiceClassAssignment {
+  id        String   @id @default(cuid())
+  invoiceId String   @map("invoice_id")
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id])
+  classId   String   @map("class_id")
+  class     Class    @relation(fields: [classId], references: [id])
+  schoolId  String   @map("school_id")
+  school    School   @relation(fields: [schoolId], references: [id])
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([invoiceId, classId])
+  @@index([schoolId, invoiceId])
+  @@map("invoice_class_assignments")
 }
 
 model StudentInvoiceAssignment {
@@ -815,7 +863,7 @@ model StudentInvoiceAssignment {
   student       Student       @relation(fields: [studentId], references: [id])
   schoolId      String        @map("school_id")
   school        School        @relation(fields: [schoolId], references: [id])
-  status        InvoiceStatus @default(submitted)
+  status        InvoiceStatus @default(unpaid)
   paid          Float?
   outstanding   Float?
   createdAt     DateTime      @default(now()) @map("created_at")
@@ -911,6 +959,7 @@ model MarkingSchemeComponent {
   updatedByUser         User?                    @relation("MarkingSchemeComponentUpdatedBy", fields: [updatedBy], references: [id])
   isDeleted             Boolean                  @default(false)
   resultBatches         ResultBatch[]            @relation("BatchResultType")
+  Exam                  Exam[]
 
   @@unique([markingSchemeId, name])
   @@index([schoolId, markingSchemeId])
@@ -954,6 +1003,7 @@ model ContinuousAssessmentComponent {
   updatedByUser          User?                    @relation("ContinuousAssessmentComponentUpdatedBy", fields: [updatedBy], references: [id])
   scores                 StudentScoreAssignment[] @relation("ComponentScores")
   isDeleted              Boolean                  @default(false)
+  Exam                   Exam[]
 
   @@unique([continuousAssessmentId, name])
   @@index([schoolId, continuousAssessmentId])
@@ -1136,88 +1186,88 @@ model StudentScoreAssignment {
 }
 
 model StudentTermRecord {
-  id               String            @id @default(cuid())
-  studentId        String            @map("student_id")
-  student          Student           @relation("StudentTermRecords", fields: [studentId], references: [id])
-  classId          String            @map("class_id")
-  class            Class             @relation("ClassTermRecords", fields: [classId], references: [id])
-  classArmId       String            @map("class_arm_id")
-  classArm         ClassArm          @relation("ClassArmTermRecords", fields: [classArmId], references: [id])
-  sessionId        String            @map("session_id")
-  session          Session           @relation("SessionTermRecords", fields: [sessionId], references: [id])
-  termDefinitionId String            @map("term_definition_id")
-  termDefinition   TermDefinition    @relation("TermRecords", fields: [termDefinitionId], references: [id])
-  schoolId         String            @map("school_id")
-  school           School            @relation("SchoolTermRecords", fields: [schoolId], references: [id])
-  uniqueHash       String            @unique @map("unique_hash") @db.VarChar(64)
-  punctuality      BehavioralRating? @map("punctuality")
-  attentiveness    BehavioralRating? @map("attentiveness")
-  leadershipSkills BehavioralRating? @map("leadership_skills")
-  neatness         BehavioralRating? @map("neatness")
-  attendanceTotal  Int?              @map("attendance_total")
-  attendancePresent Int?             @map("attendance_present")
-  attendanceAbsent Int?              @map("attendance_absent")
-  classTeacherComment String?        @map("class_teacher_comment") @db.Text
-  principalComment    String?        @map("principal_comment") @db.Text
-  recordedBy          String         @map("recorded_by")
-  isDeleted           Boolean        @default(false)
-  createdAt           DateTime?      @default(now()) @map("created_at")
-  updatedAt           DateTime?      @updatedAt @map("updated_at")
-  createdBy           String?        @map("created_by")
-  createdByUser       User?          @relation("StudentTermRecordCreatedBy", fields: [createdBy], references: [id])
-  updatedBy           String?        @map("updated_by")
-  updatedByUser       User?          @relation("StudentTermRecordUpdatedBy", fields: [updatedBy], references: [id])
+  id                  String            @id @default(cuid())
+  studentId           String            @map("student_id")
+  student             Student           @relation("StudentTermRecords", fields: [studentId], references: [id])
+  classId             String            @map("class_id")
+  class               Class             @relation("ClassTermRecords", fields: [classId], references: [id])
+  classArmId          String            @map("class_arm_id")
+  classArm            ClassArm          @relation("ClassArmTermRecords", fields: [classArmId], references: [id])
+  sessionId           String            @map("session_id")
+  session             Session           @relation("SessionTermRecords", fields: [sessionId], references: [id])
+  termDefinitionId    String            @map("term_definition_id")
+  termDefinition      TermDefinition    @relation("TermRecords", fields: [termDefinitionId], references: [id])
+  schoolId            String            @map("school_id")
+  school              School            @relation("SchoolTermRecords", fields: [schoolId], references: [id])
+  uniqueHash          String            @unique @map("unique_hash") @db.VarChar(64)
+  punctuality         BehavioralRating? @map("punctuality")
+  attentiveness       BehavioralRating? @map("attentiveness")
+  leadershipSkills    BehavioralRating? @map("leadership_skills")
+  neatness            BehavioralRating? @map("neatness")
+  attendanceTotal     Int?              @map("attendance_total")
+  attendancePresent   Int?              @map("attendance_present")
+  attendanceAbsent    Int?              @map("attendance_absent")
+  classTeacherComment String?           @map("class_teacher_comment") @db.Text
+  principalComment    String?           @map("principal_comment") @db.Text
+  recordedBy          String            @map("recorded_by")
+  isDeleted           Boolean           @default(false)
+  createdAt           DateTime?         @default(now()) @map("created_at")
+  updatedAt           DateTime?         @updatedAt @map("updated_at")
+  createdBy           String?           @map("created_by")
+  createdByUser       User?             @relation("StudentTermRecordCreatedBy", fields: [createdBy], references: [id])
+  updatedBy           String?           @map("updated_by")
+  updatedByUser       User?             @relation("StudentTermRecordUpdatedBy", fields: [updatedBy], references: [id])
 
   @@index([schoolId, studentId, sessionId, termDefinitionId])
   @@map("student_term_records")
 }
 
 model ResultBatch {
-  id                    String                 @id @default(cuid())
-  sessionId             String                 @map("session_id")
-  session               Session                @relation(fields: [sessionId], references: [id])
-  termId                String                 @map("term_id")
-  termDefinition        TermDefinition         @relation(fields: [termId], references: [id])
-  classId               String                 @map("class_id")
-  class                 Class                  @relation(fields: [classId], references: [id])
-  classArmId            String                 @map("class_arm_id")
-  classArm              ClassArm               @relation(fields: [classArmId], references: [id])
-  resultTypeId          String                 @map("result_type_id")
-  resultType            MarkingSchemeComponent @relation("BatchResultType", fields: [resultTypeId], references: [id])
-  resultScope           AssessmentType
-  schoolId              String                 @map("school_id")
-  school                School                 @relation(fields: [schoolId], references: [id])
-  markingSchemeStructure Json                  @map("marking_scheme_structure")
-  title                 String
-  description           String?
-  isApproved            Boolean                @default(false)
-  approvedBy            String?                @map("approved_by")
-  approvedByUser        User?                  @relation("ResultBatchApprovedBy", fields: [approvedBy], references: [id])
-  approvedAt            DateTime?              @map("approved_at")
-  totalStudents         Int                    @map("total_students")
-  totalSubjects         Int                    @map("total_subjects")
-  classAverage          Float?                 @map("class_average")
-  uniqueHash            String                 @unique @map("unique_hash") @db.VarChar(64)
-  createdAt             DateTime               @default(now()) @map("created_at")
-  updatedAt             DateTime               @updatedAt @map("updated_at")
-  createdBy             String                 @map("created_by")
-  createdByUser         User?                  @relation("ResultBatchCreatedBy", fields: [createdBy], references: [id])
-  updatedBy             String?                @map("updated_by")
-  updatedByUser         User?                  @relation("ResultBatchUpdatedBy", fields: [updatedBy], references: [id])
-  studentResults        StudentResult[]        @relation("BatchResults")
+  id                     String                 @id @default(cuid())
+  sessionId              String                 @map("session_id")
+  session                Session                @relation(fields: [sessionId], references: [id])
+  termId                 String                 @map("term_id")
+  termDefinition         TermDefinition         @relation(fields: [termId], references: [id])
+  classId                String                 @map("class_id")
+  class                  Class                  @relation(fields: [classId], references: [id])
+  classArmId             String                 @map("class_arm_id")
+  classArm               ClassArm               @relation(fields: [classArmId], references: [id])
+  resultTypeId           String                 @map("result_type_id")
+  resultType             MarkingSchemeComponent @relation("BatchResultType", fields: [resultTypeId], references: [id])
+  resultScope            AssessmentType
+  schoolId               String                 @map("school_id")
+  school                 School                 @relation(fields: [schoolId], references: [id])
+  markingSchemeStructure Json                   @map("marking_scheme_structure")
+  title                  String
+  description            String?
+  isApproved             Boolean                @default(false)
+  approvedBy             String?                @map("approved_by")
+  approvedByUser         User?                  @relation("ResultBatchApprovedBy", fields: [approvedBy], references: [id])
+  approvedAt             DateTime?              @map("approved_at")
+  totalStudents          Int                    @map("total_students")
+  totalSubjects          Int                    @map("total_subjects")
+  classAverage           Float?                 @map("class_average")
+  uniqueHash             String                 @unique @map("unique_hash") @db.VarChar(64)
+  createdAt              DateTime               @default(now()) @map("created_at")
+  updatedAt              DateTime               @updatedAt @map("updated_at")
+  createdBy              String                 @map("created_by")
+  createdByUser          User?                  @relation("ResultBatchCreatedBy", fields: [createdBy], references: [id])
+  updatedBy              String?                @map("updated_by")
+  updatedByUser          User?                  @relation("ResultBatchUpdatedBy", fields: [updatedBy], references: [id])
+  studentResults         StudentResult[]        @relation("BatchResults")
+
   @@map("result_batches")
 }
 
-
 model StudentResult {
-  id            String      @id @default(cuid())
-  resultBatchId String      @map("result_batch_id")
-  resultBatch   ResultBatch @relation("BatchResults", fields: [resultBatchId], references: [id])
-  studentId     String      @map("student_id")
-  student       Student     @relation(fields: [studentId], references: [id])
-  subjectId     String      @map("subject_id")
-  subject       Subject     @relation(fields: [subjectId], references: [id])
-  componentScores Json      @map("component_scores")
+  id              String      @id @default(cuid())
+  resultBatchId   String      @map("result_batch_id")
+  resultBatch     ResultBatch @relation("BatchResults", fields: [resultBatchId], references: [id])
+  studentId       String      @map("student_id")
+  student         Student     @relation(fields: [studentId], references: [id])
+  subjectId       String      @map("subject_id")
+  subject         Subject     @relation(fields: [subjectId], references: [id])
+  componentScores Json        @map("component_scores")
   totalScore      Float
   gradeId         String?     @map("grade_id")
   grade           Grade?      @relation(fields: [gradeId], references: [id])
@@ -1302,10 +1352,9 @@ enum PaymentStatus {
 }
 
 enum InvoiceStatus {
-  submitted
   paid
-  overdue
-  cancelled
+  unpaid
+  partial
 }
 
 enum Role {
@@ -1353,4 +1402,207 @@ enum DiscountStatus {
 enum InvoiceType {
   single
   mass
+}
+
+enum OfflinePaymentStatus {
+  pending
+  approved
+  rejected
+}
+
+model OfflinePayment {
+  id              String               @id @default(cuid())
+  studentId       String               @map("student_id")
+  student         Student              @relation(fields: [studentId], references: [id])
+  invoiceId       String               @map("invoice_id")
+  invoice         Invoice              @relation(fields: [invoiceId], references: [id])
+  amount          Float
+  proofOfPayment  Json?                @map("proof_of_payment")
+  status          OfflinePaymentStatus @default(pending)
+  approvedById    String?              @map("approved_by_id")
+  approvedBy      User?                @relation("PaymentApprovedBy", fields: [approvedById], references: [id])
+  approvedAt      DateTime?            @map("approved_at")
+  rejectionReason String?              @map("rejection_reason")
+  schoolId        String               @map("school_id")
+  school          School               @relation(fields: [schoolId], references: [id])
+  createdAt       DateTime             @default(now()) @map("created_at")
+  updatedAt       DateTime             @updatedAt @map("updated_at")
+  createdBy       String?              @map("created_by")
+  createdByUser   User?                @relation("PaymentCreatedBy", fields: [createdBy], references: [id])
+  updatedBy       String?              @map("updated_by")
+  updatedByUser   User?                @relation("PaymentUpdatedBy", fields: [updatedBy], references: [id])
+
+  @@index([schoolId, studentId])
+  @@index([invoiceId])
+  @@map("offline_payments")
+}
+
+// CBT System Enums and Models
+enum QuestionType {
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+  SHORT_ANSWER
+  ESSAY
+  MATCHING
+}
+
+model Exam {
+  id                            String                         @id @default(cuid())
+  name                          String
+  description                   String?
+  startDate                     DateTime                       @map("start_date")
+  endDate                       DateTime                       @map("end_date")
+  sessionId                     String                         @map("session_id")
+  session                       Session                        @relation(fields: [sessionId], references: [id])
+  termDefinitionId              String                         @map("term_definition_id")
+  termDefinition                TermDefinition                 @relation(fields: [termDefinitionId], references: [id])
+  classId                       String                         @map("class_id")
+  class                         Class                          @relation(fields: [classId], references: [id])
+  markingSchemeComponentId      String?                        @map("marking_scheme_component_id")
+  markingSchemeComponent        MarkingSchemeComponent?        @relation(fields: [markingSchemeComponentId], references: [id])
+  subComponentId                String?                        @map("sub_component_id")
+  continuousAssessmentComponent ContinuousAssessmentComponent? @relation(fields: [subComponentId], references: [id])
+  schoolId                      String                         @map("school_id")
+  school                        School                         @relation(fields: [schoolId], references: [id])
+  papers                        Paper[]
+  isActive                      Boolean                        @default(true)
+  isDeleted                     Boolean                        @default(false)
+  createdAt                     DateTime                       @default(now()) @map("created_at")
+  updatedAt                     DateTime                       @updatedAt @map("updated_at")
+  createdBy                     String                         @map("created_by")
+  createdByUser                 User                           @relation("ExamCreator", fields: [createdBy], references: [id])
+  updatedBy                     String?                        @map("updated_by")
+  updatedByUser                 User?                          @relation("ExamUpdater", fields: [updatedBy], references: [id])
+  deletedAt                     DateTime?                      @map("deleted_at")
+  deletedBy                     String?                        @map("deleted_by")
+  deletedByUser                 User?                          @relation("ExamDeleter", fields: [deletedBy], references: [id])
+
+  @@index([schoolId])
+  @@index([classId])
+  @@index([sessionId, termDefinitionId])
+  @@index([createdBy])
+  @@index([updatedBy])
+  @@map("exams")
+}
+
+model Paper {
+  id                 String            @id @default(cuid())
+  examId             String            @map("exam_id")
+  exam               Exam              @relation(fields: [examId], references: [id])
+  subjectId          String            @map("subject_id")
+  subject            Subject           @relation(fields: [subjectId], references: [id])
+  duration           Int
+  maxRetries         Int               @default(1) @map("max_retries")
+  currentRetries     Int               @default(0) @map("current_retries")
+  randomizeQuestions Boolean           @default(true) @map("randomize_questions")
+  showResult         Boolean           @default(true) @map("show_result")
+  showCorrections    Boolean           @default(false) @map("show_corrections")
+  questions          QuestionPaper[]
+  schoolId           String            @map("school_id")
+  school             School            @relation(fields: [schoolId], references: [id])
+  responses          StudentResponse[]
+  isActive           Boolean           @default(true)
+  isDeleted          Boolean           @default(false)
+  createdAt          DateTime          @default(now()) @map("created_at")
+  updatedAt          DateTime          @updatedAt @map("updated_at")
+  createdBy          String            @map("created_by")
+  createdByUser      User              @relation("PaperCreator", fields: [createdBy], references: [id])
+  updatedBy          String?           @map("updated_by")
+  updatedByUser      User?             @relation("PaperUpdater", fields: [updatedBy], references: [id])
+  deletedAt          DateTime?         @map("deleted_at")
+  deletedBy          String?           @map("deleted_by")
+  deletedByUser      User?             @relation("PaperDeleter", fields: [deletedBy], references: [id])
+
+  @@index([schoolId])
+  @@index([examId])
+  @@index([createdBy])
+  @@index([updatedBy])
+  @@map("papers")
+}
+
+model Question {
+  id              String          @id @default(cuid())
+  content         String          @db.Text
+  type            QuestionType
+  options         Json?
+  correctAnswer   String          @map("correct_answer") @db.Text
+  explanation     String?         @db.Text
+  difficultyLevel Int             @default(1) @map("difficulty_level")
+  subjectId       String          @map("subject_id")
+  subject         Subject         @relation(fields: [subjectId], references: [id])
+  papers          QuestionPaper[]
+  schoolId        String          @map("school_id")
+  school          School          @relation(fields: [schoolId], references: [id])
+  isActive        Boolean         @default(true)
+  isDeleted       Boolean         @default(false)
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+  createdBy       String          @map("created_by")
+  createdByUser   User            @relation("QuestionCreator", fields: [createdBy], references: [id])
+  updatedBy       String?         @map("updated_by")
+  updatedByUser   User?           @relation("QuestionUpdater", fields: [updatedBy], references: [id])
+  deletedAt       DateTime?       @map("deleted_at")
+  deletedBy       String?         @map("deleted_by")
+  deletedByUser   User?           @relation("QuestionDeleter", fields: [deletedBy], references: [id])
+
+  @@index([schoolId])
+  @@index([subjectId])
+  @@index([createdBy])
+  @@index([updatedBy])
+  @@map("questions")
+}
+
+model QuestionPaper {
+  id            String   @id @default(cuid())
+  paperId       String   @map("paper_id")
+  paper         Paper    @relation(fields: [paperId], references: [id])
+  questionId    String   @map("question_id")
+  question      Question @relation(fields: [questionId], references: [id])
+  order         Int
+  score         Float
+  schoolId      String   @map("school_id")
+  school        School   @relation(fields: [schoolId], references: [id])
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  createdBy     String   @map("created_by")
+  createdByUser User     @relation("QuestionPaperCreator", fields: [createdBy], references: [id])
+  updatedBy     String?  @map("updated_by")
+  updatedByUser User?    @relation("QuestionPaperUpdater", fields: [updatedBy], references: [id])
+
+  @@unique([paperId, questionId])
+  @@index([paperId])
+  @@index([schoolId])
+  @@index([createdBy])
+  @@index([updatedBy])
+  @@map("question_papers")
+}
+
+model StudentResponse {
+  id              String    @id @default(cuid())
+  studentId       String    @map("student_id")
+  student         Student   @relation(fields: [studentId], references: [id])
+  paperId         String    @map("paper_id")
+  paper           Paper     @relation(fields: [paperId], references: [id])
+  answers         Json
+  score           Float?
+  startTime       DateTime  @default(now()) @map("start_time")
+  endTime         DateTime? @map("end_time")
+  attempt         Int       @default(1)
+  isCompleted     Boolean   @default(false) @map("is_completed")
+  schoolId        String    @map("school_id")
+  school          School    @relation(fields: [schoolId], references: [id])
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  submittedBy     String    @map("submitted_by")
+  submittedByUser User      @relation("ResponseSubmitter", fields: [submittedBy], references: [id])
+  gradedBy        String?   @map("graded_by")
+  gradedByUser    User?     @relation("ResponseGrader", fields: [gradedBy], references: [id])
+  gradedAt        DateTime? @map("graded_at")
+
+  @@index([schoolId])
+  @@index([studentId])
+  @@index([paperId])
+  @@index([submittedBy])
+  @@index([gradedBy])
+  @@map("student_responses")
 }

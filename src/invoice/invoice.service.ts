@@ -1,37 +1,61 @@
 import { PrismaService } from '@/prisma/prisma.service';
-import { HttpException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  HttpException,
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import { uploadToCloudinary } from '@/utils/cloudinary';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InvoiceDto, UpdateInvoiceDto } from './dto/invoice.dto';
+import { DiscountStatus, InvoiceStatus } from '@prisma/client';
 import { AuthenticatedUser } from '@/types/express';
-import { InvoiceStatus } from '@prisma/client';
-// import { UtilityService } from '@/utils/reference';
-
-import { DiscountStatus } from '@prisma/client';
 
 @Injectable()
 export class InvoiceService {
-  constructor(
-    private prisma: PrismaService,
-    // private utilityService: UtilityService,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   async getInvoiceAssignments(
     invoiceId: string,
+    status: string | undefined,
     user: AuthenticatedUser,
   ): Promise<any[]> {
     const schoolId = user.schoolId;
+
+    // Build base where clause
+    const where: any = { invoiceId, schoolId };
+
+    // Handle status filtering
+    if (status) {
+      // Split by comma if multiple statuses are provided
+      const statusArray = status.split(',').map((s) => s.trim().toLowerCase());
+
+      // Validate that all provided statuses are valid InvoiceStatus values
+      const validStatuses = statusArray.filter((s) =>
+        ['paid', 'unpaid', 'partial'].includes(s),
+      ) as InvoiceStatus[];
+
+      if (validStatuses.length > 0) {
+        where.status = {
+          in: validStatuses,
+        };
+      }
+    }
+
     // Fetch all student assignments for this invoice, including student info
     const assignments = await this.prisma.studentInvoiceAssignment.findMany({
-      where: { invoiceId, schoolId },
+      where,
       include: {
         student: {
           include: {
             user: true, // To get student name, email, etc.
           },
         },
+        invoice: true, // Include invoice details
       },
       orderBy: { createdAt: 'asc' },
     });
+
     return assignments;
   }
 
@@ -41,15 +65,13 @@ export class InvoiceService {
   ): Promise<any> {
     const schoolId = user.schoolId;
     const {
-      type,
+      invoiceType,
       studentId,
       amount,
-      classId,
       classIds,
       description,
       title,
       classArmId,
-      classArmIds,
       termId,
       sessionId,
     } = body;
@@ -86,34 +108,73 @@ export class InvoiceService {
       const serialStr = serial.toString().padStart(4, '0');
       const reference = `INV/${year}/${month}/${day}/${serialStr}`;
 
+      // Create base invoice
       const invoice = await this.prisma.invoice.create({
         data: {
           amount,
           description,
           title,
-          class: classId ? { connect: { id: classId } } : undefined,
-          classArm: classArmId ? { connect: { id: classArmId } } : undefined,
+          classArm:
+            invoiceType === 'single' && classArmId
+              ? { connect: { id: classArmId } }
+              : undefined,
           school: { connect: { id: schoolId } },
           reference,
-          type: type || 'single', // Default to single if not provided
+          invoiceType: invoiceType || 'single',
           term: { connect: { id: termId } },
           session: { connect: { id: sessionId } },
           createdByUser: { connect: { id: user.id } },
+          // Create InvoiceClassAssignment records for all classIds
+          classes: {
+            create: classIds.map((classId) => ({
+              classId,
+              schoolId,
+            })),
+          },
+        },
+        include: {
+          classes: true,
         },
       });
 
+      // Validate inputs based on type
+      if (!classIds || !Array.isArray(classIds) || classIds.length === 0) {
+        throw new HttpException(
+          'classIds is required and must be an array',
+          400,
+        );
+      }
+
+      if (invoiceType === 'single') {
+        if (classIds.length > 1) {
+          throw new HttpException(
+            'Single invoice can only have one classId',
+            400,
+          );
+        }
+        if (!classArmId) {
+          throw new HttpException(
+            'classArmId is required for single invoice',
+            400,
+          );
+        }
+        if (!studentId) {
+          throw new HttpException(
+            'studentId is required for single invoice',
+            400,
+          );
+        }
+      }
+
       let studentAssignments = [];
-      if (type === 'mass') {
-        // Fetch students for the given session, classes, and arms
+      if (invoiceType === 'mass') {
+        // Fetch students for the given session and classes
         const assignmentWhere: any = {
           sessionId,
           classId: { in: classIds },
           schoolId,
           isActive: true,
         };
-        if (classArmIds && classArmIds.length > 0) {
-          assignmentWhere.classArmId = { in: classArmIds };
-        }
         const assignments = await this.prisma.studentClassAssignment.findMany({
           where: assignmentWhere,
           select: { studentId: true },
@@ -133,7 +194,7 @@ export class InvoiceService {
                 student: { connect: { id: assignment.studentId } },
                 school: { connect: { id: schoolId } },
                 outstanding: amount,
-                status: 'submitted',
+                status: InvoiceStatus.unpaid, // Set initial status to unpaid
               },
             }),
           ),
@@ -152,7 +213,7 @@ export class InvoiceService {
             student: { connect: { id: studentId } },
             school: { connect: { id: schoolId } },
             outstanding: amount,
-            status: 'submitted',
+            status: InvoiceStatus.unpaid,
           },
         });
         studentAssignments = [assignment];
@@ -190,6 +251,33 @@ export class InvoiceService {
     const schoolId = user.schoolId;
     const invoice = await this.prisma.invoice.findFirst({
       where: { reference, schoolId },
+      include: {
+        createdByUser: {
+          select: {
+            id: true,
+            firstname: true,
+            lastname: true,
+            email: true,
+          },
+        },
+        studentInvoiceAssignments: {
+          include: {
+            student: {
+              include: {
+                user: true, // Get student details
+              },
+            },
+          },
+        },
+        classes: {
+          include: {
+            class: true, // Get class details for each assignment
+          },
+        },
+        classArm: true, // Include class arm for single invoices
+        term: true,
+        session: true,
+      },
     });
     if (!invoice) {
       throw new NotFoundException('Invoice not found');
@@ -278,7 +366,7 @@ export class InvoiceService {
         this.prisma.invoice.findMany({
           where,
           include: {
-            class: true,
+            classes: { include: { class: true } },
             classArm: true,
             term: true,
             session: true,
@@ -382,6 +470,155 @@ export class InvoiceService {
     });
   }
 
+  async getStudentWithInvoiceAssignments({
+    user,
+    classId,
+    termId,
+    sessionId,
+    classArmId,
+    search,
+    page,
+    limit,
+    skip,
+    status,
+  }: {
+    user: AuthenticatedUser;
+    classId?: string;
+    termId?: string;
+    sessionId?: string;
+    classArmId?: string;
+    search?: string;
+    status?: InvoiceStatus;
+    page: number;
+    limit: number;
+    skip: number;
+  }): Promise<{
+    data: any[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    const schoolId = user.schoolId;
+    console.log(status, 'status');
+
+    // Build where conditions
+    const where: any = {
+      schoolId,
+    };
+
+    if (status) {
+      where.status = status;
+    }
+    // Add session and term filters to invoice relation
+    if (sessionId || termId || classId || classArmId) {
+      where.invoice = {
+        AND: [
+          sessionId ? { sessionId } : {},
+          termId ? { termId } : {},
+          classArmId ? { classArmId } : {},
+          classId
+            ? {
+                classes: {
+                  some: {
+                    classId: classId,
+                  },
+                },
+              }
+            : {},
+        ],
+      };
+    }
+
+    // Add class and arm filters to student relation
+    // if (classId || classArmId) {
+    //   where.student = {
+    //     AND: [classId ? { classId } : {}, classArmId ? { classArmId } : {}],
+    //   };
+    // }
+
+    // Add search filter for student name
+    if (search) {
+      where.student = {
+        ...where.student,
+        user: {
+          OR: [
+            { firstname: { contains: search } },
+            { lastname: { contains: search } },
+            {
+              AND: [
+                { firstname: { contains: search.split(' ')[0] || '' } },
+                { lastname: { contains: search.split(' ')[1] || '' } },
+              ],
+            },
+            {
+              // Match full name (case-insensitive, partial)
+              OR: [
+                {
+                  // Concatenate firstname + ' ' + lastname and check if contains search
+                  // This requires Prisma raw filter, so fallback to separate fields
+                  firstname: { contains: search.split(' ')[0] || '' },
+                  lastname: { contains: search.split(' ')[1] || '' },
+                },
+              ],
+            },
+          ],
+        },
+      };
+    }
+
+    // Get total count for pagination
+    const total = await this.prisma.studentInvoiceAssignment.count({
+      where,
+    });
+
+    // Get paginated data with relations
+    const assignments = await this.prisma.studentInvoiceAssignment.findMany({
+      where,
+      include: {
+        student: {
+          include: {
+            user: {
+              select: {
+                firstname: true,
+                lastname: true,
+              },
+            },
+            class: true,
+            classArm: true,
+          },
+        },
+        invoice: {
+          include: {
+            discounts: {
+              where: {
+                status: 'approved' as DiscountStatus,
+              },
+            },
+            session: true,
+            term: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      skip,
+      take: limit,
+    });
+
+    // Calculate total pages
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data: assignments,
+      total,
+      page,
+      limit,
+      totalPages,
+    };
+  }
+
   // --- DISCOUNT SYSTEM ---
 
   /**
@@ -443,9 +680,45 @@ export class InvoiceService {
   }
 
   /**
+   * List all discounts for a school
+   */
+  async listAllDiscounts(user: AuthenticatedUser) {
+    const schoolId = user.schoolId;
+    return this.prisma.discount.findMany({
+      where: { schoolId },
+      include: {
+        invoice: {
+          select: {
+            title: true,
+            reference: true,
+            amount: true,
+          },
+        },
+        createdByUser: {
+          select: {
+            id: true,
+            firstname: true,
+            lastname: true,
+            email: true,
+          },
+        },
+        approvedBy: {
+          select: {
+            id: true,
+            firstname: true,
+            lastname: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
    * List all discounts for an invoice
    */
-  async listDiscounts(invoiceId: string, user: AuthenticatedUser) {
+  async listDiscountsByInvoice(invoiceId: string, user: AuthenticatedUser) {
     const schoolId = user.schoolId;
     return this.prisma.discount.findMany({
       where: { invoiceId, schoolId },
@@ -488,8 +761,200 @@ export class InvoiceService {
   /**
    * Approve a discount (makes it active and applies to all assignments)
    */
+  async recordOfflinePayment({
+    studentId,
+    invoiceId,
+    amount,
+    proofOfPayment,
+    user,
+  }: {
+    studentId: string;
+    invoiceId: string;
+    amount: number;
+    proofOfPayment?: Express.Multer.File;
+    user: AuthenticatedUser;
+  }) {
+    const schoolId = user.schoolId;
+
+    // Validate that invoice exists and belongs to this school
+    const invoice = await this.prisma.studentInvoiceAssignment.findFirst({
+      where: {
+        invoice: { id: invoiceId },
+        student: { id: studentId },
+        schoolId,
+      },
+    });
+
+    if (!invoice) {
+      throw new NotFoundException('Invoice not found for this student');
+    }
+
+    // Upload image to Cloudinary
+    let imageUrl: string | undefined;
+    let pubId: string | undefined;
+
+    try {
+      if (proofOfPayment) {
+        // Use the reusable Cloudinary upload function with file buffer
+        const uploadResult = await uploadToCloudinary(proofOfPayment.buffer, {
+          folder: 'offline-payments',
+          transformation: { width: 800, height: 800, crop: 'limit' },
+        });
+        imageUrl = uploadResult.imageUrl;
+        pubId = uploadResult.pubId;
+      }
+    } catch (error) {
+      console.error('Image upload error:', error);
+      throw new BadRequestException(
+        'Failed to upload proof of payment to Cloudinary',
+      );
+    }
+
+    // Create the offline payment record
+    const payment = await this.prisma.offlinePayment.create({
+      data: {
+        student: { connect: { id: studentId } },
+        invoice: { connect: { id: invoiceId } },
+        amount,
+        proofOfPayment: imageUrl && pubId ? { imageUrl, pubId } : undefined,
+        school: { connect: { id: schoolId } },
+        createdByUser: { connect: { id: user.id } },
+        status: 'pending',
+      },
+    });
+
+    return payment;
+  }
+
+  async approveOfflinePayment({
+    paymentId,
+    user,
+    approve = true,
+    rejectionReason,
+  }: {
+    paymentId: string;
+    user: AuthenticatedUser;
+    approve?: boolean;
+    rejectionReason?: string;
+  }) {
+    const schoolId = user.schoolId;
+
+    // Find the payment and related invoice assignment
+    const payment = await this.prisma.offlinePayment.findFirst({
+      where: { id: paymentId, schoolId },
+      include: {
+        invoice: {
+          select: {
+            amount: true,
+          },
+        },
+        student: true,
+      },
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Payment record not found');
+    }
+
+    if (payment.status !== 'pending') {
+      throw new HttpException('Payment already processed', 400);
+    }
+
+    // Get current invoice assignment
+    const invoiceAssignment =
+      await this.prisma.studentInvoiceAssignment.findFirst({
+        where: {
+          invoiceId: payment.invoiceId,
+          studentId: payment.studentId,
+          schoolId,
+        },
+      });
+
+    if (!invoiceAssignment) {
+      throw new NotFoundException('Invoice assignment not found');
+    }
+
+    if (approve) {
+      // Calculate new outstanding amount
+      const newOutstanding = Math.max(
+        0,
+        invoiceAssignment.outstanding - payment.amount,
+      );
+      const newPaid = invoiceAssignment.paid + payment.amount;
+
+      // Determine new status
+      let newStatus = invoiceAssignment.status;
+      if (newOutstanding === 0) {
+        newStatus = 'paid';
+      } else if (newPaid > 0) {
+        newStatus = 'partial';
+      }
+
+      // Update payment and invoice assignment in a transaction
+      const result = await this.prisma.$transaction([
+        this.prisma.offlinePayment.update({
+          where: { id: paymentId },
+          data: {
+            status: 'approved',
+            approvedBy: { connect: { id: user.id } },
+            approvedAt: new Date(),
+          },
+        }),
+        this.prisma.studentInvoiceAssignment.update({
+          where: { id: invoiceAssignment.id },
+          data: {
+            outstanding: newOutstanding,
+            paid: newPaid,
+            status: newStatus,
+          },
+        }),
+      ]);
+
+      return result[0]; // Return the updated payment record
+    } else {
+      // Reject the payment
+      const rejectedPayment = await this.prisma.offlinePayment.update({
+        where: { id: paymentId },
+        data: {
+          status: 'rejected',
+          rejectionReason,
+          approvedBy: { connect: { id: user.id } },
+          approvedAt: new Date(),
+        },
+      });
+
+      return rejectedPayment;
+    }
+  }
+
   async approveDiscount(discountId: string, user: AuthenticatedUser) {
     const schoolId = user.schoolId;
+
+    // First fetch the discount to check its current status
+    const existingDiscount = await this.prisma.discount.findFirst({
+      where: { id: discountId, schoolId },
+    });
+
+    if (!existingDiscount) {
+      throw new NotFoundException('Discount not found');
+    }
+
+    // Check if already approved
+    if (existingDiscount.status === DiscountStatus.approved) {
+      throw new HttpException('Discount has already been approved', 400);
+    }
+
+    // Check if expired
+    if (existingDiscount.dueDate && existingDiscount.dueDate < new Date()) {
+      throw new HttpException('Cannot approve expired discount', 400);
+    }
+
+    // Check if in pending state
+    if (existingDiscount.status !== DiscountStatus.pending) {
+      throw new HttpException('Only pending discounts can be approved', 400);
+    }
+
+    // If all checks pass, approve the discount
     const discount = await this.prisma.discount.update({
       where: { id: discountId, schoolId },
       data: {
@@ -497,14 +962,33 @@ export class InvoiceService {
         approvedBy: { connect: { id: user.id } },
         approvedAt: new Date(),
       },
+      include: {
+        invoice: {
+          select: {
+            title: true,
+            reference: true,
+          },
+        },
+        approvedBy: {
+          select: {
+            firstname: true,
+            lastname: true,
+          },
+        },
+      },
     });
+
     // Apply discount to all assignments for the invoice
     await this.applyDiscountToAssignments(
       discount.invoiceId,
       discount.amount,
       schoolId,
     );
-    return discount;
+
+    return {
+      message: 'Discount approved successfully',
+      data: discount,
+    };
   }
 
   /**
@@ -556,6 +1040,244 @@ export class InvoiceService {
   }
 
   /**
+   * Get all offline payments for a school
+   */
+  async getOfflinePayments({
+    user,
+    classId,
+    termId,
+    sessionId,
+    classArmId,
+    search,
+    page,
+    limit,
+    skip,
+    status,
+  }: {
+    user: AuthenticatedUser;
+    classId?: string;
+    termId?: string;
+    sessionId?: string;
+    classArmId?: string;
+    search?: string;
+    status?: 'pending' | 'approved' | 'rejected';
+    page: number;
+    limit: number;
+    skip: number;
+  }): Promise<{
+    data: any[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    const schoolId = user.schoolId;
+
+    // Build where conditions
+    const where: any = {
+      schoolId,
+    };
+
+    // Add status filter
+    if (status) {
+      where.status = status;
+    }
+
+    // Add session and term filters to invoice relation
+    if (sessionId || termId || classId || classArmId) {
+      where.invoice = {
+        AND: [
+          sessionId ? { sessionId } : {},
+          termId ? { termId } : {},
+          classArmId ? { classArmId } : {},
+          classId
+            ? {
+                classes: {
+                  some: {
+                    classId: classId,
+                  },
+                },
+              }
+            : {},
+        ],
+      };
+    }
+
+    // Add search filter for student name
+    if (search) {
+      where.student = {
+        ...where.student,
+        user: {
+          OR: [
+            { firstname: { contains: search } },
+            { lastname: { contains: search } },
+            {
+              AND: [
+                { firstname: { contains: search.split(' ')[0] || '' } },
+                { lastname: { contains: search.split(' ')[1] || '' } },
+              ],
+            },
+          ],
+        },
+      };
+    }
+
+    // Get total count for pagination
+    const total = await this.prisma.offlinePayment.count({
+      where,
+    });
+
+    // Get paginated data with relations
+    const payments = await this.prisma.offlinePayment.findMany({
+      where,
+      include: {
+        invoice: {
+          include: {
+            session: true,
+            term: true,
+          },
+        },
+        student: {
+          include: {
+            user: {
+              select: {
+                firstname: true,
+                lastname: true,
+              },
+            },
+            class: true,
+            classArm: true,
+          },
+        },
+        approvedBy: {
+          select: {
+            id: true,
+            firstname: true,
+            lastname: true,
+            email: true,
+          },
+        },
+        createdByUser: {
+          select: {
+            id: true,
+            firstname: true,
+            lastname: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      skip,
+      take: limit,
+    });
+
+    // Calculate total pages
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data: payments,
+      total,
+      page,
+      limit,
+      totalPages,
+    };
+  }
+
+  /**
+   * Get all offline payments for a student
+   */
+  async getOfflinePaymentById(paymentId: string, user: AuthenticatedUser) {
+    const schoolId = user.schoolId;
+    const payment = await this.prisma.offlinePayment.findFirst({
+      where: {
+        id: paymentId,
+        schoolId,
+      },
+      include: {
+        invoice: {
+          include: {
+            session: true,
+            term: true,
+          },
+        },
+        student: {
+          include: {
+            user: {
+              select: {
+                firstname: true,
+                lastname: true,
+              },
+            },
+            class: true,
+            classArm: true,
+          },
+        },
+        approvedBy: {
+          select: {
+            id: true,
+            firstname: true,
+            lastname: true,
+            email: true,
+          },
+        },
+        createdByUser: {
+          select: {
+            id: true,
+            firstname: true,
+            lastname: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Offline payment not found');
+    }
+
+    return payment;
+  }
+
+  async getStudentOfflinePayments(studentId: string, user: AuthenticatedUser) {
+    const schoolId = user.schoolId;
+    return this.prisma.offlinePayment.findMany({
+      where: {
+        studentId,
+        schoolId,
+      },
+      include: {
+        invoice: true,
+        student: {
+          include: {
+            user: true,
+          },
+        },
+        approvedBy: {
+          select: {
+            id: true,
+            firstname: true,
+            lastname: true,
+            email: true,
+          },
+        },
+        createdByUser: {
+          select: {
+            id: true,
+            firstname: true,
+            lastname: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
+  /**
    * Revert discount from all assignments for an invoice (increase outstanding if not fully paid)
    */
   private async revertDiscountFromAssignments(
@@ -581,5 +1303,80 @@ export class InvoiceService {
       })
       .filter(Boolean);
     await this.prisma.$transaction(updates);
+  }
+
+  async getPaymentDashboardStats(user: AuthenticatedUser) {
+    const schoolId = user.schoolId;
+
+    // Get aggregated stats per class in a single query
+    const classStats = await this.prisma.class.findMany({
+      where: {
+        schoolId,
+        isDeleted: false,
+      },
+      select: {
+        id: true,
+        name: true,
+        _count: {
+          select: {
+            students: true,
+          },
+        },
+      },
+      orderBy: {
+        name: 'asc',
+      },
+    });
+
+    // Get overall payment stats
+    const overallStats = await this.prisma.studentInvoiceAssignment.aggregate({
+      where: {
+        schoolId,
+      },
+      _sum: {
+        outstanding: true,
+        paid: true,
+      },
+    });
+
+    // Get per-class payment stats
+    const classPaymentStats = await Promise.all(
+      classStats.map(async (classItem) => {
+        const stats = await this.prisma.studentInvoiceAssignment.aggregate({
+          where: {
+            schoolId,
+            student: {
+              classId: classItem.id,
+            },
+          },
+          _sum: {
+            outstanding: true,
+            paid: true,
+          },
+        });
+
+        return {
+          classId: classItem.id,
+          className: classItem.name,
+          studentCount: classItem._count.students,
+          paidAmount: stats._sum.paid || 0,
+          outstandingAmount: stats._sum.outstanding || 0,
+          totalAmount: (stats._sum.paid || 0) + (stats._sum.outstanding || 0),
+        };
+      }),
+    );
+
+    const totalPaid = overallStats._sum.paid || 0;
+    const totalOutstanding = overallStats._sum.outstanding || 0;
+    const totalExpectedRevenue = totalPaid + totalOutstanding;
+
+    return {
+      summary: {
+        expectedRevenue: totalExpectedRevenue,
+        generatedRevenue: totalPaid,
+        outstandingRevenue: totalOutstanding,
+      },
+      classStats: classPaymentStats,
+    };
   }
 }

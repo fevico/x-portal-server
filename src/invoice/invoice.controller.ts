@@ -8,18 +8,114 @@ import {
   Patch,
   Post,
   Query,
+  UseInterceptors,
+  UploadedFile,
   Request,
   UseGuards,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { InvoiceService } from './invoice.service';
 import { InvoiceDto, UpdateInvoiceDto } from './dto/invoice.dto';
+import {
+  RecordOfflinePaymentDto,
+  ProcessOfflinePaymentDto,
+} from './dto/offline-payment.dto';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guards';
 import { AuthenticatedUser } from '@/types/express';
 import { Request as RequestExpress } from 'express';
+import { InvoiceStatus } from '@prisma/client';
 
 @Controller('invoice')
 export class InvoiceController {
   constructor(private readonly invoiceService: InvoiceService) {}
+
+  @Post('offline-payment/record')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileInterceptor('proofOfPayment'))
+  async recordOfflinePayment(
+    @Body() body: RecordOfflinePaymentDto,
+    @Request() req: RequestExpress,
+    @UploadedFile() proofOfPayment?: Express.Multer.File,
+  ) {
+    const user = req.user as AuthenticatedUser;
+    return this.invoiceService.recordOfflinePayment({
+      ...body,
+      proofOfPayment,
+      user,
+    });
+  }
+  @Patch('offline-payment/:paymentId/process')
+  @UseGuards(JwtAuthGuard)
+  async processOfflinePayment(
+    @Param('paymentId') paymentId: string,
+    @Body() body: ProcessOfflinePaymentDto,
+    @Request() req: RequestExpress,
+  ) {
+    const user = req.user as AuthenticatedUser;
+    return this.invoiceService.approveOfflinePayment({
+      paymentId,
+      user,
+      approve: body.approve,
+      rejectionReason: body.rejectionReason,
+    });
+  }
+
+  @Get('offline-payment')
+  @UseGuards(JwtAuthGuard)
+  async getOfflinePayments(
+    @Request() req: RequestExpress,
+    @Query('classId') classId: string,
+    @Query('termId') termId: string,
+    @Query('sessionId') sessionId: string,
+    @Query('classArmId') classArmId: string,
+    @Query('search') search: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ) {
+    const user = req.user as AuthenticatedUser;
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 10;
+    const skip = (pageNum - 1) * limitNum;
+
+    return this.invoiceService.getOfflinePayments({
+      user,
+      classId,
+      termId,
+      sessionId,
+      classArmId,
+      search,
+      page: pageNum,
+      limit: limitNum,
+      skip,
+    });
+  }
+
+  @Get('offline-payment/detail/:paymentId')
+  @UseGuards(JwtAuthGuard)
+  async getOfflinePaymentById(
+    @Param('paymentId') paymentId: string,
+    @Request() req: RequestExpress,
+  ) {
+    const user = req.user as AuthenticatedUser;
+    return this.invoiceService.getOfflinePaymentById(paymentId, user);
+  }
+
+  @Get('payment-dashboard')
+  @UseGuards(JwtAuthGuard)
+  async getPaymentDashboardStats(@Request() req: RequestExpress) {
+    const user = req.user as AuthenticatedUser;
+    return this.invoiceService.getPaymentDashboardStats(user);
+  }
+
+  @Get('offline-payment/student/:studentId')
+  @UseGuards(JwtAuthGuard)
+  async getStudentOfflinePayments(
+    @Param('studentId') studentId: string,
+    @Request() req: RequestExpress,
+  ) {
+    const user = req.user as AuthenticatedUser;
+    return this.invoiceService.getStudentOfflinePayments(studentId, user);
+  }
 
   @Post('generate')
   @UseGuards(JwtAuthGuard)
@@ -116,9 +212,10 @@ export class InvoiceController {
   async getInvoiceAssignments(
     @Request() req: RequestExpress,
     @Param('invoiceId') invoiceId: string,
+    @Query('status') status?: string,
   ): Promise<any> {
     const user = req.user as AuthenticatedUser;
-    return this.invoiceService.getInvoiceAssignments(invoiceId, user);
+    return this.invoiceService.getInvoiceAssignments(invoiceId, status, user);
   }
 
   @Get('assignment/:assignmentId')
@@ -156,7 +253,46 @@ export class InvoiceController {
     return this.invoiceService.getStudentAssignments(studentId, user);
   }
 
+  @Get('payments/student-summary')
+  @UseGuards(JwtAuthGuard)
+  async getStudentWithInvoices(
+    @Request() req: RequestExpress,
+    @Query('classId') classId: string,
+    @Query('termId') termId: string,
+    @Query('sessionId') sessionId: string,
+    @Query('classArmId') classArmId: string,
+    @Query('status') status: InvoiceStatus,
+
+    @Query('search') search: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ): Promise<any> {
+    const user = req.user as AuthenticatedUser;
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 10;
+    const skip = (pageNum - 1) * limitNum;
+    return this.invoiceService.getStudentWithInvoiceAssignments({
+      user,
+      classId,
+      termId,
+      sessionId,
+      classArmId,
+      search,
+      status,
+      page: pageNum,
+      limit: limitNum,
+      skip,
+    });
+  }
+
   // --- DISCOUNT ENDPOINTS ---
+
+  @Get('discounts/list')
+  @UseGuards(JwtAuthGuard)
+  async listAllDiscounts(@Request() req: RequestExpress) {
+    const user = req.user as AuthenticatedUser;
+    return this.invoiceService.listAllDiscounts(user);
+  }
 
   @Post(':invoiceId/discount')
   @UseGuards(JwtAuthGuard)
@@ -184,7 +320,7 @@ export class InvoiceController {
     @Param('invoiceId') invoiceId: string,
   ) {
     const user = req.user as AuthenticatedUser;
-    return this.invoiceService.listDiscounts(invoiceId, user);
+    return this.invoiceService.listDiscountsByInvoice(invoiceId, user);
   }
 
   @Get('discount/:discountId')
@@ -208,7 +344,7 @@ export class InvoiceController {
     return this.invoiceService.updateDiscount(discountId, body, user);
   }
 
-  @Post('discount/:discountId/approve')
+  @Patch('discount/:discountId/approve')
   @UseGuards(JwtAuthGuard)
   async approveDiscount(
     @Request() req: RequestExpress,
