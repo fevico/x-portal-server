@@ -7,7 +7,7 @@ datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
 }
-
+//comment
 // User model for common user data 
 model User {
   id              String    @id @default(uuid())
@@ -1228,7 +1228,9 @@ model LessonPlan {
   createdBy   String?       @map("created_by") @db.VarChar(36)
   updatedBy   String?       @map("updated_by") @db.VarChar(36)
   isDeleted   Boolean       @default(false) @map("is_deleted")
-  isActive    Boolean       @default(true) @map("is_active")
+  isActive    Boolean         @default(true) @map("is_active")
+  status      LessonPlanType  @default(PENDING)
+  rejectionReason String?   @map("rejection_reason") @db.VarChar(36)
 
   @@unique([schoolId, sessionId, termId, subjectId, classId, weekId])
   @@index([schoolId, sessionId, termId, weekId])
@@ -1243,6 +1245,12 @@ enum Gender {
 enum AssessmentType {
   CA
   EXAM
+}
+
+enum LessonPlanType {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum PaymentStatus {

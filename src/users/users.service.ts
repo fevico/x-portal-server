@@ -781,7 +781,7 @@ export class UsersService {
 
   async getStudentById(studentId: string) {
     // Fetch student and all related fields
-    const student = await this.prisma.student.findFirst({
+    const student = await this.prisma.student.findFirst({  
       where: {
         id: studentId,
       },
