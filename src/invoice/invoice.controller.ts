@@ -160,7 +160,7 @@ export class InvoiceController {
     @Query('classArmId') classArmId: string,
     @Query('search') search: string,
     @Query('page') page: string = '1',
-    @Query('limit') limit: string = '10',
+    @Query('limit') limit: string = '10', 
   ): Promise<any> {
     const user = req.user as AuthenticatedUser;
 

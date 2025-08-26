@@ -1,6 +1,6 @@
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guards';
 import { AuthenticatedUser } from '@/types/express';
-import { Body, Controller, Get, Param, Post, Query, Req, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, Request, UseGuards } from '@nestjs/common';
 import { Request as RequestExpress } from 'express';
 import { LessonPlanService } from './lesson-plan.service';
 import { CreateLessonPlan } from './dto/less-plan.dto';   
@@ -17,29 +17,34 @@ export class LessonPlanController {
     return this.lessonPlanService.createLessonPlan(body, user)
     }
 
-    // @Get('')
-    // @UseGuards(JwtAuthGuard)
-    // async schoolLessonPlan(@Req() req: RequestExpress){
-    //   const school = req.user as AuthenticatedUser
-    //   return this.lessonPLanService.schoolLessonPlan(school)
-    // }
-
-    @Get('')
+ @Get('')
   async getSchoolLessonPlans(
-    @Req() req: RequestExpress,
-    @Query('subjectId') subjectId?: string,
-    @Query('termId') termId?: string,
-    @Query('sessionId') sessionId?: string,
-    @Query('classId') classId?: string,
-  ) {
-      const user = req.user as AuthenticatedUser
-    return this.lessonPlanService.schoolLessonPlan(user.schoolId, {
-      subjectId,
-      termId,
-      sessionId,
-      classId,
-    });
-  }
+  @Req() req: RequestExpress,
+  @Query('page') page: string = '1',
+  @Query('limit') limit: string = '10',
+  @Query('subjectId') subjectId?: string,
+  @Query('termId') termId?: string,
+  @Query('sessionId') sessionId?: string,
+  @Query('classId') classId?: string,
+  @Query('status') status?: LessonPlanType,
+) {
+  const user = req.user as AuthenticatedUser;
+
+  const pageNum = Math.max(1, parseInt(page, 10) || 1);
+  const limitNum = Math.max(1, Math.min(100, parseInt(limit, 10) || 10)); // Limit max to 100
+  const skip = (pageNum - 1) * limitNum;
+
+  return this.lessonPlanService.schoolLessonPlan(user.schoolId, {
+    subjectId,
+    termId,
+    sessionId,
+    classId,
+    status,
+    pageNum,
+    limitNum,
+    skip,
+  });
+}
 
   // GET /lesson-plans/school123/lp1?sessionId=session101&termId=term789&subjectId=sub456&classId=class202
   @Get(':lessonPlanId')
@@ -47,38 +52,16 @@ export class LessonPlanController {
     // @Param('schoolId') schoolId: string,
     @Req() req: RequestExpress,
     @Param('lessonPlanId') lessonPlanId: string,
-    @Query('sessionId') sessionId?: string,
-    @Query('termId') termId?: string,
-    @Query('subjectId') subjectId?: string,
-    @Query('classId') classId?: string,
   ) {
     const user = req.user as AuthenticatedUser 
-    return this.lessonPlanService.schoolLessonPlanById(user.schoolId, lessonPlanId, {
-      sessionId,
-      termId,
-      subjectId,
-      classId,
-    });
+    return this.lessonPlanService.schoolLessonPlanById(user.schoolId, lessonPlanId);
   }
 
-
-  @Get('/status/:status')
-  async getLessonPlansByStatus(
-    @Req() req: RequestExpress,
-    @Param('status') status: LessonPlanType,
-    @Query('page') page: number = 1,
-    @Query('termId') termId?: string,
-    @Query('sessionId') sessionId?: string,
-    @Query('classId') classId?: string,
-    @Query('subjectId') subjectId?: string,
-  ) {
-    const user = req.user as AuthenticatedUser 
-    return this.lessonPlanService.schoolLessonPlanByStatus(user.schoolId, status, page, {
-      termId,
-      sessionId,
-      classId,
-      subjectId,
-    });
+  @Patch('status/:lessonPlan')
+  @UseGuards(JwtAuthGuard)
+  async updateLessonPlan(@Param("lessonPlan") lessonPlan: string, @Req() req: RequestExpress, @Body("status") status: LessonPlanType){
+    const user = req.user as AuthenticatedUser
+    return this.lessonPlanService.updateLessonPlanStatus(user.schoolId, lessonPlan, status)
   }
 
   @Get('weeks/:sessionId/:termId')

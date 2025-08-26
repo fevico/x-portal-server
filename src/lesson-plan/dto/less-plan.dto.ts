@@ -1,4 +1,4 @@
-import { IsDate, IsNotEmpty, IsString } from "class-validator";
+import { IsDate, IsNotEmpty, IsOptional, IsString } from "class-validator";
 
 export class CreateLessonPlan {
     @IsNotEmpty()
@@ -25,9 +25,6 @@ export class CreateLessonPlan {
     @IsNotEmpty()
     weekId: string
 
-    @IsDate()
-    date: Date
-
     @IsString()
     @IsNotEmpty()
     topic: string
@@ -37,11 +34,11 @@ export class CreateLessonPlan {
     subTopic: string
 
     @IsString()
-    @IsNotEmpty()
+    @IsOptional()
     period: string
 
     @IsString()
-    @IsNotEmpty()
+    @IsOptional()
     duration: string
 
     @IsString()

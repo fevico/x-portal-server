@@ -1,33 +1,3 @@
-// import { Injectable } from '@nestjs/common';
-// import { CreateLessonPlan } from './dto/less-plan.dto';
-// import { AuthenticatedUser } from '@/types/express';
-// import { PrismaService } from '@/prisma/prisma.service';
-
-// @Injectable()
-// export class LessonPlanService {
-
-//       constructor(private prisma: PrismaService) {}
-
-//     async createLessonPlan(body: CreateLessonPlan, user: AuthenticatedUser){
-//         const schoolId = user.schoolId
-
-//         try {
-//             const plan = await this.prisma.lessonPlan.create({
-//                 data: {
-//                     class: {connect: {id: body.classId}},
-//                     school: {connect: {id: schoolId}},
-//                     subject: {connect: {id: body.subjectId}},
-//                     session: {connect: {id: body.sessionId}},
-//                     term: {connect: {id: body.termId}}
-//                 }
-//             })   
-//         } catch (error) {
-            
-//         }
-
-//     }
-// }
-
 
 import { Injectable, BadRequestException, NotFoundException, UnauthorizedException, InternalServerErrorException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
@@ -72,7 +42,6 @@ export class LessonPlanService {
           week: { connect: { id: body.weekId } },
           title: body.topic,
           description: body.subTopic,
-          date: body.date,
           period: body.period,
           duration: body.duration,
           step: body.step,
@@ -94,99 +63,117 @@ export class LessonPlanService {
     }
   }
 
-  async schoolLessonPlan(
-    schoolId: string,
-    filters: {
-      subjectId?: string;
-      termId?: string;
-      sessionId?: string;
-      classId?: string;
-    } = {},
-  ) {
-    try {
-      // Validate school existence
-      const school = await this.prisma.school.findUnique({
-        where: { id: schoolId },
-      });
-      if (!school) {
-        throw new UnauthorizedException('Unauthorized request: School not found');
-      }
+  // Service
+async schoolLessonPlan(
+  schoolId: string,
+  filters: {
+    subjectId?: string;
+    termId?: string;
+    sessionId?: string;
+    classId?: string;
+    status?: LessonPlanType;
+    pageNum: number;
+    limitNum: number;
+    skip: number;
+  },
+) {
+  try {
+    // Validate school existence
+    const school = await this.prisma.school.findUnique({
+      where: { id: schoolId },
+    });
+    if (!school) {
+      throw new UnauthorizedException('Unauthorized request: School not found');
+    }
 
-      // Build dynamic where clause based on provided filters
-      const where: Prisma.LessonPlanWhereInput = {
-        schoolId,
-        isDeleted: false, // Only fetch non-deleted lesson plans
-        ...(filters.subjectId && { subjectId: filters.subjectId }),
-        ...(filters.termId && { termId: filters.termId }),
-        ...(filters.sessionId && { sessionId: filters.sessionId }),
-        ...(filters.classId && { classId: filters.classId }),
-      };
+    // Build dynamic where clause
+    const where: Prisma.LessonPlanWhereInput = {
+      schoolId,
+      isDeleted: false,
+      isActive: true,
+      ...(filters.subjectId && { subjectId: filters.subjectId }),
+      ...(filters.termId && { termId: filters.termId }),
+      ...(filters.sessionId && { sessionId: filters.sessionId }),
+      ...(filters.classId && { classId: filters.classId }),
+      ...(filters.status && { status: filters.status }),
+    };
 
-      // Fetch lesson plans with related data
-      const lessonPlans = await this.prisma.lessonPlan.findMany({
-        where,
-        include: {
-          subject: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-          class: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-          classArm: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-          term: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-          session: {
-            select: {
-              id: true,
-              name: true,
-            },
+    // Get total count for pagination
+    const totalCount = await this.prisma.lessonPlan.count({ where });
+
+    // Fetch lesson plans
+    const lessonPlans = await this.prisma.lessonPlan.findMany({
+      where,
+      include: {
+        subject: {
+          select: {
+            id: true,
+            name: true,
           },
         },
-        orderBy: {
-          createdAt: 'desc', // Optional: Sort by creation date
+        class: {
+          select: {
+            id: true,
+            name: true,
+          },
         },
-      });
+        classArm: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        term: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        session: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      skip: filters.skip,
+      take: filters.limitNum,
+    });
 
-      // Check if any lesson plans were found
-      if (!lessonPlans || lessonPlans.length === 0) {
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(totalCount / filters.limitNum);
+    const hasNextPage = filters.pageNum < totalPages;
+    const hasPrevPage = filters.pageNum > 1;
+
+    return {
+      data: lessonPlans,
+      pagination: {
+        totalCount,
+        currentPage: filters.pageNum,
+        pageSize: filters.limitNum,
+        totalPages,
+        hasNextPage,
+        hasPrevPage,
+      },
+    };
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2025') {
         throw new NotFoundException('No lesson plans found for the specified criteria');
       }
-
-      return lessonPlans;
-    } catch (error) {
-      // Handle Prisma-specific errors or other unexpected issues
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        throw new InternalServerErrorException('Database error occurred');
-      }
-      throw error; // Re-throw other errors (e.g., UnauthorizedException, NotFoundException)
+      throw new InternalServerErrorException('Database error occurred');
     }
+    throw error;
   }
+}
 
   // get school lession plan by id for tern in a session 
   async schoolLessonPlanById(
     schoolId: string,
     lessonPlanId: string,
-    filters: {
-      sessionId?: string;
-      termId?: string;
-      subjectId?: string;
-      classId?: string;
-    } = {},
   ) {
     try {
       // Validate school existence
@@ -202,10 +189,6 @@ export class LessonPlanService {
         id: lessonPlanId,
         schoolId,
         isDeleted: false,
-        ...(filters.sessionId && { sessionId: filters.sessionId }),
-        ...(filters.termId && { termId: filters.termId }),
-        ...(filters.subjectId && { subjectId: filters.subjectId }),
-        ...(filters.classId && { classId: filters.classId }),
       };
 
       // Fetch lesson plan with related data
@@ -258,113 +241,6 @@ export class LessonPlanService {
     }
   }
 
-  // school lesson plan by status 
-  async schoolLessonPlanByStatus(
-    schoolId: string,
-    status: LessonPlanType,
-    page: number = 1,
-    filters: {
-      termId?: string;
-      sessionId?: string; 
-      classId?: string;
-      subjectId?: string;
-    } = {},
-  ) {
-    try {
-      // Validate school existence
-      const school = await this.prisma.school.findUnique({
-        where: { id: schoolId },
-      });
-      if (!school) {
-        throw new UnauthorizedException('Unauthorized request: School not found');
-      }
-
-      // Validate status
-      if (!Object.values(LessonPlanType).includes(status)) {
-        throw new NotFoundException('Invalid status provided');
-      }
-
-      // Pagination settings
-      const pageSize = 10; // Adjust as needed
-      const skip = (page - 1) * pageSize;
-
-      // Build where clause
-      const where: Prisma.LessonPlanWhereInput = {
-        schoolId,
-        status,
-        isDeleted: false,
-        ...(filters.termId && { termId: filters.termId }),
-        ...(filters.sessionId && { sessionId: filters.sessionId }),
-        ...(filters.classId && { classId: filters.classId }),
-        ...(filters.subjectId && { subjectId: filters.subjectId }),
-      };
-
-      // Fetch lesson plans with related data
-      const [lessonPlans, total] = await Promise.all([
-        this.prisma.lessonPlan.findMany({
-          where,
-          include: {
-            subject: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-            class: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-            classArm: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-            term: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-            session: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-          },
-          skip,
-          take: pageSize,
-          orderBy: {
-            createdAt: 'desc',
-          },
-        }),
-        this.prisma.lessonPlan.count({ where }),
-      ]);
-
-      if (!lessonPlans || lessonPlans.length === 0) {
-        throw new NotFoundException('No lesson plans found for the specified criteria');
-      }
-
-      return {
-        data: lessonPlans,
-        meta: {
-          total,
-          page,
-          pageSize,
-          totalPages: Math.ceil(total / pageSize),
-        },
-      };
-    } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        throw new InternalServerErrorException('Database error occurred');
-      }
-      throw error;
-    }
-  }
-
   async fetchSessionTermWeeks(schoolId, sessionId, termId){
     try {
       const school = await this.prisma.school.findUnique({where: {id: schoolId}})
@@ -378,4 +254,14 @@ export class LessonPlanService {
       throw new InternalServerErrorException(`Something went wrong ${error.message}`)
     }
   } 
+
+  async updateLessonPlanStatus(schoolId: string, lesspnPlan: string, status: LessonPlanType){
+    try {
+      const lessonPlan = await this.prisma.lessonPlan.update({where: {id: lesspnPlan, schoolId}, data:{status}})
+      if(!lessonPlan) throw new UnauthorizedException("Unauthorized request!")
+        return {message: `Lesson plan status has been ${status}`}
+    } catch (error) {
+      throw new InternalServerErrorException(`Something went wrong ${error.message}`)
+    }
+  }
 }
