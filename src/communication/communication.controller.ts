@@ -19,7 +19,7 @@ import { CreateEvent, updateEvent as updateEventDto } from './dto/event.dto';
 export class CommunicationController {
   constructor(private communicationService: CommunicationService) {}
 
-  @Post('send-email')
+  @Post('events/create')
   @UseGuards(JwtAuthGuard)
   async createEvent(
     @Body() createEvent: CreateEvent,

@@ -13,7 +13,7 @@ export class InvoiceDto {
   @IsString()
   @IsNotEmpty()
   @IsIn(['single', 'mass'])
-  type: 'single' | 'mass';
+  invoiceType: 'single' | 'mass';
   @IsString()
   @IsNotEmpty()
   title: string;
@@ -26,16 +26,15 @@ export class InvoiceDto {
   @IsNotEmpty()
   amount: number;
 
-  @ValidateIf((o) => o.type === 'single')
-  @IsString()
-  @IsNotEmpty()
-  classId?: string;
-
-  @ValidateIf((o) => o.type === 'mass')
   @IsArray()
   @ArrayNotEmpty()
   @IsString({ each: true })
-  classIds?: string[];
+  classIds: string[];
+
+  @ValidateIf((o) => o.invoiceType === 'single')
+  @IsString()
+  @IsNotEmpty()
+  classArmId?: string;
 
   @IsString()
   @IsNotEmpty()
@@ -45,28 +44,17 @@ export class InvoiceDto {
   @IsNotEmpty()
   termId: string;
 
-  @ValidateIf((o) => o.type === 'single')
+  @ValidateIf((o) => o.invoiceType === 'single')
   @IsString()
   @IsOptional()
   studentId?: string;
-
-  @ValidateIf((o) => o.type === 'single')
-  @IsString()
-  @IsOptional()
-  classArmId?: string;
-
-  @ValidateIf((o) => o.type === 'mass')
-  @IsArray()
-  @IsOptional()
-  @IsString({ each: true })
-  classArmIds?: string[];
 }
 
 export class UpdateInvoiceDto {
   @IsString()
   @IsOptional()
   @IsIn(['single', 'mass'])
-  type?: 'single' | 'mass';
+  invoiceType?: 'single' | 'mass';
   @IsString()
   @IsOptional()
   title?: string;
@@ -83,30 +71,24 @@ export class UpdateInvoiceDto {
   @IsOptional()
   amount?: number;
 
-  @ValidateIf((o) => o.type === 'single')
+  @ValidateIf((o) => o.invoiceType === 'single')
   @IsString()
   @IsOptional()
   classId?: string;
 
-  @ValidateIf((o) => o.type === 'mass')
+  @ValidateIf((o) => o.invoiceType === 'mass')
   @IsArray()
   @IsOptional()
   @IsString({ each: true })
   classIds?: string[];
 
-  @ValidateIf((o) => o.type === 'single')
+  @ValidateIf((o) => o.invoiceType === 'single')
   @IsString()
   @IsOptional()
   studentId?: string;
 
-  @ValidateIf((o) => o.type === 'single')
+  @ValidateIf((o) => o.invoiceType === 'single')
   @IsString()
   @IsOptional()
   classArmId?: string;
-
-  @ValidateIf((o) => o.type === 'mass')
-  @IsArray()
-  @IsOptional()
-  @IsString({ each: true })
-  classArmIds?: string[];
 }

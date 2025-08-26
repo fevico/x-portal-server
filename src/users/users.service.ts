@@ -858,7 +858,11 @@ export class UsersService {
           include: {
             invoice: {
               include: {
-                class: true,
+                classes: {
+                  include: {
+                    class: true,
+                  },
+                },
                 classArm: true,
                 school: { select: { name: true } },
               },
@@ -983,7 +987,8 @@ export class UsersService {
           title: assignment.invoice.title,
           amount: assignment.invoice.amount,
           status: assignment.status,
-          class: assignment.invoice.class?.name,
+          classes:
+            assignment.invoice.classes?.map((cls) => cls.class.name) || [],
           classArm: assignment.invoice.classArm?.name,
           // dueDate: assignment.invoice.dueDate,
           paid: assignment.paid,
