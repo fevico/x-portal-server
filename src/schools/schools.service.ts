@@ -233,24 +233,26 @@ export class SchoolsService {
       );
 
       // create recode in configuration model
-      await this.prisma.configuration.create({
-        data: {
-          schoolId: school.id,
-          logo: { imageUrl: '', pubId: '' }, // Placeholder, can be updated later
-          country: '',
-          state: '',
-          color: '#3F51B5',
-          schoolHeadName: '',
-          schoolHeadContact: '',
-          schoolHeadSignature: { imageUrl: '', pubId: '' },
-          principalName: '',
-          principalContact: '',
-          principalSignature: { imageUrl: '', pubId: '' },
-          bursarName: '',
-          bursarContact: '',
-          bursarSignature: { imageUrl: '', pubId: '' },
-        },
-      });
+
+      
+      // await this.prisma.configuration.create({
+      //   data: {
+      //     schoolId: school.id,
+      //     logo: { imageUrl: '', pubId: '' }, // Placeholder, can be updated later
+      //     country: '',
+      //     state: '',
+      //     color: '#3F51B5',
+      //     schoolHeadName: '',
+      //     schoolHeadContact: '',
+      //     schoolHeadSignature: { imageUrl: '', pubId: '' },
+      //     principalName: '',
+      //     principalContact: '',
+      //     principalSignature: { imageUrl: '', pubId: '' },
+      //     bursarName: '',
+      //     bursarContact: '',
+      //     bursarSignature: { imageUrl: '', pubId: '' },
+      //   },
+      // });
 
       // Log action after transaction
       await this.loggingService.logAction(

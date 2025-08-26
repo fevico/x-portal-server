@@ -506,105 +506,118 @@ async createSession(dto: CreateSessionDto, req: any) {
     }
 
     // Create session, session terms, and weeks in a transaction
-    const result = await this.prisma.$transaction(
-      async (tx) => {
-        // Create session
-        const session = await tx.session.create({
-          data: {
-            name: dto.session,
-            schoolId: requester.schoolId,
-            createdBy: requester.id,
-          },
-        });
+   // ... (rest of your code remains the same up to the transaction)
 
-        // Create session terms
-        const sessionTerms = await Promise.all([
-          tx.sessionTerm.create({
-            data: {
-              termDefinitionId: termDefinitionMap['First_Term'],
-              sessionId: session.id,
-              schoolId: requester.schoolId,
-              startDate: new Date(dto.firstTermStartDate),
-              endDate: new Date(dto.firstTermEndDate),
-              createdBy: requester.id,
-            },
-          }),
-          tx.sessionTerm.create({
-            data: {
-              termDefinitionId: termDefinitionMap['Second_Term'],
-              sessionId: session.id,
-              schoolId: requester.schoolId,
-              startDate: new Date(dto.secondTermStartDate),
-              endDate: new Date(dto.secondTermEndDate),
-              createdBy: requester.id,
-            },
-          }),
-          tx.sessionTerm.create({
-            data: {
-              termDefinitionId: termDefinitionMap['Third_Term'],
-              sessionId: session.id,
-              schoolId: requester.schoolId,
-              startDate: new Date(dto.thirdTermStartDate),
-              endDate: new Date(dto.thirdTermEndDate),
-              createdBy: requester.id,
-            },
-          }),
-        ]);
+// Create session, session terms, and weeks in a transaction
+  const result = await this.prisma.$transaction(
+  async (tx) => {
+    // Create session
+    const session = await tx.session.create({
+      data: {
+        name: dto.session,
+        schoolId: requester.schoolId,
+        createdBy: requester.id,
+      },
+    });
 
-        // Create weeks for each session term
-        const weeks = [];
-        for (let i = 0; i < sessionTerms.length; i++) {
-          const term = sessionTerms[i];
-          const termStart = new Date(term.startDate);
-          const termEnd = new Date(term.endDate);
+    // Create session terms (keep as-is, since only 3)
+    const sessionTerms = await Promise.all([
+      tx.sessionTerm.create({
+        data: {
+          termDefinitionId: termDefinitionMap['First_Term'],
+          sessionId: session.id,
+          schoolId: requester.schoolId,
+          startDate: new Date(dto.firstTermStartDate),
+          endDate: new Date(dto.firstTermEndDate),
+          createdBy: requester.id,
+        },
+      }),
+      tx.sessionTerm.create({
+        data: {
+          termDefinitionId: termDefinitionMap['Second_Term'],
+          sessionId: session.id,
+          schoolId: requester.schoolId,
+          startDate: new Date(dto.secondTermStartDate),
+          endDate: new Date(dto.secondTermEndDate),
+          createdBy: requester.id,
+        },
+      }),
+      tx.sessionTerm.create({
+        data: {
+          termDefinitionId: termDefinitionMap['Third_Term'],
+          sessionId: session.id,
+          schoolId: requester.schoolId,
+          startDate: new Date(dto.thirdTermStartDate),
+          endDate: new Date(dto.thirdTermEndDate),
+          createdBy: requester.id,
+        },
+      }),
+    ]);
 
-          // Calculate the number of weeks (including partial weeks)
-          const totalWeeks = differenceInWeeks(termEnd, termStart) + 1;
+    // Prepare batch data for weeks
+    const weeksData = [];
+    for (let i = 0; i < sessionTerms.length; i++) {
+      const term = sessionTerms[i];
+      const termStart = new Date(term.startDate);
+      const termEnd = new Date(term.endDate);
 
-          // Generate weeks
-          for (let weekNum = 1; weekNum <= totalWeeks; weekNum++) {
-            const weekStart = addDays(termStart, (weekNum - 1) * 7);
-            let weekEnd = addDays(weekStart, 6); // Full 7-day week
+      // Calculate the number of weeks (including partial weeks)
+      const totalWeeks = differenceInWeeks(termEnd, termStart) + 1;
 
-            // Ensure the week doesn't exceed the term's end date
-            if (weekEnd > termEnd) {
-              weekEnd = termEnd;
-            }
+      // Generate week data
+      for (let weekNum = 1; weekNum <= totalWeeks; weekNum++) {
+        const weekStart = addDays(termStart, (weekNum - 1) * 7);
+        let weekEnd = addDays(weekStart, 6); // Full 7-day week
 
-            // For Monday-to-Friday weeks, adjust weekStart and weekEnd:
-            // const weekStart = startOfWeek(addDays(termStart, (weekNum - 1) * 7), { weekStartsOn: 1 }); // Monday
-            // let weekEnd = addDays(weekStart, 4); // Friday
-            // if (weekEnd > termEnd) weekEnd = termEnd;
-
-            const week = await tx.weeks.create({
-              data: {
-                name: `Week ${weekNum}`,
-                schoolId: requester.schoolId,
-                sessionId: session.id,
-                termId: term.termDefinitionId, // Use termDefinitionId as termId
-                createdAt: new Date(),
-                startDate: weekStart,
-                endDate: weekEnd,
-              },
-            });
-            weeks.push(week);
-          }
+        // Ensure the week doesn't exceed the term's end date
+        if (weekEnd > termEnd) {
+          weekEnd = termEnd;
         }
 
-        return {
-          message: 'Session created successfully',
-          session,
-          sessionTerms,
-          weeks, // Include weeks in the result for logging or further use
-        };
-      },
-      { timeout: 10000 },
-    );
+        // For Monday-to-Friday weeks, adjust as needed (commented out as in your original)
+        // const weekStart = startOfWeek(addDays(termStart, (weekNum - 1) * 7), { weekStartsOn: 1 }); // Monday
+        // let weekEnd = addDays(weekStart, 4); // Friday
+        // if (weekEnd > termEnd) weekEnd = termEnd;
+
+        weeksData.push({
+          name: `Week ${weekNum}`,
+          schoolId: requester.schoolId,
+          sessionId: session.id,
+          termId: term.termDefinitionId, // Use termDefinitionId as termId
+          createdAt: new Date(),
+          startDate: weekStart,
+          endDate: weekEnd,
+        });
+      }
+    }
+
+    // Batch create all weeks
+    await tx.weeks.createMany({
+      data: weeksData,
+    });
+
+    // If you need the created weeks for logging, fetch them after createMany (note: createMany doesn't return records, so query if needed)
+    const weeks = await tx.weeks.findMany({
+      where: { sessionId: session.id },
+      orderBy: { startDate: 'asc' }, // Optional: to sort them
+    });
+
+    return {
+      message: 'Session created successfully',
+      session,
+      sessionTerms,
+      weeks, // Now fetched after batch create
+    };
+  },
+  { timeout: 30000 }, // Increased to 30 seconds for safety
+ );
+
+// ... (rest of your code remains the same, including logging)
 
     // Log action outside the transaction
     await this.loggingService.logAction(
       'create_session',
-      'Session',
+      'Session', 
       result.session.id,
       requester.id,
       requester.schoolId,

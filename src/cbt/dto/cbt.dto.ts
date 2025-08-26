@@ -1,87 +1,146 @@
-import { IsNotEmpty, IsString, IsArray, IsInt, Min, ArrayNotEmpty, ValidateNested, IsOptional } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsString, IsNotEmpty, IsOptional, IsDateString, IsEnum, IsBoolean, IsInt, IsNumber, Min, Max, IsArray } from 'class-validator';
+import { QuestionType } from '@prisma/client';
 
-class OptionDto {
-  @IsNotEmpty()
-  @IsString()
-  optionText: string;
+export class CreateExamDto {
+    @IsString()
+    @IsNotEmpty()
+    name: string;
+
+    @IsString()
+    @IsOptional()
+    description?: string;
+
+    @IsDateString()
+    @IsNotEmpty()
+    startDate: string;
+
+    @IsDateString()
+    @IsNotEmpty()
+    endDate: string;
+
+    @IsString()
+    @IsNotEmpty()
+    sessionId: string;
+
+    @IsString()
+    @IsNotEmpty()
+    termDefinitionId: string;
+
+    @IsString()
+    @IsNotEmpty()
+    classId: string;
+
+    @IsString()
+    @IsNotEmpty()
+    markingSchemeComponentId?: string;
+
+    @IsString()
+    @IsOptional()
+    subComponentId?: string;
 }
 
-class QuestionDto {
-  @IsNotEmpty()
-  @IsString()
-  questionText: string;
+export class CreatePaperDto {
+    @IsString()
+    @IsNotEmpty()
+    examId: string;
 
-  @IsArray()
-  @ArrayNotEmpty()
-  @ValidateNested({ each: true })
-  @Type(() => OptionDto)
-  options: OptionDto[];
+    @IsString()
+    @IsNotEmpty()
+    subjectId: string;
 
-  @IsInt()
-  @Min(0)
-  correctOptionIndex: number;
+    @IsInt()
+    @IsNotEmpty()
+    @Min(1)
+    duration: number;
+
+    @IsInt()
+    @IsOptional()
+    @Min(1)
+    maxRetries?: number;
+
+    @IsBoolean()
+    @IsOptional()
+    randomizeQuestions?: boolean;
+
+    @IsBoolean()
+    @IsOptional()
+    showResult?: boolean;
+
+    @IsBoolean()
+    @IsOptional()
+    showCorrections?: boolean;
+
+    @IsArray()
+    @IsNotEmpty()
+    questionIds: string[];
 }
 
-export class CreateQuestionsDto {
-  @IsNotEmpty()
-  @IsString()
-  subjectId: string;
+export class CreateQuestionDto {
+    @IsString()
+    @IsNotEmpty()
+    content: string;
 
-  @IsNotEmpty()
-  @IsString()
-  classId: string;
+    @IsEnum(QuestionType)
+    @IsNotEmpty()
+    type: QuestionType;
 
-  @IsArray()
-  @ArrayNotEmpty()
-  @ValidateNested({ each: true })
-  @Type(() => QuestionDto)
-  questions: QuestionDto[];
+    @IsArray()
+    @IsOptional()
+    options?: string[];
+
+    @IsString()
+    @IsNotEmpty()
+    correctAnswer: string;
+
+    @IsString()
+    @IsOptional()
+    explanation?: string;
+
+    @IsInt()
+    @IsOptional()
+    @Min(1)
+    @Max(5)
+    difficultyLevel?: number;
+
+    @IsString()
+    @IsNotEmpty()
+    subjectId: string;
+
+    @IsArray()
+    @IsOptional()
+    topicTags?: string[];
 }
 
+export class SubmitAnswerDto {
+    @IsString()
+    @IsNotEmpty()
+    paperId: string;
 
-export class DeleteQuestionsDto {
-  @IsNotEmpty()
-  @IsString()
-  subjectId: string;
+    @IsString()
+    @IsNotEmpty()
+    studentId: string;
 
-  @IsNotEmpty()
-  @IsString()
-  classId: string;
+    @IsNumber()
+    @IsNotEmpty()
+    attempt: number;
+
+    // Structure: { questionId: string, answer: string }[]
+    @IsArray()
+    @IsNotEmpty()
+    answers: { questionId: string; answer: string }[];
 }
 
-export class FetchAllQuestionsDto {
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  page?: number = 1;
+export class GradeEssayDto {
+    @IsString()
+    @IsNotEmpty()
+    responseId: string;
 
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  limit?: number = 10;
+    @IsNumber()
+    @IsNotEmpty()
+    @Min(0)
+    score: number;
 
-  @IsOptional()
-  @IsString()
-  search?: string;
-}
-
-export class FetchClassesBySubjectDto {
-  @IsNotEmpty()
-  @IsString()
-  subjectId: string;
-}
-
-export class FetchQuestionsByIdDto {
-  @IsNotEmpty()
-  @IsString()
-  subjectId: string;
-
-  @IsNotEmpty()
-  @IsString()
-  classId: string;
-
-  @IsOptional()
-  @IsString()
-  schoolId?: string;
+    @IsString()
+    @IsOptional()
+    comment?: string;
 }

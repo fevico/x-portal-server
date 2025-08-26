@@ -4,6 +4,7 @@ import { Body, Controller, Get, Param, Post, Query, Req, Request, UseGuards } fr
 import { Request as RequestExpress } from 'express';
 import { LessonPlanService } from './lesson-plan.service';
 import { CreateLessonPlan } from './dto/less-plan.dto';   
+import { LessonPlanType } from '@prisma/client';
 
 @Controller('lesson-plan')
 export class LessonPlanController {
@@ -31,8 +32,8 @@ export class LessonPlanController {
     @Query('sessionId') sessionId?: string,
     @Query('classId') classId?: string,
   ) {
-      const school = req.user as string
-    return this.lessonPlanService.schoolLessonPlan(school, {
+      const user = req.user as AuthenticatedUser
+    return this.lessonPlanService.schoolLessonPlan(user.schoolId, {
       subjectId,
       termId,
       sessionId,
@@ -51,8 +52,8 @@ export class LessonPlanController {
     @Query('subjectId') subjectId?: string,
     @Query('classId') classId?: string,
   ) {
-    const schoolId = req.user as string 
-    return this.lessonPlanService.schoolLessonPlanById(schoolId, lessonPlanId, {
+    const user = req.user as AuthenticatedUser 
+    return this.lessonPlanService.schoolLessonPlanById(user.schoolId, lessonPlanId, {
       sessionId,
       termId,
       subjectId,
@@ -63,7 +64,6 @@ export class LessonPlanController {
 
   @Get('/status/:status')
   async getLessonPlansByStatus(
-    // @Param('schoolId') schoolId: string,
     @Req() req: RequestExpress,
     @Param('status') status: LessonPlanType,
     @Query('page') page: number = 1,
@@ -72,12 +72,19 @@ export class LessonPlanController {
     @Query('classId') classId?: string,
     @Query('subjectId') subjectId?: string,
   ) {
-    const schoolId = req.user as string 
-    return this.lessonPlanService.schoolLessonPlanByStatus(schoolId, status, page, {
+    const user = req.user as AuthenticatedUser 
+    return this.lessonPlanService.schoolLessonPlanByStatus(user.schoolId, status, page, {
       termId,
       sessionId,
       classId,
       subjectId,
     });
+  }
+
+  @Get('weeks/:sessionId/:termId')
+  @UseGuards(JwtAuthGuard)
+  async fetchSessionTermWeeks(@Req() req: RequestExpress, @Param("sessionId") sessionId: string, @Param("termId") termId: string){
+    const school = req.user as AuthenticatedUser
+    return this.lessonPlanService.fetchSessionTermWeeks(school.schoolId, sessionId, termId)
   }
 }

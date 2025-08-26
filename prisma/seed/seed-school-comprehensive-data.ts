@@ -4,7 +4,7 @@ import { hash } from 'bcrypt';
 const prisma = new PrismaClient();
 
 // Target school ID
-const TARGET_SCHOOL_ID = 'cmdrauk5d0003hnm8aam4luow';
+const TARGET_SCHOOL_ID = 'cmeskg85v0001gbmwx83cl8l7';
 
 // Helper functions
 function generateRandomEmail(firstName: string, lastName: string): string {
@@ -12,7 +12,7 @@ function generateRandomEmail(firstName: string, lastName: string): string {
   const randomDomain = domains[Math.floor(Math.random() * domains.length)];
   const randomNum = Math.floor(Math.random() * 1000);
   return `${firstName.toLowerCase()}.${lastName.toLowerCase()}${randomNum}@${randomDomain}`;
-}
+} 
 
 function generateRandomPhoneNumber(): string {
   const prefixes = [
@@ -263,7 +263,7 @@ async function main() {
           name: `${currentYear}/${nextYear}`,
           schoolId: TARGET_SCHOOL_ID,
           isActive: true,
-          createdBy: 'cmdramgvd0000hnf0vbblis2r',
+          createdBy: 'cmeskg8lh0003gbmws6x9xu34',
         },
       });
       console.log(`📅 Created new session: ${session.name}`);
@@ -290,7 +290,7 @@ async function main() {
           data: {
             name: className,
             schoolId: TARGET_SCHOOL_ID,
-            createdBy: 'cmdramgvd0000hnf0vbblis2r',
+            createdBy: 'cmeskg8lh0003gbmws6x9xu34',
           },
         });
       }
@@ -304,7 +304,7 @@ async function main() {
           data: {
             name: armName,
             schoolId: TARGET_SCHOOL_ID,
-            createdBy: 'cmdramgvd0000hnf0vbblis2r',
+            createdBy: 'cmeskg8lh0003gbmws6x9xu34',
           },
         });
       }
@@ -325,11 +325,11 @@ async function main() {
 
     // Verify the createdBy user exists
     const createdByUser = await prisma.user.findUnique({
-      where: { id: 'cmdramgvd0000hnf0vbblis2r' },
+      where: { id: 'cmeskg8lh0003gbmws6x9xu34' },
     });
     if (!createdByUser) {
       throw new Error(
-        'The createdBy user ID cmdramgvd0000hnf0vbblis2r does not exist in the User table.',
+        'The createdBy user ID cmeskg8lh0003gbmws6x9xu34 does not exist in the User table.',
       );
     }
 
@@ -399,7 +399,7 @@ async function main() {
           subRoleId: subRoleStaff.id,
           schoolId: TARGET_SCHOOL_ID,
           schoolSlug: school.slug,
-          createdBy: 'cmdramgvd0000hnf0vbblis2r',
+          createdBy: 'cmeskg8lh0003gbmws6x9xu34',
           staff: {
             create: {
               staffRegNo: generateStaffId(i),
@@ -409,7 +409,7 @@ async function main() {
                 Math.floor(Math.random() * 12),
                 1,
               ),
-              createdBy: 'cmdramgvd0000hnf0vbblis2r',
+              createdBy: 'cmeskg8lh0003gbmws6x9xu34',
             },
           },
         },
@@ -454,7 +454,7 @@ async function main() {
           subRoleId: subRoleStudent.id,
           schoolId: TARGET_SCHOOL_ID,
           schoolSlug: school.slug,
-          createdBy: 'cmdramgvd0000hnf0vbblis2r',
+          createdBy: 'cmeskg8lh0003gbmws6x9xu34',
         },
       });
 
@@ -480,7 +480,7 @@ async function main() {
                 ].id,
             isAlumni: isAlumni,
             admissionStatus: AdmissionStatus.accepted,
-            createdBy: 'cmdramgvd0000hnf0vbblis2r',
+            createdBy: 'cmeskg8lh0003gbmws6x9xu34',
           },
         });
 
@@ -499,7 +499,7 @@ async function main() {
               sessionId: session.id,
               schoolId: TARGET_SCHOOL_ID,
               isActive: true,
-              createdBy: 'cmdramgvd0000hnf0vbblis2r',
+              createdBy: 'cmeskg8lh0003gbmws6x9xu34',
             },
           });
         }
@@ -552,7 +552,7 @@ async function main() {
             subRoleId: subRoleParent.id,
             schoolId: TARGET_SCHOOL_ID,
             schoolSlug: school.slug,
-            createdBy: 'cmdramgvd0000hnf0vbblis2r',
+            createdBy: 'cmeskg8lh0003gbmws6x9xu34',
           },
         });
 
@@ -570,7 +570,7 @@ async function main() {
             relationship: ['Father', 'Mother', 'Guardian'][
               Math.floor(Math.random() * 3)
             ],
-            createdBy: 'cmdramgvd0000hnf0vbblis2r',
+            createdBy: 'cmeskg8lh0003gbmws6x9xu34',
           },
         });
 
@@ -592,7 +592,7 @@ async function main() {
             assignedClassArmId: classArm.id,
             admissionStatus: AdmissionStatus.accepted,
             admissionDate,
-            createdBy: 'cmdramgvd0000hnf0vbblis2r',
+            createdBy: 'cmeskg8lh0003gbmws6x9xu34',
           },
         });
 
@@ -648,7 +648,7 @@ async function main() {
                 classArmSubjectId: classArmSubjectAssignment.id,
                 sessionId: session.id,
                 schoolId: TARGET_SCHOOL_ID,
-                createdBy: 'cmdramgvd0000hnf0vbblis2r',
+                createdBy: 'cmeskg8lh0003gbmws6x9xu34',
               },
             });
             subjectAssignmentCount++;

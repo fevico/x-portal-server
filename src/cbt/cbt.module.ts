@@ -4,7 +4,7 @@ import { CbtController } from './cbt.controller';
 import { PrismaModule } from '@/prisma/prisma.module';
 
 @Module({
-  imports: [PrismaModule],
+  // imports: [PrismaModule],
   providers: [CbtService],
   controllers: [CbtController],
 })

@@ -1,3 +1,0 @@
--- AlterTable
-ALTER TABLE `LessonPlan` ADD COLUMN `rejection_reason` VARCHAR(36) NULL,
-    ADD COLUMN `status` ENUM('PENDING', 'APPROVED', 'REJECTED') NOT NULL DEFAULT 'PENDING';

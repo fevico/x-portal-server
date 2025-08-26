@@ -364,4 +364,18 @@ export class LessonPlanService {
       throw error;
     }
   }
+
+  async fetchSessionTermWeeks(schoolId, sessionId, termId){
+    try {
+      const school = await this.prisma.school.findUnique({where: {id: schoolId}})
+      if(!school)  throw new UnauthorizedException("Unauthorized request!")
+        const termWeeks = await this.prisma.weeks.findMany({where: {sessionId, termId}})
+      if(termWeeks.length === 0){
+        return []
+      }
+      return termWeeks
+    } catch (error) {
+      throw new InternalServerErrorException(`Something went wrong ${error.message}`)
+    }
+  } 
 }
