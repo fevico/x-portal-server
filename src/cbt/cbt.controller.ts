@@ -5,13 +5,11 @@ import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guards';
 
 @Controller('cbt')
 export class CbtController {
-      constructor(private readonly CbtService: CbtService) {}
+  constructor(private readonly CbtService: CbtService) {}
 
-    // @Post('')
-    // @UseGuards(JwtAuthGuard)
-    // async addQuestions(@Body() addQuestionDto: CreateQuestionsDto, @Request() req){
-    //     return this.CbtService.createQuestionBank(addQuestionDto, req)
-    // }       
-
-
-}   
+  // @Post('')
+  // @UseGuards(JwtAuthGuard)
+  // async addQuestions(@Body() addQuestionDto: CreateQuestionsDto, @Request() req){
+  //     return this.CbtService.createQuestionBank(addQuestionDto, req)
+  // }
+}

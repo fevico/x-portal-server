@@ -371,80 +371,50 @@ export class AdmissionsService {
       console.error('Image upload error:', error);
       throw new BadRequestException('Failed to upload image to Cloudinary');
     }
+
+    // Create users outside the transaction
+    const studentUser = await this.prisma.user.create({
+      data: {
+        firstname: student.firstname,
+        lastname: student.lastname,
+        username: studentUsername,
+        email: student.email,
+        contact: student.contact,
+        gender: student.gender,
+        address: student.homeAddress,
+        password: studentHashedPassword,
+        plainPassword: studentPassword,
+        role: 'admin',
+        subRoleId: studentSubRole.id,
+        schoolId,
+        avatar: { imageUrl, pubId },
+        createdBy: schoolId,
+      },
+    });
+
+    const parentUser = await this.prisma.user.create({
+      data: {
+        firstname: parent.firstname,
+        lastname: parent.lastname,
+        othername: parent.othername,
+        username: parentUsername,
+        email: parent.email,
+        contact: parent.contact,
+        address: parent.address,
+        password: parentHashedPassword,
+        plainPassword: parentPassword,
+        role: 'admin',
+        subRoleId: parentSubRole.id,
+        schoolId,
+        createdBy: schoolId,
+      },
+    });
+
+    console.log(studentUser, parentUser);
+
     try {
       return await this.prisma.$transaction(
         async (tx) => {
-          // Create student user
-          let studentUser;
-          try {
-            studentUser = await tx.user.create({
-              data: {
-                firstname: student.firstname,
-                lastname: student.lastname,
-                username: studentUsername,
-                email: student.email,
-                contact: student.contact,
-                address: student.homeAddress,
-                password: studentHashedPassword,
-                gender: student.gender,
-                plainPassword: studentPassword,
-                role: 'admin',
-                subRoleId: studentSubRole.id,
-                schoolId,
-                avatar: { imageUrl, pubId },
-                createdBy: schoolId,
-              },
-            });
-          } catch (error) {
-            if (
-              error.code === 'P2002' &&
-              error.meta?.target?.includes('email')
-            ) {
-              throw new BadRequestException(
-                'Student email already exists. Please use a different email.',
-              );
-            }
-            throw new BadRequestException(
-              'Failed to create student user: ' +
-                (error.message || 'Unknown error'),
-            );
-          }
-
-          // Create parent user
-          let parentUser;
-          try {
-            parentUser = await tx.user.create({
-              data: {
-                firstname: parent.firstname,
-                lastname: parent.lastname,
-                othername: parent.othername,
-                username: parentUsername,
-                email: parent.email,
-                contact: parent.contact,
-                address: parent.address,
-                password: parentHashedPassword,
-                plainPassword: parentPassword,
-                role: 'admin',
-                subRoleId: parentSubRole.id,
-                schoolId,
-                createdBy: schoolId,
-              },
-            });
-          } catch (error) {
-            if (
-              error.code === 'P2002' &&
-              error.meta?.target?.includes('email')
-            ) {
-              throw new BadRequestException(
-                'Parent email already exists. Please use a different email.',
-              );
-            }
-            throw new BadRequestException(
-              'Failed to create parent user: ' +
-                (error.message || 'Unknown error'),
-            );
-          }
-
           // Create student
           const studentRecord = await tx.student.create({
             data: {
@@ -456,7 +426,7 @@ export class AdmissionsService {
               stateOfOrigin: student.stateOfOrigin,
               lga: student.lga,
               admissionStatus: AdmissionStatus.pending,
-              // createdBy: schoolId,
+              createdBy: schoolId,
             },
           });
 
@@ -466,7 +436,7 @@ export class AdmissionsService {
               userId: parentUser.id,
               relationship: parent.relationship,
               occupation: parent.occupation,
-              // createdBy: schoolId,
+              createdBy: schoolId,
             },
           });
 
@@ -484,7 +454,7 @@ export class AdmissionsService {
               formerSchoolContact: formerSchool.contact,
               healthProblems: otherInfo.healthProblems,
               howHeardAboutUs: otherInfo.howHeardAboutUs,
-              // createdBy: schoolId,
+              createdBy: schoolId,
             },
           });
 
@@ -496,82 +466,18 @@ export class AdmissionsService {
 
           return { admission, studentPassword, parentPassword };
         },
-        { timeout: 15000 },
-      ); // Reduce timeout for faster failure
+        { timeout: 30000 },
+      );
     } catch (error) {
-      // Clean up image if transaction fails
+      // Clean up users if transaction fails
+      await this.prisma.user.deleteMany({
+        where: { id: { in: [studentUser.id, parentUser.id] } },
+      });
       if (pubId) {
-        try {
-          await cloudinary.uploader.destroy(pubId);
-        } catch {}
+        await cloudinary.uploader.destroy(pubId);
       }
       throw error;
     }
-    //   return await this.prisma.$transaction(
-    //     async (tx) => {
-    //       // Create student
-    //       const studentRecord = await tx.student.create({
-    //         data: {
-    //           userId: studentUser.id,
-    //           studentRegNo: student.studentRegNo,
-    //           dateOfBirth: student.dateOfBirth,
-    //           religion: student.religion,
-    //           nationality: student.nationality,
-    //           stateOfOrigin: student.stateOfOrigin,
-    //           lga: student.lga,
-    //           admissionStatus: AdmissionStatus.pending,
-    //           createdBy: schoolId,
-    //         },
-    //       });
-
-    //       // Create parent
-    //       const parentRecord = await tx.parent.create({
-    //         data: {
-    //           userId: parentUser.id,
-    //           relationship: parent.relationship,
-    //           occupation: parent.occupation,
-    //           createdBy: schoolId,
-    //         },
-    //       });
-
-    //       // Create admission with image URL
-    //       const admission = await tx.admission.create({
-    //         data: {
-    //           sessionId,
-    //           schoolId,
-    //           studentId: studentRecord.id,
-    //           parentId: parentRecord.id,
-    //           presentClassId,
-    //           classApplyingTo,
-    //           formerSchoolName: formerSchool.name,
-    //           formerSchoolAddress: formerSchool.address,
-    //           formerSchoolContact: formerSchool.contact,
-    //           healthProblems: otherInfo.healthProblems,
-    //           howHeardAboutUs: otherInfo.howHeardAboutUs,
-    //           createdBy: schoolId,
-    //         },
-    //       });
-
-    //       // Update student with parent link
-    //       await tx.student.update({
-    //         where: { id: studentRecord.id },
-    //         data: { parentId: parentRecord.id },
-    //       });
-
-    //       return { admission, studentPassword, parentPassword };
-    //     },
-    //     { timeout: 30000 },
-    //   );
-    // } catch (error) {
-    //   // Clean up users if transaction fails
-    //   await this.prisma.user.deleteMany({
-    //     where: { id: { in: [studentUser.id, parentUser.id] } },
-    //   });
-    //   if (pubId) {
-    //     await cloudinary.uploader.destroy(pubId);
-    //   }
-    //   throw error;
-    // }
   }
 
   async updateAdmissionStatus(

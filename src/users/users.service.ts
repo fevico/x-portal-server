@@ -781,7 +781,7 @@ export class UsersService {
 
   async getStudentById(studentId: string) {
     // Fetch student and all related fields
-    const student = await this.prisma.student.findFirst({  
+    const student = await this.prisma.student.findFirst({
       where: {
         id: studentId,
       },
@@ -2216,5 +2216,89 @@ export class UsersService {
       console.error('Error linking/unlinking parent to student:', error);
       throw new ForbiddenException('Failed to link/unlink parent to student');
     }
+  }
+
+  /**
+   * Returns total number of students, alumni, parents, and staff in a school
+   */
+  async getSchoolTotals(requester: any) {
+    const schoolId = requester.schoolId;
+    if (!schoolId) {
+      throw new Error('School ID not found in requester');
+    }
+
+    // Students (not deleted, not alumni)
+    const totalStudents = await this.prisma.student.count({
+      where: {
+        admissionStatus: 'accepted',
+        isDeleted: false,
+        isAlumni: false,
+        user: { schoolId },
+      },
+    });
+
+    // Alumni (students marked as alumni)
+    const totalAlumni = await this.prisma.student.count({
+      where: {
+        isDeleted: false,
+        isAlumni: true,
+        user: { schoolId },
+      },
+    });
+
+    // Parents (not deleted)
+    const totalParents = await this.prisma.parent.count({
+      where: {
+        isDeleted: false,
+        user: { schoolId },
+        students: { some: { admissionStatus: 'accepted', isAlumni: false } }, // Only count parents with at least one non-deleted student
+      },
+    });
+
+    // Staff (not deleted)
+    const totalStaff = await this.prisma.staff.count({
+      where: {
+        isDeleted: false,
+        user: { schoolId },
+      },
+    });
+
+    return {
+      totalStudents,
+      totalAlumni,
+      totalParents,
+      totalStaff,
+    };
+  }
+
+  /**
+   * Returns number of students by class in a school (for chart)
+   */
+  async getStudentCountsByClass(requester: any) {
+    const schoolId = requester.schoolId;
+    if (!schoolId) throw new Error('School ID not found in requester');
+
+    // Get all classes in the school
+    const classes = await this.prisma.class.findMany({
+      where: { schoolId },
+      select: { id: true, name: true },
+    });
+
+    // For each class, count students (isAlumni: false, admissionStatus: 'accepted')
+    const chartData = await Promise.all(
+      classes.map(async (cls) => {
+        const count = await this.prisma.student.count({
+          where: {
+            isDeleted: false,
+            isAlumni: false,
+            admissionStatus: 'accepted',
+            classId: cls.id,
+            user: { schoolId },
+          },
+        });
+        return { class: cls.name, studentsNo: count };
+      }),
+    );
+    return chartData;
   }
 }

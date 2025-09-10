@@ -47,6 +47,7 @@ export class SchoolsService {
         select: {
           id: true,
           name: true,
+          slug: true,
           email: true,
           contact: true,
           isActive: true,
@@ -234,7 +235,6 @@ export class SchoolsService {
 
       // create recode in configuration model
 
-      
       // await this.prisma.configuration.create({
       //   data: {
       //     schoolId: school.id,

@@ -32,6 +32,19 @@ export class UsersController {
     return this.usersService.create(createUserDto, req);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Get('school/totals')
+  async getSchoolTotals(@Request() req) {
+    // Returns total students, alumni, parents, staff for the school
+    return this.usersService.getSchoolTotals(req.user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('school/students-by-class')
+  async getStudentCountsByClass(@Request() req) {
+    return this.usersService.getStudentCountsByClass(req.user);
+  }
+
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('superAdmin')
   @Get(':email')

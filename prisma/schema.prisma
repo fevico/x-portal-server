@@ -482,7 +482,7 @@ model Session {
 // Term definition model for creating term templates
 model TermDefinition {
   id                            String                             @id @default(uuid())
-  name                          TermEnum // e.g., "First_Term", "Second_Term", "Third_Term"
+  name                          String // e.g., "First_Term", "Second_Term", "Third_Term"
   schoolId                      String                             @map("school_id")
   school                        School                             @relation(fields: [schoolId], references: [id])
   sessionTerms                  SessionTerm[] // Links to term schedules
@@ -1516,11 +1516,11 @@ enum AdmissionStatus {
   rejected
 }
 
-enum TermEnum {
-  First_Term
-  Second_Term
-  Third_Term
-}
+// enum TermEnum {
+//   First_Term
+//   Second_Term
+//   Third_Term
+// }
 
 enum BehavioralRating {
   excellent
