@@ -85,7 +85,7 @@ export class AttendanceService {
   async getStudentAttendance(dto: GetStudentAttendanceDto, req: any) {
     const schoolId = req.user.schoolId; // Assuming schoolId is in the user object from the request
     try {
-      const { sessionId, classId, classArmId } = dto;
+      const { sessionId, classId, classArmId, date } = dto;
 
       const validAssignment =
         await this.prisma.sessionClassAssignment.findFirst({
@@ -93,6 +93,16 @@ export class AttendanceService {
         });
       if (!validAssignment) {
         throw new BadRequestException('Invalid class or class arm for session');
+      }
+
+      // Convert date to start and end of day for filtering
+      let startOfDay: Date | undefined = undefined;
+      let endOfDay: Date | undefined = undefined;
+      if (date) {
+        startOfDay = new Date(date);
+        startOfDay.setHours(0, 0, 0, 0);
+        endOfDay = new Date(date);
+        endOfDay.setHours(23, 59, 59, 999);
       }
 
       const students = await this.prisma.student.findMany({
@@ -118,6 +128,21 @@ export class AttendanceService {
           },
           class: { select: { name: true } },
           classArm: { select: { name: true } },
+          attendanceRecords: {
+            where: {
+              sessionId,
+              schoolId,
+              classId,
+              classArmId,
+              ...(date && {
+                date: {
+                  gte: startOfDay,
+                  lte: endOfDay,
+                },
+              }),
+            },
+            select: { status: true, studentId: true },
+          },
         },
       });
 
@@ -677,5 +702,73 @@ export class AttendanceService {
       };
     });
     return result;
+  }
+  /**
+   * Returns school-wide attendance summary for the last 30 days
+   */
+  async getSchoolAttendanceSummary(schoolId: string) {
+    if (!schoolId) throw new BadRequestException('School ID is required');
+
+    // Get all students in the school (not alumni, not deleted)
+    const totalStudents = await this.prisma.student.count({
+      where: {
+        isDeleted: false,
+        isAlumni: false,
+        admissionStatus: 'accepted',
+        user: { schoolId },
+      },
+    });
+
+    // Get today's date range (from 00:00 to 23:59:59)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+
+    const attendanceRecords = await this.prisma.attendance.findMany({
+      where: {
+        schoolId,
+        date: {
+          gte: today,
+          lt: tomorrow,
+        },
+      },
+      select: {
+        studentId: true,
+        status: true,
+      },
+    });
+
+    // Count attendance statuses
+    let present = 0,
+      absent = 0,
+      late = 0;
+    const takenStudentIds = new Set();
+    for (const record of attendanceRecords) {
+      takenStudentIds.add(record.studentId);
+      if (record.status === 'present') present++;
+      else if (record.status === 'absent') absent++;
+      else if (record.status === 'late') late++;
+    }
+
+    // Not taken: students with no attendance record today
+    const notTaken = totalStudents - takenStudentIds.size;
+
+    // Calculate percentages
+    const percent = (count: number) =>
+      totalStudents ? Math.round((count / totalStudents) * 100) : 0;
+
+    return {
+      date: today.toISOString().slice(0, 10),
+      totalStudents,
+      present,
+      presentPercent: percent(present),
+      absent,
+      absentPercent: percent(absent),
+      late,
+      latePercent: percent(late),
+      notTaken,
+      notTakenPercent: percent(notTaken),
+    };
   }
 }

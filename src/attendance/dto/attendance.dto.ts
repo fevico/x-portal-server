@@ -28,6 +28,10 @@ export class GetStudentAttendanceDto {
   @IsString()
   @IsNotEmpty()
   classArmId: string;
+
+  @IsDateString()
+  @IsNotEmpty()
+  date: string;
 }
 
 class StudentAttendance {
@@ -103,10 +107,6 @@ export class StudentPromotionDto {
 export class MarkStudentAttendanceDto {
   @IsString()
   @IsNotEmpty()
-  schoolId: string;
-
-  @IsString()
-  @IsNotEmpty()
   sessionId: string;
 
   @IsString()
@@ -129,8 +129,4 @@ export class MarkStudentAttendanceDto {
   @ValidateNested({ each: true })
   @Type(() => StudentAttendance)
   students: StudentAttendance[];
-
-  @IsString()
-  @IsNotEmpty()
-  createdBy: string;
 }

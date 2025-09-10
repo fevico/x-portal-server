@@ -135,6 +135,7 @@ export class AuthController {
     if (!['admin', 'superAdmin'].includes(body.view_as)) {
       throw new ForbiddenException('Invalid view_as value');
     }
+    // console.log('Setting view_as for user:', user.id, body);
     const viewAsToken = await this.authService.createViewAsToken(
       user.id,
       body.view_as,

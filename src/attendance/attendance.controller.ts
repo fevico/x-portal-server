@@ -29,6 +29,13 @@ export class AttendanceController {
     return this.attendanceService.getStudentAttendance(query, req);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Get('school/month-summary')
+  async getSchoolMonthAttendanceSummary(@Request() req) {
+    const schoolId = req.user.schoolId;
+    return await this.attendanceService.getSchoolAttendanceSummary(schoolId);
+  }
+
   @Post('mark')
   @UseGuards(JwtAuthGuard)
   async markStudentAttendance(
